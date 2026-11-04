@@ -1,5 +1,6 @@
 import "./globals.css";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
+import Navbar from "../components/navbar";
 
 const ibmPlexSansThai = IBM_Plex_Sans_Thai({
   subsets: ["thai", "latin"],
@@ -15,6 +16,8 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className={ibmPlexSansThai.className}>
+        <Navbar />
+
         {children}
       </body>
     </html>
