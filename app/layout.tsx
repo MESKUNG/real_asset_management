@@ -16,9 +16,7 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className={ibmPlexSansThai.className}>
-        <Navbar />
-
-        {children}
+        <Navbar>{children}</Navbar>
       </body>
     </html>
   );
