@@ -104,6 +104,7 @@ export default function Sidebar() {
         width={800}
         height={100}
         className="mb-4 rounded-2xl"
+        alt='logo'
       />
       <nav className="flex flex-col gap-3">
         {menus[role].map((menu) => (
