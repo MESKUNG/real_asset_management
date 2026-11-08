@@ -18,10 +18,7 @@ const CURRENT_USER_ID = 102;
 
 type RequestType = BorrowRequestType;
 
-// BorrowRequest + ฟิลด์ที่ใช้เฉพาะหน้านี้
-type Request = BorrowRequest & {
-  returnRequested?: boolean; // แอดมินส่งคำขอคืนไปแล้ว
-};
+type Request = BorrowRequest;
 
 type NewRequest = {
   type: RequestType;
@@ -43,6 +40,7 @@ const TYPES: Record<RequestType, { label: string; hint: string }> = {
 
 const STATUS: Record<BorrowStatus, { label: string; className: string }> = {
   pending: { label: "รออนุมัติ", className: "bg-amber-200 text-amber-950" },
+  revision: { label: "ส่งกลับแก้ไข", className: "bg-violet-200 text-violet-950" },
   approved: { label: "อนุมัติแล้ว", className: "bg-sky-200 text-sky-950" },
   returned: { label: "คืนแล้ว", className: "bg-emerald-200 text-emerald-950" },
   rejected: { label: "ไม่อนุมัติ", className: "bg-red-200 text-red-950" },
@@ -52,6 +50,7 @@ const STATUS: Record<BorrowStatus, { label: string; className: string }> = {
 const STATUS_FILTERS: StatusFilter[] = [
   "all",
   "pending",
+  "revision",
   "approved",
   "overdue",
   "returned",
@@ -119,6 +118,47 @@ const approvalComment = (requestId: string) =>
 
 const initial: Request[] = initialRequests;
 
+/* ---------- เก็บคำขอไว้ใน localStorage (รีเฟรชแล้วไม่หาย) ---------- */
+
+const STORAGE_KEY = "borrowRequests";
+const CHANGE_EVENT = "borrowrequestschange";
+
+function subscribeRequests(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(CHANGE_EVENT, onChange);
+  };
+}
+
+function getRequestsRaw(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function parseRequests(raw: string | null): Request[] {
+  if (!raw) return initial; // ยังไม่เคยบันทึก ใช้ข้อมูลเริ่มต้น
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Request[]) : initial;
+  } catch {
+    return initial;
+  }
+}
+
+function saveRequests(list: Request[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch (error) {
+    console.error("Save requests failed:", error);
+  }
+  window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
 /* ---------- page ---------- */
 
 export default function Page() {
@@ -127,14 +167,22 @@ export default function Page() {
   const isAdmin = role === "admin" || role === "superadmin";
   const isPresident = role === "president";
   const canApprove = isAdmin || isPresident; // อนุมัติ / ไม่อนุมัติ
-  const canManageReturn = isAdmin; // ส่งคำขอคืน / รับคืน
+  const canSendBack = isAdmin; // ส่งกลับแก้ไข
+  const canReceive = isAdmin; // รับคืนทรัพย์สิน
   const canCreate = !isPresident; // president ดูภาพรวมและอนุมัติเท่านั้น
 
-  const [requests, setRequests] = useState<Request[]>(initial);
+  const rawRequests = useSyncExternalStore(
+    subscribeRequests,
+    getRequestsRaw,
+    () => null,
+  );
+  const requests = useMemo(() => parseRequests(rawRequests), [rawRequests]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<Request | null>(null); // คำขอที่ถูกส่งกลับมาแก้
+  const [sendBackId, setSendBackId] = useState<string | null>(null);
 
   // ตัวเลขบนปุ่มสถานะ นับตามประเภทที่เลือกอยู่
   const byType = useMemo(
@@ -166,7 +214,7 @@ export default function Page() {
   }, [byType, statusFilter, query]);
 
   function update(id: string, patch: Partial<Request>) {
-    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    saveRequests(requests.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   // คืนรหัสคำขอใหม่ เพื่อให้ popup แสดงหลังส่งสำเร็จ
@@ -184,8 +232,32 @@ export default function Page() {
       note: "",
       createdAt: new Date().toISOString(),
     };
-    setRequests((prev) => [next, ...prev]);
+    saveRequests([next, ...requests]);
     return id;
+  }
+
+  // ผู้ขอแก้ไขคำขอที่ถูกส่งกลับ แล้วส่งใหม่ -> กลับไปรออนุมัติ
+  function resubmit(id: string, data: NewRequest): string {
+    const asset = assets.find((a) => a.id === data.assetId);
+    update(id, {
+      ...data,
+      toBranchId: data.toBranchId ?? null,
+      branchId: asset?.branchId ?? "",
+      status: "pending",
+      note: "",
+    });
+    return id;
+  }
+
+  // แอดมินส่งกลับแก้ไข พร้อมเหตุผล (เก็บไว้ใน note)
+  function confirmSendBack(reason: string) {
+    if (sendBackId) update(sendBackId, { status: "revision", note: reason });
+    setSendBackId(null);
+  }
+
+  function closeModal() {
+    setShowModal(false);
+    setEditing(null);
   }
 
   const pill = (active: boolean) =>
@@ -295,14 +367,14 @@ export default function Page() {
               <th className="p-3 font-bold">วันที่คืนจริง</th>
               <th className="p-3 font-bold">สถานะ</th>
               <th className="p-3 font-bold">หมายเหตุ</th>
-              {canApprove && <th className="p-3 font-bold">ดำเนินการ</th>}
+              <th className="p-3 font-bold">ดำเนินการ</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={canApprove ? 9 : 8}
+                  colSpan={9}
                   className="p-8 text-center text-slate-700"
                 >
                   ไม่พบคำขอที่ตรงกับตัวกรอง
@@ -348,27 +420,26 @@ export default function Page() {
                     </span>
                   </td>
                   <td className="max-w-56 p-3 text-slate-800">{note || "-"}</td>
-                  {canApprove && (
-                    <td className="p-3">
-                      <RowActions
-                        type={r.type}
-                        status={s}
-                        canReturn={canManageReturn}
-                        returnRequested={!!r.returnRequested}
-                        onRequestReturn={() =>
-                          update(r.id, { returnRequested: true })
-                        }
-                        onApprove={() => update(r.id, { status: "approved" })}
-                        onReject={() => update(r.id, { status: "rejected" })}
-                        onReturn={() =>
-                          update(r.id, {
-                            status: "returned",
-                            actualReturnDate: today(),
-                          })
-                        }
-                      />
-                    </td>
-                  )}
+                  <td className="p-3">
+                    <RowActions
+                      type={r.type}
+                      status={s}
+                      canApprove={canApprove}
+                      canSendBack={canSendBack}
+                      canReceive={canReceive}
+                      canEdit={canCreate && r.borrowerId === CURRENT_USER_ID}
+                      onApprove={() => update(r.id, { status: "approved" })}
+                      onReject={() => update(r.id, { status: "rejected" })}
+                      onSendBack={() => setSendBackId(r.id)}
+                      onReceive={() =>
+                        update(r.id, {
+                          status: "returned",
+                          actualReturnDate: today(),
+                        })
+                      }
+                      onEdit={() => setEditing(r)}
+                    />
+                  </td>
                 </tr>
               );
             })}
@@ -376,8 +447,20 @@ export default function Page() {
         </table>
       </div>
 
-      {showModal && (
-        <RequestModal onSubmit={addRequest} onClose={() => setShowModal(false)} />
+      {(showModal || editing) && (
+        <RequestModal
+          key={editing?.id ?? "new"}
+          editing={editing ?? undefined}
+          onSubmit={editing ? (d) => resubmit(editing.id, d) : addRequest}
+          onClose={closeModal}
+        />
+      )}
+
+      {sendBackId && (
+        <ReasonModal
+          onConfirm={confirmSendBack}
+          onClose={() => setSendBackId(null)}
+        />
       )}
     </div>
   );
@@ -388,56 +471,67 @@ export default function Page() {
 function RowActions({
   type,
   status,
-  canReturn,
-  returnRequested,
+  canApprove,
+  canSendBack,
+  canReceive,
+  canEdit,
   onApprove,
   onReject,
-  onRequestReturn,
-  onReturn,
+  onSendBack,
+  onReceive,
+  onEdit,
 }: {
   type: RequestType;
   status: BorrowStatus;
-  canReturn: boolean;
-  returnRequested: boolean;
+  canApprove: boolean;
+  canSendBack: boolean;
+  canReceive: boolean;
+  canEdit: boolean;
   onApprove: () => void;
   onReject: () => void;
-  onRequestReturn: () => void;
-  onReturn: () => void;
+  onSendBack: () => void;
+  onReceive: () => void;
+  onEdit: () => void;
 }) {
   const base = "rounded-md px-3 py-1.5 text-xs font-bold text-white";
 
-  if (status === "pending") {
+  // รออนุมัติ: Admin / SuperAdmin / President อนุมัติหรือไม่อนุมัติ, Admin ส่งกลับแก้ไขได้
+  if (status === "pending" && canApprove) {
     return (
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button onClick={onApprove} className={`${base} bg-emerald-700`}>
           อนุมัติ
         </button>
         <button onClick={onReject} className={`${base} bg-red-700`}>
           ไม่อนุมัติ
         </button>
+        {canSendBack && (
+          <button onClick={onSendBack} className={`${base} bg-violet-700`}>
+            ส่งกลับแก้ไข
+          </button>
+        )}
       </div>
     );
   }
 
-  const isOverdue = status === "overdue";
-  const readyToReceive = isOverdue || (type === "return" && status === "approved");
-
-  if (canReturn && readyToReceive) {
+  // ถูกส่งกลับ: ผู้ขอกดแก้ไขแล้วส่งใหม่
+  if (status === "revision" && canEdit) {
     return (
-      <div className="flex flex-wrap gap-2">
-        {isOverdue && (
-          <button
-            disabled={returnRequested}
-            onClick={onRequestReturn}
-            className={`${base} bg-indigo-700 disabled:opacity-50`}
-          >
-            {returnRequested ? "ส่งคำขอคืนแล้ว" : "ส่งคำขอคืน"}
-          </button>
-        )}
-        <button onClick={onReturn} className={`${base} bg-blue-950`}>
-          รับคืน
-        </button>
-      </div>
+      <button onClick={onEdit} className={`${base} bg-blue-950`}>
+        แก้ไขคำขอ
+      </button>
+    );
+  }
+
+  // คำขอคืนที่อนุมัติแล้วหรือเกินกำหนด: Admin รับคืนทรัพย์สิน
+  if (
+    canReceive &&
+    (status === "overdue" || (type === "return" && status === "approved"))
+  ) {
+    return (
+      <button onClick={onReceive} className={`${base} bg-blue-950`}>
+        รับคืน
+      </button>
     );
   }
 
@@ -445,18 +539,22 @@ function RowActions({
 }
 
 function RequestModal({
+  editing,
   onSubmit,
   onClose,
 }: {
+  editing?: Request; // มีค่า = โหมดแก้ไขคำขอที่ถูกส่งกลับ
   onSubmit: (d: NewRequest) => string;
   onClose: () => void;
 }) {
-  const [type, setType] = useState<RequestType>("withdraw");
-  const [assetId, setAssetId] = useState("");
-  const [borrowDate, setBorrowDate] = useState("");
-  const [expectedReturnDate, setExpectedReturnDate] = useState("");
-  const [toBranchId, setToBranchId] = useState("");
-  const [purpose, setPurpose] = useState("");
+  const [type, setType] = useState<RequestType>(editing?.type ?? "withdraw");
+  const [assetId, setAssetId] = useState(editing?.assetId ?? "");
+  const [borrowDate, setBorrowDate] = useState(editing?.borrowDate ?? "");
+  const [expectedReturnDate, setExpectedReturnDate] = useState(
+    editing?.expectedReturnDate ?? "",
+  );
+  const [toBranchId, setToBranchId] = useState(editing?.toBranchId ?? "");
+  const [purpose, setPurpose] = useState(editing?.purpose ?? "");
   const [submittedId, setSubmittedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -467,7 +565,9 @@ function RequestModal({
 
   // เบิก/โอนย้าย เลือกจากของที่พร้อมใช้งาน, คืน เลือกจากของที่กำลังถูกยืมอยู่
   const options = assets.filter(
-    (a) => a.status === (type === "return" ? "borrowed" : "available"),
+    (a) =>
+      a.status === (type === "return" ? "borrowed" : "available") ||
+      a.id === editing?.assetId,
   );
   const selectedAssetId = options.some((a) => a.id === assetId)
     ? assetId
@@ -536,7 +636,9 @@ function RequestModal({
                 <path d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-blue-950">ส่งคำขอเรียบร้อย</h2>
+            <h2 className="text-xl font-bold text-blue-950">
+              {editing ? "ส่งคำขอแก้ไขเรียบร้อย" : "ส่งคำขอเรียบร้อย"}
+            </h2>
             <p className="text-sm text-slate-800">
               คำขอ{TYPES[type].label} รหัส {submittedId} อยู่ในสถานะรออนุมัติ
             </p>
@@ -550,7 +652,9 @@ function RequestModal({
         ) : (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-blue-950">สร้างคำขอ</h2>
+              <h2 className="text-xl font-bold text-blue-950">
+                {editing ? "แก้ไขคำขอ" : "สร้างคำขอ"}
+              </h2>
               <button
                 onClick={onClose}
                 aria-label="ปิด"
@@ -560,6 +664,17 @@ function RequestModal({
               </button>
             </div>
 
+            {editing?.note && (
+              <div className="rounded-lg border border-violet-300 bg-violet-50 p-3 text-sm text-violet-950">
+                <span className="font-bold">เหตุผลที่ส่งกลับ:</span> {editing.note}
+              </div>
+            )}
+
+            {editing ? (
+              <p className="text-sm font-semibold text-slate-900">
+                ประเภทคำขอ: {TYPES[type].label} ({editing.id})
+              </p>
+            ) : (
             <div>
               <span className={label}>ประเภทคำขอ</span>
               <div className="grid grid-cols-3 gap-2">
@@ -579,6 +694,7 @@ function RequestModal({
                 ))}
               </div>
             </div>
+            )}
 
             <div>
               <label className={label}>ทรัพย์สิน</label>
@@ -671,11 +787,68 @@ function RequestModal({
                 onClick={submit}
                 className="rounded-lg bg-blue-950 px-6 py-2 text-sm font-bold text-white disabled:opacity-40"
               >
-                ส่งคำขอ
+                {editing ? "ส่งคำขอแก้ไข" : "ส่งคำขอ"}
               </button>
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ReasonModal({
+  onConfirm,
+  onClose,
+}: {
+  onConfirm: (reason: string) => void;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl bg-white p-6 text-slate-900 shadow-xl"
+      >
+        <h2 className="text-xl font-bold text-blue-950">ส่งกลับแก้ไข</h2>
+        <p className="mt-1 text-sm text-slate-800">
+          ระบุสิ่งที่ผู้ขอต้องแก้ไข คำขอจะถูกส่งกลับให้ผู้ขอแก้ไขแล้วส่งใหม่
+        </p>
+        <textarea
+          rows={4}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="เช่น ระบุวันที่คืนไม่ชัดเจน กรุณาแก้ไข"
+          className="mt-3 w-full rounded-lg border border-slate-400 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold text-slate-900"
+          >
+            ยกเลิก
+          </button>
+          <button
+            disabled={!reason.trim()}
+            onClick={() => onConfirm(reason.trim())}
+            className="rounded-lg bg-violet-700 px-6 py-2 text-sm font-bold text-white disabled:opacity-40"
+          >
+            ส่งกลับแก้ไข
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 export type BorrowStatus =
   | "pending"
+  | "revision" // แอดมินส่งกลับให้ผู้ขอแก้ไข
   | "approved"
   | "returned"
   | "rejected"
