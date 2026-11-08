@@ -159,6 +159,123 @@ function saveRequests(list: Request[]) {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
+/* ---------- ส่งออกข้อมูล (President) ---------- */
+
+const EXPORT_HEADERS = [
+  "รหัสคำขอ",
+  "ประเภท",
+  "ทรัพย์สิน",
+  "รหัสทรัพย์สิน",
+  "สาขาต้นทาง",
+  "สาขาปลายทาง",
+  "ผู้ขอ",
+  "วันที่ต้องการ / กำหนดคืน",
+  "วันที่คืนจริง",
+  "สถานะ",
+  "วัตถุประสงค์",
+  "หมายเหตุ",
+];
+
+function toTable(list: Request[]): string[][] {
+  return list.map((r) => [
+    r.id,
+    TYPES[r.type].label,
+    assetName(r.assetId),
+    r.assetId,
+    branchName(r.branchId),
+    r.type === "transfer" ? branchName(r.toBranchId) : "-",
+    `พนักงาน #${r.borrowerId}`,
+    fmtDate(r.type === "return" ? r.expectedReturnDate : r.borrowDate),
+    fmtDate(r.actualReturnDate),
+    STATUS[displayStatus(r)].label,
+    r.purpose,
+    r.note || approvalComment(r.id) || "-",
+  ]);
+}
+
+async function exportExcel(list: Request[]) {
+  try {
+    const ExcelJS = (await import("exceljs")).default;
+    const body = toTable(list);
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("คำขอ");
+    ws.columns = EXPORT_HEADERS.map((header, i) => ({
+      header,
+      key: String(i),
+      width: Math.min(
+        45,
+        Math.max(header.length, ...body.map((row) => row[i].length)) + 4,
+      ),
+    }));
+    body.forEach((row) => ws.addRow(row));
+    ws.getRow(1).font = { bold: true };
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `borrow-requests-${today()}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Export Excel failed:", error);
+  }
+}
+
+// PDF: เปิดหน้าพิมพ์ของเบราว์เซอร์ แล้วเลือก "Save as PDF" (ภาษาไทยแสดงถูกต้อง)
+function exportPdf(list: Request[], subtitle: string) {
+  const esc = (v: string) =>
+    v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const head = EXPORT_HEADERS.map((h) => `<th>${esc(h)}</th>`).join("");
+  const rowsHtml = toTable(list)
+    .map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
+    .join("");
+
+  const html = `<!doctype html><html lang="th"><head><meta charset="utf-8">
+<title>รายงานคำขอ</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  body { font-family: "Sarabun", "Noto Sans Thai", Tahoma, sans-serif; font-size: 11px; color: #111; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  p { margin: 0 0 10px; color: #333; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #777; padding: 4px 6px; text-align: left; vertical-align: top; }
+  th { background: #e5e7eb; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+</style></head><body>
+<h1>รายงานคำขอเบิก / คืน / โอนย้ายทรัพย์สิน</h1>
+<p>${esc(subtitle)}</p>
+<table><thead><tr>${head}</tr></thead><tbody>${rowsHtml}</tbody></table>
+</body></html>`;
+
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(iframe);
+
+  const win = iframe.contentWindow;
+  const doc = iframe.contentDocument;
+  if (!win || !doc) {
+    iframe.remove();
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  win.onafterprint = () => iframe.remove();
+  setTimeout(() => {
+    win.focus();
+    win.print();
+  }, 300);
+}
+
 /* ---------- page ---------- */
 
 export default function Page() {
@@ -260,6 +377,14 @@ export default function Page() {
     setEditing(null);
   }
 
+  const exportSubtitle = `ออกรายงานวันที่ ${new Date().toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })} · ประเภท: ${typeFilter === "all" ? "ทั้งหมด" : TYPES[typeFilter].label} · สถานะ: ${
+    statusFilter === "all" ? "ทั้งหมด" : STATUS[statusFilter].label
+  } · ${rows.length} รายการ`;
+
   const pill = (active: boolean) =>
     `rounded-full border px-4 py-1.5 text-sm font-semibold ${
       active
@@ -285,6 +410,24 @@ export default function Page() {
           >
             + สร้างคำขอ
           </button>
+        )}
+        {isPresident && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => void exportExcel(rows)}
+              disabled={rows.length === 0}
+              className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+            >
+              ส่งออก Excel
+            </button>
+            <button
+              onClick={() => exportPdf(rows, exportSubtitle)}
+              disabled={rows.length === 0}
+              className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+            >
+              ส่งออก PDF
+            </button>
+          </div>
         )}
       </header>
 
