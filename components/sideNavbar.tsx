@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import Image from "next/image";
 
@@ -89,6 +90,7 @@ function getServerRoleSnapshot(): null {
 }
 
 export default function Sidebar() {
+  const pathname = usePathname();
   const role = useSyncExternalStore(
     subscribeToCredentialChanges,
     getRoleSnapshot,
@@ -101,6 +103,7 @@ export default function Sidebar() {
     <aside className="w-80 min-h-screen bg-blue-950 p-4">
       <Image
         src="/All images/compose.webp"
+        alt="Real Asset Management"
         width={800}
         height={100}
         className="mb-4 rounded-2xl"
@@ -113,7 +116,13 @@ export default function Sidebar() {
             className={`
         rounded-lg font-medium text-white
         hover:bg-indigo-100 hover:text-violet-800
-        ${menu.name === "ตรวจนับ / รอบการตรวจนับ" ? "bg-yellow-400 text-blue-950! flex p-6 text-xl justify-center item-center" : "p-3 text-base"}
+        ${
+          menu.name === "ตรวจนับ / รอบการตรวจนับ"
+            ? "bg-yellow-400 text-blue-950! flex p-6 text-xl justify-center item-center"
+            : pathname === menu.path
+              ? "bg-indigo-100 text-violet-800 p-3 text-base"
+              : "p-3 text-base"
+        }
       `}
           >
             {menu.name}
