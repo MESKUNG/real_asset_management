@@ -5,6 +5,7 @@ import { assets } from "@/data/asset";
 import {
   borrowRequests as initialRequests,
   type BorrowRequest,
+  type BorrowRequestType,
   type BorrowStatus,
 } from "@/data/borrowRequests";
 import { approvals } from "@/data/approvals";
@@ -15,12 +16,10 @@ const CURRENT_USER_ID = 102;
 
 /* ---------- types ---------- */
 
-type RequestType = "withdraw" | "return" | "transfer";
+type RequestType = BorrowRequestType;
 
-// ขยายจาก BorrowRequest ให้รองรับ เบิก / ยืมคืน / ขอโอนย้าย
+// BorrowRequest + ฟิลด์ที่ใช้เฉพาะหน้านี้
 type Request = BorrowRequest & {
-  type: RequestType;
-  toBranchId?: string;
   returnRequested?: boolean; // แอดมินส่งคำขอคืนไปแล้ว
 };
 
@@ -45,7 +44,6 @@ const TYPES: Record<RequestType, { label: string; hint: string }> = {
 const STATUS: Record<BorrowStatus, { label: string; className: string }> = {
   pending: { label: "รออนุมัติ", className: "bg-amber-200 text-amber-950" },
   approved: { label: "อนุมัติแล้ว", className: "bg-sky-200 text-sky-950" },
-  borrowed: { label: "กำลังยืม", className: "bg-indigo-200 text-indigo-950" },
   returned: { label: "คืนแล้ว", className: "bg-emerald-200 text-emerald-950" },
   rejected: { label: "ไม่อนุมัติ", className: "bg-red-200 text-red-950" },
   overdue: { label: "เกินกำหนดคืน", className: "bg-orange-200 text-orange-950" },
@@ -55,7 +53,6 @@ const STATUS_FILTERS: StatusFilter[] = [
   "all",
   "pending",
   "approved",
-  "borrowed",
   "overdue",
   "returned",
   "rejected",
@@ -101,20 +98,26 @@ const fmtDate = (d: string | null) =>
       })
     : "-";
 
+// คำขอคืนที่อนุมัติแล้ว แต่เลยวันที่คาดว่าจะคืน และยังไม่ได้รับคืน = เกินกำหนด
 function displayStatus(r: Request): BorrowStatus {
-  if (r.status === "borrowed" && r.expectedReturnDate < today()) {
+  if (
+    r.type === "return" &&
+    r.status === "approved" &&
+    r.expectedReturnDate &&
+    r.expectedReturnDate < today()
+  ) {
     return "overdue";
   }
   return r.status;
 }
 
 const assetName = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
-const branchName = (id?: string) =>
+const branchName = (id?: string | null) =>
   branches.find((b) => b.id === id)?.name ?? id ?? "-";
 const approvalComment = (requestId: string) =>
   approvals.find((a) => a.requestId === requestId)?.comment ?? "";
 
-const initial: Request[] = initialRequests.map((r) => ({ ...r, type: "return" }));
+const initial: Request[] = initialRequests;
 
 /* ---------- page ---------- */
 
@@ -175,6 +178,7 @@ export default function Page() {
       borrowerId: CURRENT_USER_ID,
       branchId: asset?.branchId ?? "",
       ...data,
+      toBranchId: data.toBranchId ?? null,
       actualReturnDate: null,
       status: "pending",
       note: "",
@@ -415,13 +419,13 @@ function RowActions({
     );
   }
 
-  const isOut = status === "borrowed" || status === "overdue";
-  const readyToReceive = isOut || (type === "return" && status === "approved");
+  const isOverdue = status === "overdue";
+  const readyToReceive = isOverdue || (type === "return" && status === "approved");
 
   if (canReturn && readyToReceive) {
     return (
       <div className="flex flex-wrap gap-2">
-        {isOut && (
+        {isOverdue && (
           <button
             disabled={returnRequested}
             onClick={onRequestReturn}
