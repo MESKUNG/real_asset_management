@@ -13,7 +13,7 @@ type MenuItem = {
 
 const menus: Record<RoleKey, MenuItem[]> = {
   user: [
-    { name: "ภาพรวม", path: "/dashboard" },
+    { name: "ภาพรวม", path: "/dashboardUser" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการ Asset", path: "/assets" },
     { name: "เบิก / ยืมคืน / ขอโอนย้ายทรัพย์สิน", path: "/requests" },

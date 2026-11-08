@@ -8,6 +8,8 @@ export type Account = {
   phone: string;
   role_id: number;
   staff_id: number | null;
+  branchId?: string;
+  branch_id?: string;
   profile_image: string;
   status: "Active" | "Inactive";
   created_at: number;
