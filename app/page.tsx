@@ -28,7 +28,7 @@ type Credential = {
   email: string;
   role_id: number;
   role: RoleName;
-  branchId?: string;
+  branch_id?: string;
 };
 
 export default function Home() {
@@ -133,11 +133,9 @@ export default function Home() {
         email: typeof user.email === "string" ? user.email : "",
         role_id: user.role_id,
         role: roleName,
-        ...(typeof user.branchId === "string" && user.branchId.trim()
-          ? { branchId: user.branchId.trim() }
-          : typeof user.branch_id === "string" && user.branch_id.trim()
-            ? { branchId: user.branch_id.trim() }
-            : {}),
+        ...(typeof user.branch_id === "string" && user.branch_id.trim()
+          ? { branch_id: user.branch_id.trim() }
+          : {}),
       };
 
       localStorage.setItem("credential", JSON.stringify(credential));

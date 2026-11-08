@@ -71,10 +71,7 @@ export default function Page() {
           throw new Error("รูปแบบข้อมูลบัญชีไม่ถูกต้อง");
         }
 
-        const value =
-          typeof credential.branchId === "string"
-            ? credential.branchId
-            : credential.branch_id;
+        const value = credential.branch_id;
         setBranchId(
           typeof value === "string" && value.trim() ? value.trim() : null,
         );
