@@ -11,8 +11,10 @@ import { InputGroup, InputGroupInput } from "./tailgrids/core/input-group";
 
 import { AvatarBadge } from "@/components/tailgrids/core/avatar";
 
-import { Search1, Bell1, Gear1 } from "@tailgrids/icons";
+import { Search1, Bell1, Gear1,User2 } from "@tailgrids/icons";
 import { Button } from "./tailgrids/core/button";
+
+import { useRouter } from "next/navigation";
 
 ////////////////////////////////////////////////////////////
 
@@ -59,9 +61,17 @@ function getProfileImage(account: Record<string, unknown>): string | undefined {
 }
 
 export default function TopNavbar() {
+  const router = useRouter();
+
   const [user, setUser] = useState<Account | null>(null);
   const [isLoadingAccount, setIsLoadingAccount] = useState(true);
   const [failedImage, setFailedImage] = useState<string | null>(null);
+
+  const logout = () => {
+    localStorage.removeItem("credential");
+    window.dispatchEvent(new CustomEvent("credentialchange"));
+    router.replace("/");   //เปลี่ยนหน้าโดยที่แทนหน้าปัจจุบัน
+  };
 
   useEffect(() => {
     let active = true;
@@ -177,13 +187,20 @@ export default function TopNavbar() {
             </InputGroup>
           </TextField>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 mr-4">
             <Button>
               <Bell1 className="size-4.5" />
             </Button>
 
             <Button>
               <Gear1 className="size-4.5" />
+            </Button>
+
+            <Button
+              className="bg-red-500 text-white hover:bg-red-600 w-30 h-10 text-sm"
+              onClick={() => logout()}
+            >
+              ออกจากระบบ
             </Button>
           </div>
         </div>
@@ -204,14 +221,14 @@ export default function TopNavbar() {
                 />
               ) : (
                 <div className="flex size-full items-center justify-center rounded-full bg-primary-50 text-primary-500 uppercase">
-                  {user?.username?.charAt(0) || "U"}
+                  {user?.username?.charAt(0) || <User2 />}
                 </div>
               )}
               <AvatarBadge status="online" />
             </div>
 
             <figcaption>
-              <p className="text-sm font-medium">
+              <p className="text-sm font-medium w-30">
                 {user?.username ||
                   (isLoadingAccount ? "กำลังโหลด..." : "กรุณาเข้าสู่ระบบ")}
               </p>

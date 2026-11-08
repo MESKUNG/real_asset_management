@@ -100,6 +100,7 @@ export default function Sidebar() {
   return (
     <aside className="w-80 min-h-screen bg-blue-950 p-4">
       <Image
+      alt="Compose Logo"
         src="/All images/compose.webp"
         width={800}
         height={100}
