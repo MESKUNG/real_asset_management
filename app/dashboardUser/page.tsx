@@ -121,7 +121,7 @@ export default function Page() {
     todayDate.getMonth() + 1,
   ).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;     //padStartใช้เติมตัวอักษรด้านหน้าจนกว่าจะมีความยาวครบ 2 ตัวอักษร โดยการเติม "0"      
 
-  const pieData = (Object.keys(statusDetails) as AssetStatus[]).map(
+  const pieData = (Object.keys(statusDetails) as AssetStatus[]).map(  //ดึงชื่อ Key ทั้งหมดจาก Object ออกมาเป็น Array จาก Object statusDetails จะได้ผลลัพธ์เป็น
     (status) => ({
       name: statusDetails[status].name,
       value: scopedAssets.filter((asset) => asset.status === status).length,
