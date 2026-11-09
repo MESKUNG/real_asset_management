@@ -56,7 +56,7 @@ export default function Home() {
     try {                     //ใช้ try-catch เพื่อรับ Error ที่เกิดขึ้นในการเข้าสู่ระบบ
       const baseUrl = apiBaseUrl.replace(/\/+$/, "");   //ลบช่องว่างท้ายกับ / ท้าย ของ URL
       const usersResponse = await fetch(            //เรียกใช้ fetch() เพื่อดึงข้อมูลผู้ใช้จาก API  
-        `${baseUrl}/Account`,                       //เรียกข้อมูลจาก Resource /Account
+        `${baseUrl}/Account`,                       //เอา Resource มาทับ /Account
       );
 
       if (!usersResponse.ok) {     //ดักตรวจสอบว่าการดึงข้อมูลผู้ใช้สําเร็จหรือไม่ และถ่าไม่สำเร็จให้แสดงข้อความ Error

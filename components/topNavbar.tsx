@@ -40,7 +40,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {          /
 
 function getProfileImage(account: Record<string, unknown>): string | undefined {  //ตรวจสอบว่ามี profile_image หรือไม่ ที่มี key เป็น เป็น string และไม่ใช่ค่าว่าง
   const image = account.profile_image;
-
   if (typeof image === "string" && image.trim()) { //ตรวจสอบว่าเป็น string และไม่ใช่ค่าว่าง
     return image.trim();
   }
