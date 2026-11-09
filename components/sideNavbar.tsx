@@ -1,17 +1,21 @@
 "use client";
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import Image from "next/image";
+///////////////////////////////////////////////////
 
-type RoleKey = "user" | "admin" | "president" | "superadmin";
 
-type MenuItem = {
+type RoleKey = "user" | "admin" | "president" | "superadmin"; //สร้าง Type ชื่อ RoleKey โดยกำหนดให้สามารถรับค่าได้เพียง 4 ค่าเท่านั้น
+
+type MenuItem = {   
   name: string;
   path: string;
 };
 
-const menus: Record<RoleKey, MenuItem[]> = {
+const menus: Record<RoleKey, MenuItem[]> = {      //Key ต้องเป็นค่าที่อยู่ใน RoleKey และ Value ต้องเป็น Array ที่ประกอบด้วยข้อมูลประเภท MenuItem
   user: [
     { name: "ภาพรวม", path: "/dashboardUser" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
@@ -49,25 +53,25 @@ const menus: Record<RoleKey, MenuItem[]> = {
   ],
 };
 
-function subscribeToCredentialChanges(onChange: () => void) {
-  window.addEventListener("storage", onChange);
-  window.addEventListener("credentialchange", onChange);
+function subscribeToCredentialChanges(onChange: () => void) {   //ฟังก์ชันนี้รับ Parameter ชื่อ onChange ซึ่งเป็น Function ที่ไม่รับ Argument และไม่ส่งค่ากลับมา   onChange จะได้รับมาจาก useSyncExternalStore() โดยอัตโนมัติ
+  window.addEventListener("storage", onChange);        //Event Listener เพื่อรับฟัง Event ชื่อ storage          Event นี้จะเกิดขึ้นเมื่อมีการเปลี่ยนแปลง localStorage จากเอกสารหรือ Tab อื่นที่อยู่ใน Origin เดียวกัน
+  window.addEventListener("credentialchange", onChange);    //แจ้งเตือนเมื่อมีการเปลี่ยนแปลง Credential ภายใน Tab ปัจจุบัน
 
-  return () => {
+  return () => {          //Cleanup Function ยกเลิกการรับฟัง Event เมื่อ Component ไม่ต้องการติดตามข้อมูลแล้ว ป้องกัน mememory leak
     window.removeEventListener("storage", onChange);
     window.removeEventListener("credentialchange", onChange);
   };
 }
 
-function getRoleSnapshot(): RoleKey | null {
-  const credentialString = localStorage.getItem("credential");
-  if (!credentialString) return null;
+function getRoleSnapshot(): RoleKey | null {       //ฟังก์ชันนี้จะคืนค่ากลับมาได้ 2 รูปแบบ  ค่า Role ที่อยู่ใน RoleKey และ null หากไม่พบค่า
+  const credentialString = localStorage.getItem("credential");         //อ่านข้อมูลจาก Local Storage
+  if (!credentialString) return null;   //ถ้าไม่มี
 
-  try {
-    const credential: unknown = JSON.parse(credentialString);
-    if (typeof credential !== "object" || credential === null) return null;
+  try {                                                    //ถ้ามีลองแปลงเป็น Object
+    const credential: unknown = JSON.parse(credentialString);               //แปลงเป็น object       : unknown เป็นการกำหนด Type ของตัวแปร credential
+    if (typeof credential !== "object" || credential === null) return null;          //ถ้าไม่ใช่ Object หรือ เป็นnull ให้ return null
 
-    const role = "role" in credential ? credential.role : null;
+    const role = "role" in credential ? credential.role : null;             //ถ้ามี role ให้ return role ถ้าไม่มีให้ return null
     if (
       role === "user" ||
       role === "admin" ||
@@ -77,22 +81,21 @@ function getRoleSnapshot(): RoleKey | null {
       return role;
     }
 
-    return null;
-  } catch (error) {
+    return null;     //นอกเหนือจาก user, admin, president, superadmin ให้ return null
+  } catch (error) {        //จับข้อผิดพลาดที่เกิดขึ้นภายใน try
     console.error("Invalid credential:", error);
     return null;
   }
 }
 
-function getServerRoleSnapshot(): null {
-  return null;
-}
+////////////////////////////////////////////
+////////////////////////////////////////////
+///////////////////////////////////////
 
 export default function Sidebar() {
-  const role = useSyncExternalStore(
+  const role = useSyncExternalStore(          // WTF is this?? บอกทีว่าสิ่งนี้จะได้เรียนในเทอม 2
     subscribeToCredentialChanges,
     getRoleSnapshot,
-    getServerRoleSnapshot,
   );
 
   if (!role) return null;

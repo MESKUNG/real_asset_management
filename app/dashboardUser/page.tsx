@@ -1,5 +1,7 @@
 "use client";
-
+///////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////
+////////////////////////รวม library จ้า ///////////////////////////////
 import { useEffect, useState } from "react";
 import { Boxes, CircleCheck, Wrench } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -11,7 +13,10 @@ import { borrowRequests } from "@/data/borrowRequests";
 import { inventorySessions } from "@/data/inventorySessions";
 import { repairRequests } from "@/data/repairRequests";
 
-const statusDetails: Record<AssetStatus, { name: string; color: string }> = {
+///////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////
+
+const statusDetails: Record<AssetStatus, { name: string; color: string }> = {       //สร้าง Object สำหรับเก็บรายละเอียดของสถานะทรัพย์สินแต่ละประเภท
   available: { name: "พร้อมใช้งาน", color: "#198765" },
   borrowed: { name: "กำลังยืม", color: "#6366F1" },
   repair: { name: "กำลังซ่อม", color: "#B77912" },
@@ -19,19 +24,19 @@ const statusDetails: Record<AssetStatus, { name: string; color: string }> = {
   disposed: { name: "จำหน่ายแล้ว", color: "#9CA3AF" },
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, unknown> {       //ตรวจสอบว่าค่าที่รับเข้ามาเป็น Object หรือไม่ มีคีย์เป็น String และ Value เป้น อะไรก็ได้
+  return typeof value === "object" && value !== null && !Array.isArray(value);     //ตรวจสอบว่าเป็น object และไม่ใช่ null และไม่ใช่ Array
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("th-TH", {
-    day: "numeric",
-    month: "short",
+function formatDate(value: string) {       //แปลงวันที่เป็นภาษาไทย
+  return new Intl.DateTimeFormat("th-TH", {           //เป็น web api ที่ใช้ในการแปลงวันที่เป็นภาษาไทย โดยกำหนด locale เป็น "th-TH"
+    day: "numeric",  
+    month: "short",       //เป็นตัวย่อ ม.ค.
     year: "numeric",
-  }).format(new Date(value));
+  }).format(new Date(value));      //แปลง String ให้เป็น Date Object
 }
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string) {        //แปลงวันที่และเวลาเป็นภาษาไทย
   return new Intl.DateTimeFormat("th-TH", {
     day: "numeric",
     month: "short",
@@ -40,69 +45,81 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-function getActivityColor(action: string, newValue: string | null) {
-  if (action === "transferred") return "text-indigo-600";
-  if (action === "assigned") return "text-blue-600";
-  if (action === "status_changed") {
+function getActivityColor(action: string, newValue: string | null) {          //กําหนดสีตามความเปลี่ยนแปลงของทรัพย์สิน 
+    if (action === "transferred") return "text-indigo-600";           //หากกิจกรรมเป็นการย้ายทรัพย์สิน จะคืนค่า Class ของ Tailwind CSS เป็นสี Indigo
+    if (action === "assigned") return "text-blue-600";               //หากกิจกรรมเป็นการมอบหมายทรัพย์สิน จะคืนค่าเป็นสีน้ำเงิน
+
+    if (action === "status_changed") {              //หากกิจกรรมเป็นการเปลี่ยนสถานะ จะตรวจสอบสถานะใหม่ต่อไป
     if (newValue === "available") return "text-emerald-600";
     if (newValue === "repair") return "text-amber-700";
     if (newValue === "damaged") return "text-red-600";
     if (newValue === "borrowed") return "text-indigo-600";
   }
-  return "text-gray-600";
+  return "text-gray-600";            //หากไม่ตรงกับเงื่อนไขใดเลย จะใช้สีเทาเป็นค่าเริ่มต้น
 }
 
-export default function Page() {
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [branchResolved, setBranchResolved] = useState(false);
+/////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 
-  useEffect(() => {
-    const loadBranch = () => {
-      const credentialString = localStorage.getItem("credential");
-      if (!credentialString) {
-        setBranchId(null);
-        setBranchResolved(true);
+
+
+
+
+export default function Page() {
+  const [branchId, setBranchId] = useState<string | null>(null);        //ใช้เก็บรหัสสาขาของผู้ใช้งานที่เข้าสู่ระบบ ค่าเริม่ต้นเป้น null
+  const [branchResolved, setBranchResolved] = useState(false);          //ใช้ตรวจสอบว่าระบบอ่านข้อมูลสาขาของผู้ใช้งานเสร็จแล้วหรือยัง
+
+  useEffect(() => {            //สำหรับอ่านข้อมูลสาขาจาก localStorage
+    const loadBranch = () => {                   //รวบรวมคำสั่งทั้งหมดที่เกี่ยวข้องกับการอ่านข้อมูลสาขาไว้ด้วยกัน               
+      const credentialString = localStorage.getItem("credential");       //อ่านข้อมูลจาก localStorage
+      if (!credentialString) {              //ถ้าไม่มีข้อมูล
+        setBranchId(null);            //branchId เป็น null
+        setBranchResolved(true);         ///อ่านข้อมูลเสร็จสิ้น
         return;
       }
 
-      try {
-        const credential: unknown = JSON.parse(credentialString);
-        if (!isRecord(credential)) {
+      try {                           //ลองแปลงข้อมูลจาก JSON เป็น JavaScript Object
+        const credential: unknown = JSON.parse(credentialString);      // : unknown เพราะไม่รู้ว่าโครงสร้างที่มาจาก localstorage ถูกหรือยัง      แปลงเป็น object
+        if (!isRecord(credential)) {                          //ถ้าไม่ใช่ Object ให้ return null แล้วไปทำ catch
           throw new Error("รูปแบบข้อมูลบัญชีไม่ถูกต้อง");
         }
 
-        const value = credential.branch_id;
+        const value = credential.branch_id;       //กรณีที่เป็น Object ให้ดึงค่าของ branch_id
         setBranchId(
-          typeof value === "string" && value.trim() ? value.trim() : null,
+          typeof value === "string" && value.trim() ? value.trim() : null,           //เช็คว่าเป็น string และไม่ใช่ค่าว่าง ถ้าใช่ให้ trim แล้วนําไปใช้ ถ้าไม่ใช่ให้เป็น null
         );
-      } catch (error) {
+      } catch (error) {              //ดักจับ Error ที่เกิดขึ้นภายใน try
         console.error("อ่านข้อมูลสาขาจากบัญชีไม่สำเร็จ:", error);
         setBranchId(null);
-      } finally {
+      } finally {                 //จบแล้ว อ่านข้อมูลเสร้จสิ้น
         setBranchResolved(true);
       }
     };
 
-    loadBranch();
-    window.addEventListener("credentialchange", loadBranch);
-    window.addEventListener("storage", loadBranch);
-    return () => {
-      window.removeEventListener("credentialchange", loadBranch);
+    loadBranch();    //เรียกฟังชั่นข้างบนนี่แหละ
+    window.addEventListener("credentialchange", loadBranch);     //เพิ่ม Event Listener ให้กับ Browser เพื่อรอฟัง Event ที่ชื่อ "credentialchange"  เมื่อมีการส่ง Event ชื่อนี้ ก็จะเรียก Function loadBranch() อีกครั้ง
+    window.addEventListener("storage", loadBranch);         //การตรวจจับ Event มาตรฐานของ Browser ที่ชื่อ "storage" Event นี้จะเกิดขึ้นเมื่อข้อมูลใน Web Storage ถูกเปลี่ยนแปลงจากหน้าเว็บหรือแท็บอื่นที่อยู่ใน Origin เดียวกัน
+    return () => {                       //Cleanup Function ลบ Event Listener ที่เคยเพิ่มไว้เมื่อ Component ถูกถอดออกจากหน้าเว็บ หรือเมื่อ Effect ถูกทำความสะอาดก่อนทำงานใหม่ กัน memoryleak
+      window.removeEventListener("credentialchange", loadBranch); 
       window.removeEventListener("storage", loadBranch);
     };
-  }, []);
+  }, []);     //dependenc array ทำตอนโหลดหน้าครั้งแรก
 
-  const selectedBranch = branches.find((branch) => branch.id === branchId);
-  const branchAssets = branchId
-    ? assets.filter((asset) => asset.branchId === branchId)
-    : assets;
-  const hasScope = !branchId || Boolean(selectedBranch);
-  const scopedAssets = hasScope ? branchAssets : [];
-  const totalAssets = hasScope ? scopedAssets.length : null;
-  const todayDate = new Date();
-  const today = `${todayDate.getFullYear()}-${String(
+
+  //หลังจากได้รับข้อมูลสาขาแล้ว จะโหลดข้อมูลทั้งหมดจาก API
+
+  const selectedBranch = branches.find((branch) => branch.id === branchId);      //ค้นหาข้อมูลสาขาที่ตรงกับรหัสสาขาของผู้ใช้งาน โดย หาจาก branches โดยใช้ .find และเปรียบเทียบกับรหัสสาขาของผู้ใช้งาน
+  const branchAssets = branchId         //กรองข้อมูลทรัพย์สินตามสาขาที่ผู้ใช้งานสังกัด
+    ? assets.filter((asset) => asset.branchId === branchId)           //ถ้ามี branchId ตรงกัน จะกรองทรัพย์สินเฉพาะสาขานั้น
+    : assets;                                                 //ถ้าไม่มีเอาหมด
+  const hasScope = !branchId || Boolean(selectedBranch);                 //ตรวจสอบว่ารหัสสาขาที่ได้จากผู้ใช้งานมีอยู่จริงในระบบหรือไม่ ถ้าไม่มี brachId เป้น true ส่วนอย่างหลังถ้าเป็น obj ได้ true ถ้าไม่ได้ false
+  const scopedAssets = hasScope ? branchAssets : [];                      //หากรหัสสาขาไม่ถูกต้อง ไม่ควรนำข้อมูลทรัพย์สินของสาขาอื่นมาแสดงโดยไม่ตั้งใจให้ scopedAssets = []
+  const totalAssets = hasScope ? scopedAssets.length : null;    //ใช้คำนวณจำนวนทรัพย์สินทั้งหมด
+  const todayDate = new Date();                //จะสร้าง Date Object โดยอ้างอิงวันที่และเวลาปัจจุบันของเครื่อง
+  const today = `${todayDate.getFullYear()}-${String(          //เก็บค่า today โดย getFullYear เก็บคศ  getMonth เก็บเดือน(+1 เพราะ index เริ่ม 0)
     todayDate.getMonth() + 1,
-  ).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
+  ).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;     //padStartใช้เติมตัวอักษรด้านหน้าจนกว่าจะมีความยาวครบ 2 ตัวอักษร โดยการเติม "0"      
 
   const pieData = (Object.keys(statusDetails) as AssetStatus[]).map(
     (status) => ({
