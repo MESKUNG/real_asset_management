@@ -121,78 +121,82 @@ export default function Page() {
     todayDate.getMonth() + 1,
   ).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;     //padStartใช้เติมตัวอักษรด้านหน้าจนกว่าจะมีความยาวครบ 2 ตัวอักษร โดยการเติม "0"      
 
-  const pieData = (Object.keys(statusDetails) as AssetStatus[]).map(  //ดึงชื่อ Key ทั้งหมดจาก Object ออกมาเป็น Array จาก Object statusDetails จะได้ผลลัพธ์เป็น
-    (status) => ({
-      name: statusDetails[status].name,
-      value: scopedAssets.filter((asset) => asset.status === status).length,
-      color: statusDetails[status].color,
+  const pieData = (Object.keys(statusDetails) as AssetStatus[]).map(  //ดึงชื่อ Key ทั้งหมดจาก Object ออกมาเป็น Array จาก Object statusDetails 
+    (status) => ({                               //นำมาสร้าง array method เป็น obj ใหม่ที่ประกอบด้วย name value color
+      name: statusDetails[status].name,          //ดึงชื่อ name ภาษาไทยมาจาก statusdetail 
+      value: scopedAssets.filter((asset) => asset.status === status).length,     //กรองทรัพย์สิน ที่มีสถานะตรงกับเงื่อนไข จากนั้นนับจำนวนผ่าน .length  
+      color: statusDetails[status].color,    //ดึงสีประจำสถานะ จาก status detail
     }),
   );
-  const availableAssets = scopedAssets.filter(
-    (asset) => asset.status === "available",
-  ).length;
-  const damagedAssets =
-    pieData.find((item) => item.name === "ชำรุด")?.value ?? 0;
+  const availableAssets = scopedAssets.filter(   //เอา scopeAsset จากข้างบน มาfilter นับจำนวนทรัพย์สินที่มีสถานะ avaliable
+    (asset) => asset.status === "available",    
+  ).length;        
+  const damagedAssets =                  //นับจำนวน
+    pieData.find((item) => item.name === "ชำรุด")?.value ?? 0;      //นับจำนวนทรัพย์สินที่ชำรุด จาก pieData.name ด้านบน
   const repairAssets =
-    pieData.find((item) => item.name === "กำลังซ่อม")?.value ?? 0;
-  const maintenanceAssets = damagedAssets + repairAssets;
+    pieData.find((item) => item.name === "กำลังซ่อม")?.value ?? 0;     //นับจำนวนทรัพย์สินที่กำลังซ่อมจาก pieData.name ด้านบน
+  const maintenanceAssets = damagedAssets + repairAssets;        //รวมจำนวนทรัพย์สินที่ชำรุด กำลังซ่อม เป็น ซ่อมหรือชำรุด เพื่อเอาไปใส่ card ด้านบน
 
-  const activeRepairs = repairRequests.filter(
+  const activeRepairs = repairRequests.filter(      //เอา Data repairRequest มา filter
     (request) =>
-      (!branchId || request.branchId === branchId) &&
-      (request.status === "pending" || request.status === "in_progress"),
-  ).length;
-  const activeBorrowRequests = borrowRequests.filter(
+      (!branchId || request.branchId === branchId) &&       //หากผู้ใช้ไม่มีม brancheID ก็แสดงทุกสาขา แต่ถ้ามี ต้อง request.branchId เหมือนกับ branch.Id
+      (request.status === "pending" || request.status === "in_progress"),       //สถานะจะเป็น กำลังซ่อม หรือ รอดำเนินการก็ได้
+  ).length;                                                   //แล้วนับจำนวน
+
+  const activeBorrowRequests = borrowRequests.filter(              //นับจำนวนคำขอยืมทุกอย่างที่อยู่ในกระบวนการ          
     (request) =>
-      (!branchId || request.branchId === branchId) &&
-      ["pending", "approved", "borrowed", "overdue"].includes(request.status),
+      (!branchId || request.branchId === branchId) &&             //หากผู้ใช้ไม่มีม brancheID ก็แสดงทุกสาขา แต่ถ้ามี ต้อง request.branchId เหมือนกับ branch.Id 
+      ["pending", "approved", "borrowed", "overdue"].includes(request.status),             //includes มี Array ตรงอย่างน้อย 1 อันไหม
   ).length;
-  const nextInventory = inventorySessions
+
+  const nextInventory = inventorySessions      //ค้นหารอบตรวจนับครั้งถัดไปจาก invertorysession
     .filter(
       (session) =>
-        (!branchId || session.branchId === branchId) &&
-        session.status === "planned" &&
-        session.startDate >= today,
+        (!branchId || session.branchId === branchId) &&           //หากผู้ใช้ไม่มีม brancheID ก็แสดงทุกสาขา แต่ถ้ามี ต้อง request.branchId เหมือนกับ branch.Id
+        session.status === "planned" &&               ////เลือกแค่ status planned
+        session.startDate >= today,          //เลือกวันที่ใกล้ที่สุด
     )
-    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
-  const nearestWarrantyAsset = scopedAssets
-    .filter((asset) => asset.warrantyEndDate >= today)
-    .sort((a, b) => a.warrantyEndDate.localeCompare(b.warrantyEndDate))[0];
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];   //เรียงวันที่จากน้อยไปมาก และ localeCompare(เปรียบเทียบ String แล้วคืนค่าเป็นเลข) ค่าติดลบ = a มาก่อน b   ค่า 0 = ทั้งสองค่าเท่ากัน    ค่าบวก = a มาหลัง b      [0] คือเลือกรายการแรก
+  const nearestWarrantyAsset = scopedAssets     //ค้นหาทรัพย์สินที่ใกล้หมดประกัน
+    .filter((asset) => asset.warrantyEndDate >= today)     //กรอง Asset ที่ warrantyenddate ใกล้ today มากที่สุด
+    .sort((a, b) => a.warrantyEndDate.localeCompare(b.warrantyEndDate))[0];     //เรียงลำดับวันหมดประกัน จากใกล้สุดไปไกลสุด      แต่เอาตัวแรก [0]
 
-  const scopedAssetIds = new Set(scopedAssets.map((asset) => asset.id));
-  const recentActivities = assetHistories
-    .filter((history) => {
-      if (!branchId) return true;
-      if (history.action === "transferred") {
-        return history.oldValue === branchId || history.newValue === branchId;
+  const scopedAssetIds = new Set(scopedAssets.map((asset) => asset.id));                //สร้าง Set ที่เก็บ ID ของ Asset ที่จะแสดง    map เฉพาะ asset id
+  
+   //ดึงประวัติการเปลี่ยนแปลงทรัพย์สินล่าสุด 
+  const recentActivities = assetHistories                
+    .filter((history) => {              //กรองข้อมูลจากdata assethistories
+      if (!branchId) return true;    //ถ้าไม่มีสาขาให้ส่ง true 
+      if (history.action === "transferred") {       //ถ้า action เป้นย้าย
+        return history.oldValue === branchId || history.newValue === branchId;      //ไม่ว่าจะอยู่สาขาหน เช่น ย้ายจาก BROO1 ไป BR002 ทั้งสองสาขาก็ต้องเห้นด้วย
       }
-      return scopedAssetIds.has(history.assetId);
+      return scopedAssetIds.has(history.assetId);    //หากไม่ใช่ transfer จะตรวจสอบ ID ของ asset นั้น มีอยู่ใน scopedasset1Id ไหม  โดยใช้ .has หากเจอก็เก็บ เป้น true ไว้ใช้ต่อ
     })
-    .sort((a, b) => b.performedAt.localeCompare(a.performedAt))
-    .slice(0, 6)
-    .map((history) => {
-      const asset = assets.find((item) => item.id === history.assetId);
-      const activityBranchId =
-        history.action === "transferred" && history.newValue
-          ? history.newValue
-          : asset?.branchId;
+    .sort((a, b) => b.performedAt.localeCompare(a.performedAt))        //เรียงประวัติจากใหม่ไปเก่า   เลยเป้น b ก่อน a
+    .slice(0, 6)       //เลือกเพียง 6 รายการจากทั้งหมด
+    .map((history) => {            //หลังจากเรียงแล้ว นำประวัติแต่ละรายการมาแปลงเป้น obj
+      const asset = assets.find((item) => item.id === history.assetId);    //หา asset จาก data asset และต้องตรงกับ assetId ใน history
+      const activityBranchId =     
+        history.action === "transferred" && history.newValue         //กิจกรรมต้อง transfer และมีค่า newvalue
+          ? history.newValue    //ถ้าใช่ต้องอิงจากสาขาปลายทาง
+          : asset?.branchId;          //ถ้าไม่ใช่อิงจากสาขาเก่า
 
       return {
-        ...history,
-        assetName: asset?.name ?? "Error",
-        branchName:
-          branches.find((branch) => branch.id === activityBranchId)?.name ??
+        ...history,         //แตก history ออกเป็น obj ใหม่
+        assetName: asset?.name ?? "Error",     //นำชื่ิอทรัพสินจาก assetname หากไม่มี ใช้ error
+        branchName:         
+          branches.find((branch) => branch.id === activityBranchId)?.name ??     //ค้นหาชื่อ array จาก branch    หาสาขา id ที่ตรงกับ activity branch      หลังจากพบแล้วดึง name ของสาขา
           "Error",
       };
     });
 
-  const branchLabel = !branchResolved
-    ? "กำลังโหลด..."
-    : selectedBranch?.name ?? "Error";
-  const scopeLabel =
-    !branchResolved || branchId
-      ? selectedBranch?.name ?? "Error"
-      : "ข้อมูลรวมทุกสาขา";
+  const branchLabel = !branchResolved         //กำหนดชื่อสาขาที่จะแสดงผล   
+    ? "กำลังโหลด..."     //ถ้า branchresolve เป็น false 
+    : selectedBranch?.name ?? "Error";     //หากพบสาขาจะแสดืงชือสาขา
+  const scopeLabel =                            //กำหนดข้อความขอบเขตข้อมูล dashboard
+    !branchResolved || branchId     //หากโหลดข้อมูลไม่เสร็จ หรือมี brachId อยู่
+      ? selectedBranch?.name ?? "Error"          //ถ้ามี แสดงชื่อสาขานั้น
+      : "ข้อมูลรวมทุกสาขา";     //ถ้าไม่มี
 
   return (
     <div className="flex flex-col gap-8 px-6 py-8">
