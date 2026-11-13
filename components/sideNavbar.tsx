@@ -3,6 +3,7 @@
 ///////////////////////////////////////////////////
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import Image from "next/image";
 ///////////////////////////////////////////////////
@@ -95,7 +96,8 @@ function getRoleSnapshot(): RoleKey | null {       //ฟังก์ชันน
 ///////////////////////////////////////
 
 export default function Sidebar() {
-  const role = useSyncExternalStore(          // WTF is this?? บอกทีว่าสิ่งนี้จะได้เรียนในเทอม 2
+  const pathname = usePathname();
+  const role = useSyncExternalStore( // WTF is this?? บอกทีว่าสิ่งนี้จะได้เรียนในเทอม 2
     subscribeToCredentialChanges,
     getRoleSnapshot,
   );
@@ -107,6 +109,7 @@ export default function Sidebar() {
       <Image
       alt="Compose Logo"
         src="/All images/compose.webp"
+        alt="Real Asset Management"
         width={800}
         height={100}
         className="mb-4 rounded-2xl"
@@ -120,7 +123,13 @@ export default function Sidebar() {
             className={`
         rounded-lg font-medium text-white
         hover:bg-indigo-100 hover:text-violet-800
-        ${menu.name === "ตรวจนับ / รอบการตรวจนับ" ? "bg-yellow-400 text-blue-950! flex p-6 text-xl justify-center item-center" : "p-3 text-base"}
+        ${
+          menu.name === "ตรวจนับ / รอบการตรวจนับ"
+            ? "bg-yellow-400 text-blue-950! flex p-6 text-xl justify-center item-center"
+            : pathname === menu.path
+              ? "bg-indigo-100 text-violet-800 p-3 text-base"
+              : "p-3 text-base"
+        }
       `}
           >
             {menu.name}
