@@ -8,15 +8,15 @@ import { useSyncExternalStore } from "react";
 import Image from "next/image";
 ///////////////////////////////////////////////////
 
-
 type RoleKey = "user" | "admin" | "president" | "superadmin"; //สร้าง Type ชื่อ RoleKey โดยกำหนดให้สามารถรับค่าได้เพียง 4 ค่าเท่านั้น
 
-type MenuItem = {   
+type MenuItem = {
   name: string;
   path: string;
 };
 
-const menus: Record<RoleKey, MenuItem[]> = {      //Key ต้องเป็นค่าที่อยู่ใน RoleKey และ Value ต้องเป็น Array ที่ประกอบด้วยข้อมูลประเภท MenuItem
+const menus: Record<RoleKey, MenuItem[]> = {
+  //Key ต้องเป็นค่าที่อยู่ใน RoleKey และ Value ต้องเป็น Array ที่ประกอบด้วยข้อมูลประเภท MenuItem
   user: [
     { name: "ภาพรวม", path: "/dashboardUser" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
@@ -28,7 +28,7 @@ const menus: Record<RoleKey, MenuItem[]> = {      //Key ต้องเป็น
     { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
   ],
   admin: [
-    { name: "ภาพรวม", path: "/dashboard" },
+    { name: "ภาพรวม", path: "/dashboardAdmin" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการ Asset", path: "/assets" },
     { name: "เบิก / คืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
@@ -40,7 +40,7 @@ const menus: Record<RoleKey, MenuItem[]> = {      //Key ต้องเป็น
     { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
   ],
   president: [
-    { name: "ภาพรวม", path: "/dashboard" },
+    { name: "ภาพรวม", path: "/dashboardPresident" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการ Asset", path: "/assets" },
     { name: "ตรวจสอบและอนุมัติคําร้อง", path: "/approve_center" },
@@ -48,7 +48,6 @@ const menus: Record<RoleKey, MenuItem[]> = {      //Key ต้องเป็น
     { name: "ประวัติการโอนย้าย Asset", path: "/transfer_history" },
     { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
     { name: "เบิก / คืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
-    
   ],
   superadmin: [
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
@@ -56,25 +55,33 @@ const menus: Record<RoleKey, MenuItem[]> = {      //Key ต้องเป็น
   ],
 };
 
-function subscribeToCredentialChanges(onChange: () => void) {   //ฟังก์ชันนี้รับ Parameter ชื่อ onChange ซึ่งเป็น Function ที่ไม่รับ Argument และไม่ส่งค่ากลับมา   onChange จะได้รับมาจาก useSyncExternalStore() โดยอัตโนมัติ
-  window.addEventListener("storage", onChange);        //Event Listener เพื่อรับฟัง Event ชื่อ storage          Event นี้จะเกิดขึ้นเมื่อมีการเปลี่ยนแปลง localStorage จากเอกสารหรือ Tab อื่นที่อยู่ใน Origin เดียวกัน
-  window.addEventListener("credentialchange", onChange);    //แจ้งเตือนเมื่อมีการเปลี่ยนแปลง Credential ภายใน Tab ปัจจุบัน
+function subscribeToCredentialChanges(onChange: () => void) {
+  //ฟังก์ชันนี้รับ Parameter ชื่อ onChange ซึ่งเป็น Function ที่ไม่รับ Argument และไม่ส่งค่ากลับมา   onChange จะได้รับมาจาก useSyncExternalStore() โดยอัตโนมัติ
+  window.addEventListener("storage", onChange); //Event Listener เพื่อรับฟัง Event ชื่อ storage          Event นี้จะเกิดขึ้นเมื่อมีการเปลี่ยนแปลง localStorage จากเอกสารหรือ Tab อื่นที่อยู่ใน Origin เดียวกัน
+  window.addEventListener("credentialchange", onChange); //แจ้งเตือนเมื่อมีการเปลี่ยนแปลง Credential ภายใน Tab ปัจจุบัน
 
-  return () => {          //Cleanup Function ยกเลิกการรับฟัง Event เมื่อ Component ไม่ต้องการติดตามข้อมูลแล้ว ป้องกัน mememory leak
+  return () => {
+    //Cleanup Function ยกเลิกการรับฟัง Event เมื่อ Component ไม่ต้องการติดตามข้อมูลแล้ว ป้องกัน mememory leak
     window.removeEventListener("storage", onChange);
     window.removeEventListener("credentialchange", onChange);
   };
 }
 
-function getRoleSnapshot(): RoleKey | null {       //ฟังก์ชันนี้จะคืนค่ากลับมาได้ 2 รูปแบบ  ค่า Role ที่อยู่ใน RoleKey และ null หากไม่พบค่า
-  const credentialString = localStorage.getItem("credential");         //อ่านข้อมูลจาก Local Storage
-  if (!credentialString) return null;   //ถ้าไม่มี
+function getServerRoleSnapshot(): RoleKey | null {
+  return null;
+}
 
-  try {                                                    //ถ้ามีลองแปลงเป็น Object
-    const credential: unknown = JSON.parse(credentialString);               //แปลงเป็น object       : unknown เป็นการกำหนด Type ของตัวแปร credential
-    if (typeof credential !== "object" || credential === null) return null;          //ถ้าไม่ใช่ Object หรือ เป็นnull ให้ return null
+function getRoleSnapshot(): RoleKey | null {
+  //ฟังก์ชันนี้จะคืนค่ากลับมาได้ 2 รูปแบบ  ค่า Role ที่อยู่ใน RoleKey และ null หากไม่พบค่า
+  const credentialString = localStorage.getItem("credential"); //อ่านข้อมูลจาก Local Storage
+  if (!credentialString) return null; //ถ้าไม่มี
 
-    const role = "role" in credential ? credential.role : null;             //ถ้ามี role ให้ return role ถ้าไม่มีให้ return null
+  try {
+    //ถ้ามีลองแปลงเป็น Object
+    const credential: unknown = JSON.parse(credentialString); //แปลงเป็น object       : unknown เป็นการกำหนด Type ของตัวแปร credential
+    if (typeof credential !== "object" || credential === null) return null; //ถ้าไม่ใช่ Object หรือ เป็นnull ให้ return null
+
+    const role = "role" in credential ? credential.role : null; //ถ้ามี role ให้ return role ถ้าไม่มีให้ return null
     if (
       role === "user" ||
       role === "admin" ||
@@ -84,8 +91,9 @@ function getRoleSnapshot(): RoleKey | null {       //ฟังก์ชันน
       return role;
     }
 
-    return null;     //นอกเหนือจาก user, admin, president, superadmin ให้ return null
-  } catch (error) {        //จับข้อผิดพลาดที่เกิดขึ้นภายใน try
+    return null; //นอกเหนือจาก user, admin, president, superadmin ให้ return null
+  } catch (error) {
+    //จับข้อผิดพลาดที่เกิดขึ้นภายใน try
     console.error("Invalid credential:", error);
     return null;
   }
@@ -97,9 +105,10 @@ function getRoleSnapshot(): RoleKey | null {       //ฟังก์ชันน
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const role = useSyncExternalStore( // WTF is this?? บอกทีว่าสิ่งนี้จะได้เรียนในเทอม 2
+  const role = useSyncExternalStore(      //Wtf is this???? ยอกทีว่าจะได้เรียนตอน เทอม 2  
     subscribeToCredentialChanges,
     getRoleSnapshot,
+    getServerRoleSnapshot,
   );
 
   if (!role) return null;
@@ -107,13 +116,12 @@ export default function Sidebar() {
   return (
     <aside className="w-80 min-h-screen bg-blue-950 p-4">
       <Image
-      alt="Compose Logo"
+        alt="Compose Logo"
         src="/All images/compose.webp"
-        alt="Real Asset Management"
         width={800}
         height={100}
         className="mb-4 rounded-2xl"
-        alt='logo'
+        priority
       />
       <nav className="flex flex-col gap-3">
         {menus[role].map((menu) => (
@@ -134,8 +142,6 @@ export default function Sidebar() {
           >
             {menu.name}
           </Link>
-
-          
         ))}
       </nav>
     </aside>

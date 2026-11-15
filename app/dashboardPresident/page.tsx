@@ -1,14 +1,694 @@
-"use client"
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Boxes,
+  Building2,
+  CalendarDays,
+  ChartNoAxesCombined,
+  Check,
+  ChevronDown,
+  CircleCheck,
+  ClipboardCheck,
+  Download,
+  FileBarChart2,
+  Search,
+  Wrench,
+} from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { assets } from "@/data/asset";
+import { assetHistories } from "@/data/assetHistories";
+import { branches } from "@/data/branches";
+import { borrowRequests } from "@/data/borrowRequests";
+import { inventorySessions } from "@/data/inventorySessions";
+import { repairRequests } from "@/data/repairRequests";
+
+const palette = { available: "#168765", repair: "#b26b05", other: "#5746ed" };
+const fmt = (n: number) => new Intl.NumberFormat("th-TH").format(n);
+const dateFmt = (date: string) =>
+  new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(date));
+const branchName = (id: string) =>
+  branches.find((branch) => branch.id === id)?.name.replace("สาขา", "") ??
+  "ไม่พบข้อมูลสาขา";
+const assetName = (id: string) =>
+  assets.find((asset) => asset.id === id)?.name ?? "ไม่พบข้อมูลทรัพย์สิน";
+const statusText = (status: string) =>
+  ({
+    pending: "รออนุมัติ",
+    revision: "รอแก้ไข",
+    approved: "อนุมัติแล้ว",
+    returned: "คืนแล้ว",
+    rejected: "ไม่อนุมัติ",
+    overdue: "เกินกำหนด",
+  })[status] ?? "ไม่พบข้อมูลสถานะ";
+
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-xl border border-slate-200 bg-white ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function downloadCsv() {
+  const rows = [
+    ["สาขา", "ทรัพย์สินทั้งหมด", "พร้อมใช้", "ชำรุด/ซ่อม", "สถานะ"],
+    ...branches.map((branch) => {
+      const own = assets.filter((asset) => asset.branchId === branch.id);
+      const available = own.filter(
+        (asset) => asset.status === "available",
+      ).length;
+      const repair = own.filter(
+        (asset) => asset.status === "repair" || asset.status === "damaged",
+      ).length;
+      return [
+        branch.name,
+        own.length,
+        available,
+        repair,
+        branch.status === "active" ? "ใช้งาน" : "ไม่ใช้งาน",
+      ];
+    }),
+  ];
+  const csv =
+    "\uFEFF" +
+    rows
+      .map((row) =>
+        row
+          .map((value) => `"${String(value).replaceAll('"', '""')}"`)
+          .join(","),
+      )
+      .join("\r\n");
+  const url = URL.createObjectURL(
+    new Blob([csv], { type: "text/csv;charset=utf-8" }),
+  );
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "executive-branch-summary.csv";
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+function Metric({
+  label,
+  value,
+  note,
+  color,
+  icon,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  color: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <Card className="p-5">
+      <div className="flex items-start justify-between">
+        <span className="text-sm text-slate-500">{label}</span>
+        <span className={color}>{icon}</span>
+      </div>
+      <strong className="mt-3 block text-3xl font-bold tracking-tight">
+        {value}
+      </strong>
+      <p className={`mt-3 text-xs ${color}`}>{note}</p>
+    </Card>
+  );
+}
+
+function StatusPill({ status }: { status: string }) {
+  const style =
+    status === "รออนุมัติ"
+      ? "bg-violet-50 text-violet-700"
+      : status === "รอแก้ไข"
+        ? "bg-amber-50 text-amber-700"
+        : "bg-emerald-50 text-emerald-700";
+  return (
+    <span
+      className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${style}`}
+    >
+      <Check className="mr-1 inline size-3" />
+      {status}
+    </span>
+  );
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <i className="size-3 rounded-sm" style={{ backgroundColor: color }} />
+      {label}
+    </span>
+  );
+}
 
 export default function Page() {
+  const [selectedBranch, setSelectedBranch] = useState("all");
+  const [search, setSearch] = useState("");
+  const [range, setRange] = useState("ทั้งหมด");
+  const rows = useMemo(
+    () =>
+      branches
+        .filter(
+          (branch) => selectedBranch === "all" || branch.id === selectedBranch,
+        )
+        .map((branch) => {
+          const own = assets.filter((asset) => asset.branchId === branch.id);
+          const available = own.filter(
+            (asset) => asset.status === "available",
+          ).length;
+          const repair = own.filter(
+            (asset) => asset.status === "repair" || asset.status === "damaged",
+          ).length;
+          const other = own.length - available - repair;
+          return {
+            id: branch.id,
+            branch: branch.name.replace("สาขา", ""),
+            total: own.length,
+            available,
+            repair,
+            other,
+            active: branch.status === "active",
+          };
+        }),
+    [selectedBranch],
+  );
+  const filteredRows = rows.filter((row) =>
+    row.branch.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+  const total = rows.reduce((sum, row) => sum + row.total, 0);
+  const ready = rows.reduce((sum, row) => sum + row.available, 0);
+  const inRepair = rows.reduce((sum, row) => sum + row.repair, 0);
+  const other = rows.reduce((sum, row) => sum + row.other, 0);
+  const readyPct = total ? ((ready / total) * 100).toFixed(1) : "0.0";
+  const pending = borrowRequests.filter(
+    (request) => request.status === "pending" || request.status === "revision",
+  );
+  const repairOpen = repairRequests.filter(
+    (request) =>
+      request.status === "pending" || request.status === "in_progress",
+  );
+  const latestTransfers = assetHistories
+    .filter((history) => history.action === "transferred")
+    .slice()
+    .sort((a, b) => b.performedAt.localeCompare(a.performedAt))
+    .slice(0, 2);
+  const latestPending = pending
+    .slice()
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 3);
+  const completedInventories = inventorySessions.filter(
+    (session) => session.status === "completed",
+  ).length;
+  const unfinishedInventories = inventorySessions.filter(
+    (session) =>
+      session.status === "planned" || session.status === "in_progress",
+  ).length;
 
+  return (
+    <div className="min-h-screen bg-[#f1f2f7] px-4 py-6 text-[#1c2740] sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-7">
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">ภาพรวมองค์กร</h1>
+          </div>
+        </header>
 
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric
+            label="Asset ทั้งองค์กร"
+            value={fmt(total)}
+            note={`${assets.length ? "ข้อมูลตัวอย่าง" : "Error: ไม่มีข้อมูล"} · ${dateFmt("2026-11-16")}`}
+            color="text-indigo-600"
+            icon={<Boxes />}
+          />
+          <Metric
+            label="จำนวนสาขา"
+            value={fmt(branches.length)}
+            note={`${branches.filter((branch) => branch.status === "active").length} สาขาเปิดใช้งาน`}
+            color="text-emerald-600"
+            icon={<CircleCheck />}
+          />
+          <Metric
+            label="Asset พร้อมใช้งาน"
+            value={`${readyPct}%`}
+            note={`พร้อมใช้งาน ${fmt(ready)} รายการ`}
+            color="text-amber-600"
+            icon={<Wrench />}
+          />
+          <Metric
+            label="คำขอรออนุมัติ"
+            value={fmt(pending.length)}
+            note="คำขอเบิก/โอนที่ยังรอดำเนินการ"
+            color="text-emerald-600"
+            icon={<CircleCheck />}
+          />
+        </section>
 
+        <section>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-bold">ภาพรวมสาขา</h2>
+            <div className="flex flex-wrap gap-2">
+              <label className="relative">
+                <Building2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <select
+                  aria-label="เลือกสาขา"
+                  value={selectedBranch}
+                  onChange={(event) => setSelectedBranch(event.target.value)}
+                  className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600"
+                >
+                  <option value="all">ทุกสาขา</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              </label>
+              <label className="relative">
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <select
+                  aria-label="ช่วงเวลา"
+                  value={range}
+                  onChange={(event) => setRange(event.target.value)}
+                  className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600"
+                >
+                  <option>ทั้งหมด</option>
+                  <option>เดือนนี้</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              </label>
+            </div>
+          </div>
+          <Card className="p-5 sm:p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-semibold text-slate-500">
+                จำนวน Asset แยกตามสาขา
+              </h3>
+              <span className="text-xs text-slate-400">
+                ข้อมูลจำนวนรายการจาก Asset ในระบบ
+              </span>
+            </div>
+            <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
+              <Legend color={palette.available} label="พร้อมใช้" />
+              <Legend color={palette.repair} label="ชำรุด/ซ่อม" />
+              <Legend color={palette.other} label="สถานะอื่น" />
+            </div>
+            {rows.length ? (
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={rows}
+                    margin={{ top: 16, right: 8, left: 0, bottom: 4 }}
+                  >
+                    <CartesianGrid vertical={false} stroke="#e1e6f0" />
+                    <XAxis
+                      dataKey="branch"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#53617d", fontSize: 12, fontWeight: 600 }}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#8792a9", fontSize: 11 }}
+                      width={38}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "#f5f6fa" }}
+                      formatter={(value, name) => [
+                        value,
+                        name === "available"
+                          ? "พร้อมใช้"
+                          : name === "repair"
+                            ? "ชำรุด/ซ่อม"
+                            : "สถานะอื่น",
+                      ]}
+                    />
+                    <Bar
+                      dataKey="available"
+                      stackId="asset"
+                      fill={palette.available}
+                      radius={[0, 0, 0, 0]}
+                      maxBarSize={58}
+                    />
+                    <Bar
+                      dataKey="repair"
+                      stackId="asset"
+                      fill={palette.repair}
+                      maxBarSize={58}
+                    />
+                    <Bar
+                      dataKey="other"
+                      stackId="asset"
+                      fill={palette.other}
+                      radius={[5, 5, 0, 0]}
+                      maxBarSize={58}
+                      label={{ position: "top", fill: "#53617d", fontSize: 11 }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="grid h-[260px] place-items-center text-sm text-slate-400">
+                ไม่พบข้อมูลสาขา
+              </div>
+            )}
+            <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full min-w-[650px] text-left text-sm">
+                <thead className="bg-[#f1f2f7] text-xs text-slate-500">
+                  <tr>
+                    {[
+                      "สาขา",
+                      "ทั้งหมด",
+                      "พร้อมใช้",
+                      "ชำรุด/ซ่อม",
+                      "ผลตรวจนับ",
+                      "รายงานสาขา",
+                    ].map((heading) => (
+                      <th key={heading} className="px-4 py-3 font-semibold">
+                        {heading}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => (
+                    <tr key={row.id} className="border-t border-slate-200">
+                      <td className="px-4 py-3.5 font-medium">{row.branch}</td>
+                      <td className="px-4 py-3.5">{fmt(row.total)}</td>
+                      <td className="px-4 py-3.5 text-emerald-700">
+                        {fmt(row.available)}
+                      </td>
+                      <td className="px-4 py-3.5 text-amber-700">
+                        {fmt(row.repair)}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs ${row.active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+                        >
+                          ● {row.active ? "เปิดใช้งาน" : "ไม่ใช้งาน"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Link
+                          className="font-semibold text-indigo-600 hover:underline"
+                          href="/reports"
+                        >
+                          ดูรายงานสาขา
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredRows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-slate-400"
+                      >
+                        ไม่พบสาขาที่ค้นหา
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-4 text-xs text-slate-500">
+              พร้อมใช้งาน {fmt(ready)} · ชำรุด/ซ่อม {fmt(inRepair)} · สถานะอื่น{" "}
+              {fmt(other)} รายการ
+            </p>
+          </Card>
+        </section>
 
+        <section>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-bold">คำขอโอนย้ายและเบิกทรัพย์สิน</h2>
+            <button
+              onClick={downloadCsv}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              <Download size={17} />
+              ส่งออก Excel
+            </button>
+          </div>
+          <Card className="overflow-x-auto">
+            <table className="w-full min-w-[800px] text-left text-sm">
+              <thead className="bg-[#f1f2f7] text-xs text-slate-500">
+                <tr>
+                  {[
+                    "เลขที่คำขอ",
+                    "Asset",
+                    "ต้นทาง → ปลายทาง",
+                    "ผู้ยื่น",
+                    "วันที่",
+                    "สถานะ",
+                    "ดำเนินการ",
+                  ].map((heading) => (
+                    <th key={heading} className="px-4 py-3 font-semibold">
+                      {heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {latestPending.map((request) => (
+                  <tr key={request.id} className="border-t border-slate-200">
+                    <td className="px-4 py-4 font-medium">{request.id}</td>
+                    <td className="px-4 py-4">{assetName(request.assetId)}</td>
+                    <td className="px-4 py-4 text-slate-500">
+                      {branchName(request.branchId)} →{" "}
+                      {request.toBranchId
+                        ? branchName(request.toBranchId)
+                        : "ไม่พบข้อมูลปลายทาง"}
+                    </td>
+                    <td className="px-4 py-4 text-slate-500">
+                      User {request.borrowerId}
+                    </td>
+                    <td className="px-4 py-4 text-slate-500">
+                      {dateFmt(request.createdAt)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <StatusPill status={statusText(request.status)} />
+                    </td>
+                    <td className="px-4 py-4">
+                      <Link
+                        href="/Borrow"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 font-semibold hover:bg-slate-50"
+                      >
+                        <ClipboardCheck size={16} />
+                        ตรวจสอบคำขอ
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+                {!latestPending.length && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-4 py-8 text-center text-slate-400"
+                    >
+                      ไม่มีคำขอรออนุมัติ
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </Card>
+        </section>
 
-    return(
-        <>
-        <h1>Dashboard President</h1>
-        </>
-    )
+        <section>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-xl font-bold">รายงานและสถิติ</h2>
+            <Link
+              href="/reports"
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              <FileBarChart2 size={17} />
+              เข้าสู่หน้ารายงาน
+            </Link>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card className="p-5">
+              <h3 className="font-semibold text-slate-500">
+                จำนวน Asset แยกตามสถานะ
+              </h3>
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                {[
+                  ["พร้อมใช้งาน", ready, "text-emerald-700"],
+                  ["กำลังซ่อม", inRepair, "text-amber-700"],
+                  ["สถานะอื่น", other, "text-rose-600"],
+                ].map(([label, value, color]) => (
+                  <div key={String(label)}>
+                    <strong className={`block text-2xl font-bold ${color}`}>
+                      {fmt(Number(value))}
+                    </strong>
+                    <span className="text-xs text-slate-500">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card className="p-5">
+              <h3 className="font-semibold text-slate-500">
+                ผลการตรวจนับทรัพย์สิน
+              </h3>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div>
+                  <strong className="block text-2xl font-bold text-indigo-600">
+                    {completedInventories}
+                  </strong>
+                  <span className="text-xs text-slate-500">
+                    รอบที่เสร็จแล้ว
+                  </span>
+                </div>
+                <div>
+                  <strong className="block text-2xl font-bold text-amber-600">
+                    {unfinishedInventories}
+                  </strong>
+                  <span className="text-xs text-slate-500">
+                    รอบที่ต้องติดตาม
+                  </span>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-slate-400">
+                อ้างอิงรอบตรวจนับ {inventorySessions.length} รายการที่มีในระบบ
+              </p>
+            </Card>
+            <Card className="p-5">
+              <div className="mb-4 flex items-center gap-2 font-semibold">
+                <ChartNoAxesCombined size={18} className="text-indigo-600" />
+                ประวัติการเคลื่อนย้าย Asset
+              </div>
+              <div className="space-y-3">
+                {latestTransfers.length ? (
+                  latestTransfers.map((history) => {
+                    const asset = assets.find(
+                      (item) => item.id === history.assetId,
+                    );
+                    return (
+                      <div
+                        key={history.id}
+                        className="rounded-lg bg-[#f1f2f7] p-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {history.assetId} ·{" "}
+                              {asset?.name ?? "ไม่พบข้อมูลทรัพย์สิน"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {history.description}
+                            </p>
+                          </div>
+                          <StatusPill status="บันทึกแล้ว" />
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                          {dateFmt(history.performedAt)}
+                        </p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                    Error: ไม่มีข้อมูลประวัติการโอนย้ายทรัพย์สินใน Data
+                  </p>
+                )}
+              </div>
+              <Link
+                href="/reports"
+                className="mt-4 inline-block text-sm font-semibold text-indigo-600"
+              >
+                ดูประวัติการเคลื่อนย้ายทั้งหมด
+              </Link>
+            </Card>
+            <Card className="p-5">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h3 className="font-semibold">สรุปงานซ่อมบำรุง</h3>
+                <Link
+                  href="/repairs"
+                  className="text-sm font-semibold text-indigo-600"
+                >
+                  ดูรายการซ่อม
+                </Link>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  [
+                    "กำลังซ่อม",
+                    repairOpen.filter((item) => item.status === "in_progress")
+                      .length,
+                    "text-amber-700",
+                  ],
+                  [
+                    "รอตรวจสอบ",
+                    repairOpen.filter((item) => item.status === "pending")
+                      .length,
+                    "text-rose-600",
+                  ],
+                  [
+                    "สาขาที่ติดตาม",
+                    new Set(repairOpen.map((item) => item.branchId)).size,
+                    "text-indigo-600",
+                  ],
+                ].map(([label, value, color]) => (
+                  <div
+                    key={String(label)}
+                    className="rounded-lg bg-[#f1f2f7] p-3"
+                  >
+                    <span className="block text-xs text-slate-500">
+                      {label}
+                    </span>
+                    <strong className={`mt-1 block text-xl ${color}`}>
+                      {fmt(Number(value))}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-lg bg-[#f1f2f7] p-3">
+                <p className="text-sm font-semibold">
+                  รายการซ่อมที่ยังเปิดอยู่
+                </p>
+                {repairOpen[0] ? (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {assetName(repairOpen[0].assetId)} · {repairOpen[0].issue}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-slate-500">
+                    ไม่มีรายการซ่อมค้าง
+                  </p>
+                )}
+              </div>
+            </Card>
+          </div>
+          <button
+            onClick={downloadCsv}
+            className="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-600 hover:bg-slate-50"
+          >
+            <Download size={15} className="mr-2 inline" />
+            ส่งออก Excel
+          </button>
+        </section>
+      </div>
+    </div>
+  );
 }
