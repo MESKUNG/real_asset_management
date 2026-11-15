@@ -41,7 +41,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
   ],
   admin: [
-    { name: "ภาพรวม", path: "/dashboard" },
+    { name: "ภาพรวม", path: "/dashboardAdmin" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการ Asset", path: "/assets" },
     { name: "เบิก / คืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
@@ -67,7 +67,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
   ],
   president: [
-    { name: "ภาพรวม", path: "/dashboard" },
+    { name: "ภาพรวม", path: "/dashboardPresident" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการ Asset", path: "/assets" },
     {
@@ -87,6 +87,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
       ],
     },
     { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
+    { name: "เบิก / คืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
   ],
   superadmin: [
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
@@ -106,6 +107,10 @@ function subscribeToCredentialChanges(onChange: () => void) {
     window.removeEventListener("storage", onChange);
     window.removeEventListener("credentialchange", onChange);
   };
+}
+
+function getServerRoleSnapshot(): RoleKey | null {
+  return null;
 }
 
 function getRoleSnapshot(): RoleKey | null {
@@ -146,10 +151,10 @@ export default function Sidebar() {
     ตรวจสอบและอนุมัติ: true,
     สถานที่และแผนก: true,
   });
-  const role = useSyncExternalStore(
-    // WTF is this?? บอกทีว่าสิ่งนี้จะได้เรียนในเทอม 2
+  const role = useSyncExternalStore(      //Wtf is this???? ยอกทีว่าจะได้เรียนตอน เทอม 2  
     subscribeToCredentialChanges,
     getRoleSnapshot,
+    getServerRoleSnapshot,
   );
 
   if (!role) return null;
@@ -157,11 +162,12 @@ export default function Sidebar() {
   return (
     <aside className="w-80 min-h-screen bg-blue-950 p-4">
       <Image
+        alt="Compose Logo"
         src="/All images/compose.webp"
-        alt="Real Asset Management"
         width={800}
         height={100}
         className="mb-4 rounded-2xl"
+        priority
       />
       <nav className="flex flex-col gap-3">
         {menus[role].map((menu) =>
@@ -229,11 +235,10 @@ export default function Sidebar() {
               : "p-3 text-base"
         }
       `}
-            >
-              {menu.name}
-            </Link>
-          ),
-        )}
+          >
+            {menu.name}
+          </Link>
+        ))}
       </nav>
     </aside>
   );
