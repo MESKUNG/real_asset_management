@@ -223,6 +223,10 @@ export default function Page() {
     (session) =>
       session.status === "planned" || session.status === "in_progress",
   ).length;
+  const latestAssetUpdate = assets.reduce(
+    (latest, asset) => (asset.updatedAt > latest ? asset.updatedAt : latest),
+    "",
+  );
 
   return (
     <div className="min-h-screen bg-[#f1f2f7] px-4 py-6 text-[#1c2740] sm:px-6 lg:px-8">
@@ -237,7 +241,7 @@ export default function Page() {
           <Metric
             label="Asset ทั้งองค์กร"
             value={fmt(total)}
-            note={`${assets.length ? "ข้อมูลตัวอย่าง" : "Error: ไม่มีข้อมูล"} · ${dateFmt("2026-11-16")}`}
+            note={`${assets.length ? "ข้อมูลตัวอย่าง" : "ไม่มีข้อมูล"} · ${latestAssetUpdate ? dateFmt(latestAssetUpdate.slice(0, 10)) : "—"}`}
             color="text-indigo-600"
             icon={<Boxes />}
           />
@@ -259,7 +263,7 @@ export default function Page() {
             label="คำขอรออนุมัติ"
             value={fmt(pending.length)}
             note="คำขอเบิก/โอนที่ยังรอดำเนินการ"
-            color="text-emerald-600"
+            color="text-cyan-600"
             icon={<CircleCheck />}
           />
         </section>

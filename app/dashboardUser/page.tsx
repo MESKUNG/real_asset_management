@@ -21,7 +21,7 @@ const statusDetails: Record<AssetStatus, { name: string; color: string }> = {   
   borrowed: { name: "กำลังยืม", color: "#6366F1" },
   repair: { name: "กำลังซ่อม", color: "#B77912" },
   damaged: { name: "ชำรุด", color: "#E6535D" },
-  disposed: { name: "จำหน่ายแล้ว", color: "#9CA3AF" },
+  disposed: { name: "จำหน่ายแล้ว", color: "#64748B" },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {       //ตรวจสอบว่าค่าที่รับเข้ามาเป็น Object หรือไม่ มีคีย์เป็น String และ Value เป้น อะไรก็ได้
@@ -46,6 +46,7 @@ function formatDateTime(value: string) {        //แปลงวันที่
 }
 
 function getActivityColor(action: string, newValue: string | null) {          //กําหนดสีตามความเปลี่ยนแปลงของทรัพย์สิน 
+    if (action === "disposed" || newValue === "disposed") return "text-slate-600";
     if (action === "transferred") return "text-indigo-600";           //หากกิจกรรมเป็นการย้ายทรัพย์สิน จะคืนค่า Class ของ Tailwind CSS เป็นสี Indigo
     if (action === "assigned") return "text-blue-600";               //หากกิจกรรมเป็นการมอบหมายทรัพย์สิน จะคืนค่าเป็นสีน้ำเงิน
 
@@ -113,7 +114,7 @@ export default function Page() {
   const branchAssets = branchId         //กรองข้อมูลทรัพย์สินตามสาขาที่ผู้ใช้งานสังกัด
     ? assets.filter((asset) => asset.branchId === branchId)           //ถ้ามี branchId ตรงกัน จะกรองทรัพย์สินเฉพาะสาขานั้น
     : assets;                                                 //ถ้าไม่มีเอาหมด
-  const hasScope = !branchId || Boolean(selectedBranch);                 //ตรวจสอบว่ารหัสสาขาที่ได้จากผู้ใช้งานมีอยู่จริงในระบบหรือไม่ ถ้าไม่มี brachId เป้น true ส่วนอย่างหลังถ้าเป็น obj ได้ true ถ้าไม่ได้ false
+  const hasScope = branchResolved && Boolean(branchId && selectedBranch);
   const scopedAssets = hasScope ? branchAssets : [];                      //หากรหัสสาขาไม่ถูกต้อง ไม่ควรนำข้อมูลทรัพย์สินของสาขาอื่นมาแสดงโดยไม่ตั้งใจให้ scopedAssets = []
   const totalAssets = hasScope ? scopedAssets.length : null;    //ใช้คำนวณจำนวนทรัพย์สินทั้งหมด
   const todayDate = new Date();                //จะสร้าง Date Object โดยอ้างอิงวันที่และเวลาปัจจุบันของเครื่อง
@@ -166,7 +167,7 @@ export default function Page() {
    //ดึงประวัติการเปลี่ยนแปลงทรัพย์สินล่าสุด 
   const recentActivities = assetHistories                
     .filter((history) => {              //กรองข้อมูลจากdata assethistories
-      if (!branchId) return true;    //ถ้าไม่มีสาขาให้ส่ง true 
+      if (!branchId) return false;
       if (history.action === "transferred") {       //ถ้า action เป้นย้าย
         return history.oldValue === branchId || history.newValue === branchId;      //ไม่ว่าจะอยู่สาขาหน เช่น ย้ายจาก BROO1 ไป BR002 ทั้งสองสาขาก็ต้องเห้นด้วย
       }
@@ -190,13 +191,13 @@ export default function Page() {
       };
     });
 
-  const branchLabel = !branchResolved         //กำหนดชื่อสาขาที่จะแสดงผล   
-    ? "กำลังโหลด..."     //ถ้า branchresolve เป็น false 
-    : selectedBranch?.name ?? "Error";     //หากพบสาขาจะแสดืงชือสาขา
-  const scopeLabel =                            //กำหนดข้อความขอบเขตข้อมูล dashboard
-    !branchResolved || branchId     //หากโหลดข้อมูลไม่เสร็จ หรือมี brachId อยู่
-      ? selectedBranch?.name ?? "Error"          //ถ้ามี แสดงชื่อสาขานั้น
-      : "ข้อมูลรวมทุกสาขา";     //ถ้าไม่มี
+  const scopeUnavailableLabel = !branchResolved
+    ? "กำลังโหลด..."
+    : branchId
+      ? "ไม่พบสาขาที่ผูกกับบัญชี"
+      : "กรุณาเข้าสู่ระบบเพื่อดูข้อมูล";
+  const branchLabel = selectedBranch?.name ?? scopeUnavailableLabel;
+  const scopeLabel = selectedBranch?.name ?? scopeUnavailableLabel;
 
   return (
     <div className="flex flex-col gap-8 px-6 py-8">
@@ -214,7 +215,7 @@ export default function Page() {
               <div className="text-lg text-gray-500">ทรัพย์สินทั้งหมด</div>
               <Boxes className="text-indigo-600" />
             </div>
-            <div className="text-5xl font-bold">{totalAssets ?? "Error"}</div>
+            <div className="text-5xl font-bold">{totalAssets ?? "—"}</div>
             <div className="text-sm text-gray-500">{scopeLabel}</div>
           </div>
           <div className="flex flex-col gap-3 rounded-xl border border-gray-300 bg-white p-4">
@@ -223,7 +224,7 @@ export default function Page() {
               <CircleCheck className="text-green-600" />
             </div>
             <div className="text-5xl font-bold">
-              {hasScope ? availableAssets : "Error"}
+              {hasScope ? availableAssets : "—"}
             </div>
             <div className="text-sm text-green-600">
               พร้อมสำหรับการมอบหมาย
@@ -237,11 +238,11 @@ export default function Page() {
               <Wrench className="text-red-600" />
             </div>
             <div className="text-5xl font-bold">
-              {hasScope ? maintenanceAssets : "Error"}
+              {hasScope ? maintenanceAssets : "—"}
             </div>
             <div className="text-sm text-red-600">
-              ชำรุด {hasScope ? damagedAssets : "Error"} | กำลังซ่อม{" "}
-              {hasScope ? repairAssets : "Error"}
+              ชำรุด {hasScope ? damagedAssets : "—"} | กำลังซ่อม{" "}
+              {hasScope ? repairAssets : "—"}
             </div>
           </div>
         </div>
@@ -253,21 +254,23 @@ export default function Page() {
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
             <span className="font-semibold">รอบตรวจนับครั้งถัดไป</span>
             <span className="text-right text-sm text-red-600">
-              {hasScope && nextInventory
-                ? formatDate(nextInventory.startDate)
-                : "Error"}
+              {hasScope
+                ? nextInventory
+                  ? formatDate(nextInventory.startDate)
+                  : "ไม่มีรอบตรวจนับที่กำหนด"
+                : scopeUnavailableLabel}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
             <span className="font-semibold">คำขอซ่อมที่ต้องติดตาม</span>
             <span className="text-sm text-red-600">
-              {hasScope ? `${activeRepairs} รายการ` : "Error"}
+              {hasScope ? `${activeRepairs} รายการ` : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
             <span className="font-semibold">คำขอยืมที่ยังไม่เสร็จ</span>
             <span className="text-sm text-red-600">
-              {hasScope ? `${activeBorrowRequests} รายการ` : "Error"}
+              {hasScope ? `${activeBorrowRequests} รายการ` : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
@@ -279,8 +282,10 @@ export default function Page() {
                   <br />
                   หมดประกัน {formatDate(nearestWarrantyAsset.warrantyEndDate)}
                 </>
+              ) : hasScope ? (
+                "ไม่มีข้อมูลวันหมดประกัน"
               ) : (
-                "Error"
+                "—"
               )}
             </span>
           </div>
@@ -332,8 +337,8 @@ export default function Page() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-full items-center justify-center text-red-600">
-                  Error
+                <div className="flex h-full items-center justify-center text-gray-500">
+                  {scopeUnavailableLabel}
                 </div>
               )}
             </div>
@@ -348,13 +353,13 @@ export default function Page() {
                     style={{ backgroundColor: item.color }}
                   />
                   <span>{item.name}</span>
-                  <span>{hasScope ? item.value.toLocaleString("en-US") : "Error"}</span>
+                  <span>{hasScope ? item.value.toLocaleString("en-US") : "—"}</span>
                   <span>
                     {hasScope && totalAssets
                       ? `${((item.value / totalAssets) * 100).toFixed(1)}%`
                       : hasScope
                         ? "0.0%"
-                        : "Error"}
+                      : "—"}
                   </span>
                 </li>
               ))}
@@ -388,7 +393,9 @@ export default function Page() {
                   </li>
                 ))
               ) : (
-                <li className="py-4 text-sm text-red-600">Error · ไม่พบประวัติ</li>
+                <li className="py-4 text-sm text-gray-500">
+                  {hasScope ? "ไม่มีประวัติกิจกรรมล่าสุด" : scopeUnavailableLabel}
+                </li>
               )}
             </ul>
           </div>

@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 
 // ชื่อไฟล์ในโปรเจกต์สะกดว่า catagories.ts
 import { assets } from "@/data/asset";
+import { assetHistories } from "@/data/assetHistories";
 import { branches } from "@/data/branches";
 import { categories } from "@/data/catagories";
+import { inventoryChecks } from "@/data/inventoryCheck";
 import { inventorySessions } from "@/data/inventorySessions";
+import { repairRequests } from "@/data/repairRequests";
 
 type BadgeTone = "green" | "purple" | "amber";
 
@@ -39,9 +42,12 @@ interface ActivityItem {
 // ข้อมูลการ์ดรายงาน 4 ประเภท
 const buildReportCards = (): ReportCardItem[] => {
   const itCategoryName = categories[0]?.name ?? "อุปกรณ์ไอที";
-  const repairItemsCount = assets.filter(
-    (a) => a.status === "repair" || a.status === "damaged"
-  ).length;
+  const availableAssets = assets.filter((asset) => asset.status === "available");
+  const availableValue = availableAssets.reduce((sum, asset) => sum + asset.purchasePrice, 0);
+  const movementCount = assetHistories.filter((history) => history.action === "assigned" || history.action === "transferred").length;
+  const completedSessions = inventorySessions.filter((session) => session.status === "completed");
+  const completedCheckCount = inventoryChecks.filter((check) => completedSessions.some((session) => session.id === check.sessionId)).length;
+  const repairCost = repairRequests.reduce((sum, request) => sum + (request.actualCost ?? 0), 0);
 
   return [
     {
@@ -50,12 +56,12 @@ const buildReportCards = (): ReportCardItem[] => {
       badgeText: "พร้อมใช้งาน",
       badgeTone: "green",
       branchName: branches[0]?.name ?? "สำนักงานใหญ่",
-      period: "ส.ค.–ต.ค. 2569",
+      period: "ทุกช่วงเวลา",
       box1Label: "รายการ",
-      box1Value: `3 รายการ (ระบบมี ${assets.length})`,
+      box1Value: `${availableAssets.length} รายการจาก ${assets.length}`,
       box2Label: "มูลค่ารวม",
-      box2Value: "฿93,800",
-      keywords: `asset ทรัพย์สิน มูลค่ารวม 93800 ${assets.map((a) => a.id).join(" ")}`,
+      box2Value: `฿${availableValue.toLocaleString("th-TH")}`,
+      keywords: `asset ทรัพย์สิน พร้อมใช้งาน ${availableAssets.length} มูลค่ารวม ${availableValue} ${assets.map((a) => a.id).join(" ")}`,
     },
     {
       id: "movement",
@@ -63,25 +69,25 @@ const buildReportCards = (): ReportCardItem[] => {
       badgeText: "มอบหมายแล้ว",
       badgeTone: "purple",
       branchName: branches[1]?.name ?? "สาขาเชียงใหม่",
-      period: "ส.ค.–ต.ค. 2569",
+      period: "ทุกช่วงเวลา",
       box1Label: "การเคลื่อนไหว",
-      box1Value: "3 รายการ",
-      box2Label: "ช่วงเวลา",
-      box2Value: "1–24 ต.ค. 2569",
+      box1Value: `${movementCount} รายการ`,
+      box2Label: "รายการทรัพย์สิน",
+      box2Value: `${new Set(assetHistories.filter((history) => history.action === "assigned" || history.action === "transferred").map((history) => history.assetId)).size} ชิ้น`,
       keywords: "movement การเคลื่อนไหว โอนย้าย เบิก ยืมคืน IS-0001 CNT-2026-010",
     },
     {
       id: "inventory",
       title: "รายงาน Inventory",
-      badgeText: "พร้อมใช้งาน",
+      badgeText: "ตรวจนับแล้ว",
       badgeTone: "green",
       branchName: branches[0]?.name ?? "สำนักงานใหญ่",
-      period: "ส.ค.–ต.ค. 2569",
-      box1Label: "คลัง / หมวดหมู่",
-      box1Value: `คลังกลาง · ${itCategoryName}`,
-      box2Label: "สต๊อกต่ำกว่าเกณฑ์",
-      box2Value: "1 รายการ",
-      keywords: `inventory คลังกลาง ${itCategoryName} สต๊อก สาย HDMI`,
+      period: "ทุกช่วงเวลา",
+      box1Label: "รอบที่เสร็จแล้ว",
+      box1Value: `${completedSessions.length} รอบ`,
+      box2Label: "ผลตรวจนับ",
+      box2Value: `${completedCheckCount} รายการ`,
+      keywords: `inventory ตรวจนับ ${completedSessions.length} sessions ${completedCheckCount} checks ${itCategoryName}`,
     },
     {
       id: "repair",
@@ -89,56 +95,57 @@ const buildReportCards = (): ReportCardItem[] => {
       badgeText: "ซ่อมบำรุง",
       badgeTone: "amber",
       branchName: branches[0]?.name ?? "สำนักงานใหญ่",
-      period: "ส.ค.–ต.ค. 2569",
+      period: "ทุกช่วงเวลา",
       box1Label: "งานซ่อม",
-      box1Value: `${repairItemsCount} รายการ`,
+      box1Value: `${repairRequests.length} งานซ่อม`,
       box2Label: "ค่าใช้จ่ายรวม",
-      box2Value: "฿5,500",
-      keywords: "repair งานซ่อม ซ่อมบำรุง ชำรุด 5500 AST-0001 AST-0002 AST-0003 AST-0004",
+      box2Value: `฿${repairCost.toLocaleString("th-TH")}`,
+      keywords: `repair งานซ่อม ซ่อมบำรุง ${repairRequests.length} ${repairCost} ${repairRequests.map((request) => request.assetId).join(" ")}`,
     },
   ];
 };
 
-const INITIAL_ACTIVITIES: ActivityItem[] = [
-  {
-    id: 1,
-    time: "24 ต.ค. · 10:45",
-    operator: "กานต์ พิพัฒน์",
-    action: "บันทึกผลตรวจนับ",
-    reference: `${inventorySessions[0]?.id ?? "IS-0001"} (CNT-2026-010)`,
-    branchName: branches[0]?.name ?? "สำนักงานใหญ่",
-    period: "ส.ค.–ต.ค. 2569",
-    statusCategory: "พร้อมใช้งาน",
-  },
-  {
-    id: 2,
-    time: "24 ต.ค. · 10:27",
-    operator: "ปิยะ วัฒนา",
-    action: "เปลี่ยนสถานะเป็นชำรุด",
-    reference: `${assets[1]?.id ?? "AST-0002"} (${assets[1]?.name ?? "Dell Latitude"})`,
-    branchName: branches[0]?.name ?? "สำนักงานใหญ่",
-    period: "ส.ค.–ต.ค. 2569",
-    statusCategory: "ซ่อมบำรุง",
-  },
-  {
-    id: 3,
-    time: "24 ต.ค. · 09:15",
-    operator: "มาลี ใจดี",
-    action: "ส่งออกรายงาน Asset",
-    reference: "asset_20261024.xlsx",
-    branchName: branches[1]?.name ?? "สาขาเชียงใหม่",
-    period: "ส.ค.–ต.ค. 2569",
-    statusCategory: "มอบหมายแล้ว",
-  },
-];
+const reportActivities: ActivityItem[] = assetHistories
+  .slice()
+  .sort((a, b) => b.performedAt.localeCompare(a.performedAt))
+  .slice(0, 3)
+  .map((history) => {
+    const asset = assets.find((item) => item.id === history.assetId);
+    const branch = branches.find((item) => item.id === asset?.branchId);
+    const actionCategory = history.action === "assigned" || history.action === "transferred"
+      ? "มอบหมายแล้ว"
+      : history.action === "disposed"
+        ? "จำหน่ายแล้ว"
+        : history.action === "status_changed"
+        ? "ซ่อมบำรุง"
+        : "พร้อมใช้งาน";
+
+    return {
+      id: Number(history.id.replace(/\D/g, "")),
+      time: new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(history.performedAt)),
+      operator: `Admin #${history.performedBy}`,
+      action: history.description,
+      reference: `${history.assetId}${asset ? ` (${asset.name})` : ""}`,
+      branchName: branch?.name ?? "ไม่ระบุสาขา",
+      period: "ทุกช่วงเวลา",
+      statusCategory: actionCategory,
+    };
+  });
 
 export default function ReportSummaryPage() {
   const router = useRouter();
 
   const reportCards = buildReportCards();
+  const latestCompletedSession = inventorySessions
+    .filter((session) => session.status === "completed")
+    .slice()
+    .sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
+  const latestCompletedMonth = latestCompletedSession
+    ? new Intl.DateTimeFormat("th-TH", { month: "short", year: "numeric" }).format(new Date(`${latestCompletedSession.endDate}T00:00:00`))
+    : "ยังไม่มีรอบตรวจที่เสร็จแล้ว";
 
   const [locationFilter, setLocationFilter] = useState<string>("ทุกสถานที่");
-  const [periodFilter, setPeriodFilter] = useState<string>("ส.ค.–ต.ค. 2569");
+  const [periodFilter, setPeriodFilter] = useState<string>("ทุกช่วงเวลา");
   const [statusFilter, setStatusFilter] = useState<string>("ทุกสถานะ");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -182,7 +189,7 @@ export default function ReportSummaryPage() {
     return matchLocation && matchPeriod && matchStatus && matchSearch;
   });
 
-  const filteredActivities = INITIAL_ACTIVITIES.filter((act) => {
+  const filteredActivities = reportActivities.filter((act) => {
     const matchLocation =
       locationFilter === "ทุกสถานที่" || act.branchName === locationFilter;
     const matchPeriod =
@@ -232,21 +239,21 @@ export default function ReportSummaryPage() {
                 <CubeIcon />
               </span>
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 mb-2">฿93,800</p>
+            <p className="text-3xl font-extrabold text-slate-900 mb-2">฿{assets.reduce((sum, asset) => sum + asset.purchasePrice, 0).toLocaleString("th-TH")}</p>
             <p className="text-xs font-medium text-[#4f46e5]">
-              3 รายการในรายงาน Asset (ฐานข้อมูลรวม {assets.length} ชิ้น)
+              มูลค่าตามราคาซื้อของ Asset {assets.length} ชิ้น
             </p>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">สต๊อกต่ำกว่าเกณฑ์</span>
+              <span className="text-xs font-semibold text-slate-500">รอบตรวจนับที่เสร็จแล้ว</span>
               <span className="text-emerald-600">
                 <CheckCircleIcon />
               </span>
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 mb-2">1 รายการ</p>
-            <p className="text-xs font-medium text-emerald-600">สาย HDMI · คงเหลือ 6 เส้น</p>
+            <p className="text-3xl font-extrabold text-slate-900 mb-2">{inventorySessions.filter((session) => session.status === "completed").length} รอบ</p>
+            <p className="text-xs font-medium text-emerald-600">ผลตรวจ {inventoryChecks.filter((check) => inventorySessions.some((session) => session.id === check.sessionId && session.status === "completed")).length.toLocaleString("th-TH")} รายการ</p>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
@@ -256,8 +263,8 @@ export default function ReportSummaryPage() {
                 <WrenchIcon />
               </span>
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 mb-2">฿5,500</p>
-            <p className="text-xs font-medium text-amber-600">รวม 3 งานซ่อมในเดือน ต.ค.</p>
+            <p className="text-3xl font-extrabold text-slate-900 mb-2">฿{repairRequests.reduce((sum, request) => sum + (request.actualCost ?? 0), 0).toLocaleString("th-TH")}</p>
+            <p className="text-xs font-medium text-amber-600">ค่าใช้จ่ายจริงจากคำขอซ่อม {repairRequests.length} งาน</p>
           </div>
         </div>
 
@@ -311,6 +318,8 @@ export default function ReportSummaryPage() {
               <option value="พร้อมใช้งาน">พร้อมใช้งาน</option>
               <option value="มอบหมายแล้ว">มอบหมายแล้ว</option>
               <option value="ซ่อมบำรุง">ซ่อมบำรุง</option>
+              <option value="ตรวจนับแล้ว">ตรวจนับแล้ว</option>
+              <option value="จำหน่ายแล้ว">จำหน่ายแล้ว</option>
             </select>
           </div>
 
@@ -436,7 +445,7 @@ export default function ReportSummaryPage() {
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
                   <p className="text-[11px] text-slate-400 mb-1">รอบล่าสุด</p>
-                  <p className="text-xs font-bold text-slate-900">ก.ย. 2569</p>
+                  <p className="text-xs font-bold text-slate-900">{latestCompletedMonth}</p>
                 </div>
                 <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
                   <p className="text-[11px] text-slate-400 mb-1">สถานะ</p>

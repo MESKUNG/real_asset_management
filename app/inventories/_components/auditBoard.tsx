@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { assets as rawAssets, type Asset } from "@/data/asset";
 import { branches } from "@/data/branches";
 import { inventorySessions } from "@/data/inventorySessions";
+import { inventoryChecks } from "@/data/inventoryCheck";
 
 type AuditStatus = "checked" | "unchecked";
 
@@ -59,80 +60,46 @@ const getCurrentThaiTime = (): string => {
   });
 };
 
-const buildInitialAuditList = (): AuditAssetItem[] => {
-  // แปลงข้อมูลจาก data/asset.ts ให้เข้ากับตารางตรวจนับ
-  const fromDataFile: AuditAssetItem[] = rawAssets.map((item: Asset, index: number) => {
-    const foundBranch = branches.find((b) => b.id === item.branchId);
-    const owner = STAFF_NAME_MAP[item.responsiblePersonId] ?? `พนักงาน #${item.responsiblePersonId}`;
+const buildInitialAuditList = (sessionId: string, branchId: string): AuditAssetItem[] => {
+  const sessionChecks = new Map(
+    inventoryChecks
+      .filter((check) => check.sessionId === sessionId)
+      .map((check) => [check.assetId, check]),
+  );
 
-    // 3 ชิ้นแรกให้เป็นตรวจแล้ว ที่เหลือยังไม่ตรวจ
-    const isInitiallyChecked = index < 3;
+  return rawAssets
+    .filter((item: Asset) => item.branchId === branchId)
+    .map((item: Asset) => {
+      const check = sessionChecks.get(item.id);
+      const foundBranch = branches.find((branch) => branch.id === item.branchId);
+      const owner = STAFF_NAME_MAP[item.responsiblePersonId] ?? `พนักงาน #${item.responsiblePersonId}`;
 
-    return {
-      id: item.id,
-      name: item.name,
-      brandModel: `${item.brand} ${item.model}`,
-      branchName: foundBranch ? foundBranch.name : "สำนักงานใหญ่",
-      ownerName: isInitiallyChecked ? "กานต์ พิพัฒน์" : owner,
-      timestamp: formatShortThaiDate(item.updatedAt),
-      status: isInitiallyChecked ? "checked" : "unchecked",
-    };
-  });
-
-  // ข้อมูลจำลองเพิ่ม ให้ครบ 38 รายการตามดีไซน์
-  const extraChecked: AuditAssetItem[] = [
-    {
-      id: "AST-0006",
-      name: "Projector Epson",
-      brandModel: "Epson EB-X51",
-      branchName: "สำนักงานใหญ่",
-      ownerName: "กานต์ พิพัฒน์",
-      timestamp: "24 ต.ค. 10:32",
-      status: "checked",
-    },
-    {
-      id: "AST-0007",
-      name: "UPS APC 1000VA",
-      brandModel: "APC BX1000M",
-      branchName: "สำนักงานใหญ่",
-      ownerName: "กานต์ พิพัฒน์",
-      timestamp: "24 ต.ค. 10:50",
-      status: "checked",
-    },
-  ];
-
-  const extraUnchecked: AuditAssetItem[] = Array.from({ length: 31 }, (_, i) => {
-    const num = 8 + i;
-    return {
-      id: `AST-${String(num).padStart(4, "0")}`,
-      name: i % 2 === 0 ? 'Dell Monitor 24"' : "Printer HP LaserJet",
-      brandModel: i % 2 === 0 ? "Dell P2422H" : "HP M111w",
-      branchName: "สำนักงานใหญ่",
-      ownerName: "พัฒพงศ์ จันทร์กระจ่าง",
-      timestamp: "24 ต.ค. 10:40",
-      status: "unchecked",
-    };
-  });
-
-  // ให้รายการที่ตรวจแล้วขึ้นก่อน
-  const checkedFromData = fromDataFile.filter((a) => a.status === "checked");
-  const uncheckedFromData = fromDataFile.filter((a) => a.status === "unchecked");
-
-  return [...checkedFromData, ...extraChecked, ...uncheckedFromData, ...extraUnchecked];
+      return {
+        id: item.id,
+        name: item.name,
+        brandModel: `${item.brand} ${item.model}`,
+        branchName: foundBranch?.name ?? "สำนักงานใหญ่",
+        ownerName: owner,
+        timestamp: formatShortThaiDate(check?.checkedAt ?? item.updatedAt),
+        status: check ? "checked" : "unchecked",
+      };
+    });
 };
 
 // canScan = false คือมุมมองติดตามการนับของ admin (ไม่มีปุ่มสแกน)
 export default function AuditBoard({ canScan }: { canScan: boolean }) {
   const router = useRouter();
 
-  // ใช้รอบแรกเป็นหัวเอกสาร
-  const currentSession = inventorySessions[0];
+  // ใช้รอบที่เสร็จแล้วเป็นค่าเริ่มต้น เพื่อแสดงผลตรวจจากข้อมูลจริง
+  const currentSession = inventorySessions.find((session) => session.status === "completed") ?? inventorySessions[0];
   const sessionBranch =
     branches.find((b) => b.id === currentSession?.branchId)?.name ?? "สำนักงานใหญ่";
   const approverName =
     STAFF_NAME_MAP[currentSession?.createdBy ?? 112] ?? "หัวหน้าฝ่ายไอที";
 
-  const [auditItems, setAuditItems] = useState<AuditAssetItem[]>(buildInitialAuditList);
+  const [auditItems, setAuditItems] = useState<AuditAssetItem[]>(() =>
+    currentSession ? buildInitialAuditList(currentSession.id, currentSession.branchId) : [],
+  );
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [mockupNotice, setMockupNotice] = useState<string | null>(null);
 

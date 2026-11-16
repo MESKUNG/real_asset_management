@@ -22,6 +22,7 @@ interface AdminScheduleRow {
   assigneeName: string;
   department: string;
   dateLabel: string;
+  startDate: string;
   fullDateRange: string;
   status: InventorySessionStatus;
   checked: boolean;
@@ -43,12 +44,12 @@ const DAYS_IN_MONTH: Record<string, number> = {
 };
 
 
-const BRANCH_ASSIGNEE_MAP: Record<string, { assignee: string; dept: string; sub: string; defaultCount: number }> = {
-  "BR-001": { assignee: "กานต์ พิพัฒน์", dept: "ผู้รับผิดชอบ", sub: "ชั้น 3", defaultCount: 120 },
-  "BR-002": { assignee: "มาลี ใจดี", dept: "ฝ่ายธุรการ", sub: "อาคาร A", defaultCount: 48 },
-  "BR-003": { assignee: "ปิยะ วัฒนา", dept: "ฝ่ายไอที", sub: "คลังอุปกรณ์", defaultCount: 80 },
-  "BR-004": { assignee: "ธนกร ศรีสวัสดิ์", dept: "ฝ่ายไอที", sub: "ชั้น 2", defaultCount: 65 },
-  "BR-005": { assignee: "ศิริพร วงศ์สวัสดิ์", dept: "ฝ่ายธุรการ", sub: "ชั้น 1", defaultCount: 50 },
+const BRANCH_ASSIGNEE_MAP: Record<string, { assignee: string; dept: string; sub: string }> = {
+  "BR-001": { assignee: "กานต์ พิพัฒน์", dept: "ผู้รับผิดชอบ", sub: "ชั้น 3" },
+  "BR-002": { assignee: "มาลี ใจดี", dept: "ฝ่ายธุรการ", sub: "อาคาร A" },
+  "BR-003": { assignee: "ปิยะ วัฒนา", dept: "ฝ่ายไอที", sub: "คลังอุปกรณ์" },
+  "BR-004": { assignee: "ธนกร ศรีสวัสดิ์", dept: "ฝ่ายไอที", sub: "ชั้น 2" },
+  "BR-005": { assignee: "ศิริพร วงศ์สวัสดิ์", dept: "ฝ่ายธุรการ", sub: "ชั้น 1" },
 };
 
 
@@ -56,6 +57,11 @@ const formatShortDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "24 ต.ค.";
   return date.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+};
+
+const formatThaiYear = (dateStr: string): string => {
+  const date = new Date(`${dateStr}T00:00:00`);
+  return String(date.getFullYear() + 543);
 };
 
 
@@ -72,11 +78,12 @@ const buildInitialAdminSchedules = (): AdminScheduleRow[] => {
       branchId: session.branchId,
       branchName: branchObj ? branchObj.name : "สำนักงานใหญ่",
       subLocation: meta.sub,
-      itemCount: meta.defaultCount,
+      itemCount: session.totalAssets,
       assigneeName: meta.assignee,
       department: meta.dept,
       dateLabel: startText,
-      fullDateRange: `${startText} – ${endText} ${CURRENT_YEAR}`,
+      startDate: session.startDate,
+      fullDateRange: `${startText} – ${endText} ${formatThaiYear(session.startDate)}`,
       status: session.status,
       checked: false,
     };
@@ -146,10 +153,11 @@ export default function SchedulePage() {
       branchId: selectedBranchId,
       branchName: branchName,
       subLocation: meta.sub,
-      itemCount: meta.defaultCount,
+      itemCount: assets.filter((asset) => asset.branchId === selectedBranchId).length,
       assigneeName: meta.assignee,
       department: meta.dept,
       dateLabel: `${startNum} ${selectedMonth}`,
+      startDate: `${CURRENT_YEAR - 543}-${String(THAI_MONTHS.indexOf(selectedMonth) + 1).padStart(2, "0")}-${String(startNum).padStart(2, "0")}`,
       fullDateRange: `${startNum}–${endNum} ${selectedMonth} ${CURRENT_YEAR}`,
       status: "planned",
       checked: false,
@@ -189,13 +197,17 @@ export default function SchedulePage() {
     showNotice("อัปเดตสถานะรอบตรวจนับเรียบร้อย (Mockup)");
   };
 
-  const latestItem = schedules[0];
-  const topDateRangeText = latestItem ? latestItem.fullDateRange : "24–31 ต.ค. 2569";
-  const topLocationText = latestItem ? latestItem.branchName : "สำนักงานใหญ่";
+  const nextSession = schedules
+    .filter((item) => (item.status === "planned" || item.status === "in_progress") && item.startDate >= new Date().toISOString().slice(0, 10))
+    .slice()
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+  const topDateRangeText = nextSession?.fullDateRange ?? "ไม่มีรอบตรวจนับที่กำลังจะมาถึง";
+  const topLocationText = nextSession?.branchName ?? "ทุกสาขา";
 
   const repairInDataCount = assets.filter(
     (a) => a.status === "repair" || a.status === "damaged"
   ).length;
+  const availableAssetCount = assets.filter((asset) => asset.status === "available").length;
 
   const totalPages = Math.max(1, Math.ceil(schedules.length / PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
@@ -460,9 +472,9 @@ export default function SchedulePage() {
                   <CubeIcon />
                 </span>
               </div>
-              <p className="text-3xl font-extrabold text-slate-900 mb-2">1,248</p>
+              <p className="text-3xl font-extrabold text-slate-900 mb-2">{assets.length.toLocaleString("th-TH")}</p>
               <p className="text-xs font-medium text-[#4f46e5]">
-                +24 รายการในเดือนนี้ (ตัวอย่างในระบบ {assets.length} ชิ้น)
+                ทรัพย์สินใน 5 สาขา
               </p>
             </div>
 
@@ -473,7 +485,7 @@ export default function SchedulePage() {
                   <CheckCircleIcon />
                 </span>
               </div>
-              <p className="text-3xl font-extrabold text-slate-900 mb-2">1,120</p>
+              <p className="text-3xl font-extrabold text-slate-900 mb-2">{availableAssetCount.toLocaleString("th-TH")}</p>
               <p className="text-xs font-medium text-emerald-600">พร้อมสำหรับการมอบหมาย</p>
             </div>
 
@@ -484,16 +496,16 @@ export default function SchedulePage() {
                   <WrenchIcon />
                 </span>
               </div>
-              <p className="text-3xl font-extrabold text-slate-900 mb-2">128</p>
+              <p className="text-3xl font-extrabold text-slate-900 mb-2">{repairInDataCount.toLocaleString("th-TH")}</p>
               <p className="text-xs font-medium text-amber-600">
-                12 รายการใกล้ถึงกำหนด (แจ้งซ่อมจริง {repairInDataCount} ชิ้น)
+                รายการที่ชำรุดหรืออยู่ระหว่างซ่อม
               </p>
             </div>
           </div>
 
           <div className="flex items-center justify-between mb-3.5">
             <h2 className="text-base lg:text-lg font-bold text-slate-900">
-              รอบตรวจนับที่กำลังจะมาถึง
+              รายการกำหนดการตรวจนับ
             </h2>
 
             {selectedCount > 0 && (
@@ -556,14 +568,14 @@ export default function SchedulePage() {
                       {item.dateLabel}
                     </div>
 
-                    <button
+                    {item.status !== "completed" && <button
                       type="button"
                       onClick={() => toggleItemStatus(item.id)}
                       title="คลิกเพื่อจำลองสลับสถานะ"
                       className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100"
                     >
                       •••
-                    </button>
+                    </button>}
                   </div>
                 ))}
               </div>
@@ -587,13 +599,13 @@ export default function SchedulePage() {
                           {item.dateLabel}
                         </span>
                       </label>
-                      <button
+                      {item.status !== "completed" && <button
                         type="button"
                         onClick={() => toggleItemStatus(item.id)}
                         className="text-slate-500 hover:text-slate-800 px-1"
                       >
                         •••
-                      </button>
+                      </button>}
                     </div>
 
                     <div className="p-4 space-y-3">

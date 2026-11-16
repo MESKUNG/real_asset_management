@@ -58,10 +58,8 @@ const buildUserScheduleRows = (): UserScheduleRow[] => {
       subLoc: "คลังกลาง",
     };
 
-    // รอบที่กำลังนับแสดง 80 รายการตามดีไซน์ รอบอื่นนับจากข้อมูลจริง
     const branchAssetCount = assets.filter((a) => a.branchId === session.branchId).length;
-    const displayCount =
-      session.status === "in_progress" ? 80 : Math.max(session.totalAssets, branchAssetCount);
+    const displayCount = branchAssetCount;
 
     return {
       id: session.id,
