@@ -79,10 +79,10 @@ export default function RepairHistoryPage() {
   );
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
         <header className="mb-6">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
             ประวัติซ่อม
           </h1>
           <p className="mt-1 text-xs text-slate-500">
@@ -111,7 +111,50 @@ export default function RepairHistoryPage() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="divide-y divide-slate-100 md:hidden">
+            {visibleRequests.map((request) => (
+              <article key={request.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-800">
+                      {request.id}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      เสร็จสิ้น {request.completedAt}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
+                    เสร็จสิ้น
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-medium text-slate-800">
+                    {request.assetName}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-slate-400">
+                    {request.assetId}
+                  </p>
+                </div>
+                <p className="break-words text-xs text-slate-500">
+                  {request.branchCode} · {request.branchName}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRequest(request)}
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+                  ดูรายละเอียด
+                </button>
+              </article>
+            ))}
+            {visibleRequests.length === 0 && (
+              <p className="px-4 py-10 text-center text-sm text-slate-500">
+                ไม่พบประวัติซ่อมที่ตรงกับการค้นหา
+              </p>
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[680px] border-collapse text-left">
               <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
                 <tr>
@@ -228,12 +271,12 @@ export default function RepairHistoryPage() {
       </div>
 
       {selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-4">
           <section
             role="dialog"
             aria-modal="true"
             aria-labelledby="repair-history-dialog-title"
-            className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl"
+            className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:p-5"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>

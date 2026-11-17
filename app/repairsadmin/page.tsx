@@ -187,7 +187,7 @@ export default function RepairsAdminPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
         {selectedRequest ? (
           <div className="mx-auto max-w-4xl">
@@ -199,13 +199,13 @@ export default function RepairsAdminPage() {
               <ArrowLeft className="size-4" />
               กลับไปหน้ารายการคำร้อง
             </button>
-            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
               <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <h1 className="text-lg font-semibold text-slate-900">
                   รายละเอียดคำร้อง
                 </h1>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-700">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="break-all text-xs font-semibold text-slate-700 sm:text-sm">
                     {selectedRequest.id}
                   </span>
                   <span
@@ -223,7 +223,7 @@ export default function RepairsAdminPage() {
                     <dt className="w-24 shrink-0 text-xs text-slate-500">
                       ผู้แจ้ง
                     </dt>
-                    <dd className="text-xs font-medium text-slate-700">
+                    <dd className="min-w-0 break-words text-xs font-medium text-slate-700">
                       ผู้ใช้งาน #{selectedRequest.reporterId}
                     </dd>
                   </div>
@@ -234,7 +234,7 @@ export default function RepairsAdminPage() {
                     </dt>
                     <dd className="text-xs font-medium text-slate-700">
                       {asset?.name ?? "ไม่พบข้อมูลทรัพย์สิน"}{" "}
-                      <span className="text-slate-400">
+                      <span className="break-all text-slate-400">
                         {selectedRequest.assetId}
                       </span>
                     </dd>
@@ -273,7 +273,7 @@ export default function RepairsAdminPage() {
                     <dt className="w-24 shrink-0 text-xs text-slate-500">
                       ช่องทางติดต่อ Vendor
                     </dt>
-                    <dd className="text-xs leading-5 text-slate-700">
+                    <dd className="min-w-0 break-words text-xs leading-5 text-slate-700">
                       {vendor?.phone ?? "-"}
                       <br />
                       {vendor?.email ?? "-"}
@@ -286,7 +286,7 @@ export default function RepairsAdminPage() {
                 <p className="mb-1 text-xs font-medium text-slate-500">
                   อาการที่แจ้ง
                 </p>
-                <p className="text-sm text-slate-700">
+                <p className="break-words text-sm text-slate-700">
                   {selectedRequest.issue}
                 </p>
               </div>
@@ -389,11 +389,11 @@ export default function RepairsAdminPage() {
               </p>
             </header>
 
-            <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
-              <div className="flex items-center gap-2 text-sm text-slate-700">
+            <section className="mb-5 flex flex-col items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+              <div className="flex min-w-0 items-center gap-2 text-sm text-slate-700">
                 <FileText className="size-4 text-slate-500" />
                 <span>สาขาที่ดูแล</span>
-                <span className="font-semibold text-slate-900">
+                <span className="break-words font-semibold text-slate-900">
                   {branchFilter === "all"
                     ? "ทุกสาขา"
                     : `${branches.find((item) => item.id === branchFilter)?.name} · ${branches.find((item) => item.id === branchFilter)?.code}`}
@@ -468,7 +468,75 @@ export default function RepairsAdminPage() {
                 </label>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="divide-y divide-slate-100 md:hidden">
+                {visibleRequests.map((request) => {
+                  const rowAsset = assets.find(
+                    (item) => item.id === request.assetId,
+                  );
+                  const rowBranch = branches.find(
+                    (item) => item.id === request.branchId,
+                  );
+
+                  return (
+                    <article key={request.id} className="space-y-3 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-xs font-semibold text-slate-800">
+                          {request.id}
+                        </p>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${statusStyles[request.status]}`}
+                        >
+                          {statusLabels[request.status]}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="break-words text-sm font-medium text-slate-800">
+                          {rowAsset?.name ?? "ไม่พบข้อมูลทรัพย์สิน"}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-slate-400">
+                          {request.assetId}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-400">ผู้แจ้ง</p>
+                          <p className="mt-1 break-words text-slate-700">
+                            ผู้ใช้งาน #{request.reporterId}
+                          </p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-400">สาขา</p>
+                          <p className="mt-1 break-words text-slate-700">
+                            {rowBranch?.name ?? "ไม่ระบุสาขา"}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-[10px] text-slate-400">
+                            วันที่แจ้ง
+                          </p>
+                          <p className="mt-1 text-slate-700">
+                            {formatThaiDate(request.reportedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => showDetails(request)}
+                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                      >
+                        ดูรายละเอียด
+                      </button>
+                    </article>
+                  );
+                })}
+                {visibleRequests.length === 0 && (
+                  <p className="px-4 py-10 text-center text-sm text-slate-500">
+                    ไม่พบรายการแจ้งซ่อมที่ตรงกับการค้นหา
+                  </p>
+                )}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[850px] border-collapse text-left">
                   <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
                     <tr>
