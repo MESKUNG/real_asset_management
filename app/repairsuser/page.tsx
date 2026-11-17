@@ -7,11 +7,11 @@ import {
   Calendar,
   ChevronDown,
   FileText,
-  Plus,
   Search1,
 } from "@tailgrids/icons";
 import { assets } from "@/data/asset";
 import { branches } from "@/data/branches";
+import CreateRepairModal from "./modal";
 import {
   repairRequests as initialRepairRequests,
   type RepairRequest,
@@ -383,7 +383,7 @@ export default function RepairsPage() {
         </section>
       </div>
 
-      {(selectedRequest || isCreateOpen) && (
+      {selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
           <section
             role="dialog"
@@ -397,19 +397,16 @@ export default function RepairsPage() {
                   id="repair-dialog-title"
                   className="text-lg font-semibold text-slate-900"
                 >
-                  {selectedRequest ? "รายละเอียดคำร้องแจ้งซ่อม" : "สร้างคำร้องแจ้งซ่อม"}
+                  รายละเอียดคำร้องแจ้งซ่อม
                 </h2>
-                {selectedRequest && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    {selectedRequest.id}
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-slate-500">
+                  {selectedRequest.id}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => {
                   setSelectedRequest(null);
-                  setIsCreateOpen(false);
                 }}
                 aria-label="ปิดหน้าต่าง"
                 className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
@@ -418,133 +415,59 @@ export default function RepairsPage() {
               </button>
             </div>
 
-            {selectedRequest ? (
-              <dl className="grid gap-4 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs text-slate-500">อุปกรณ์</dt>
-                  <dd className="mt-1 font-medium text-slate-800">
-                    {getAsset(selectedRequest.assetId)?.name} (
-                    {selectedRequest.assetId})
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">ผู้แจ้ง</dt>
-                  <dd className="mt-1 font-medium text-slate-800">
-                    ผู้ใช้งาน #{selectedRequest.reporterId}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">สาขา</dt>
-                  <dd className="mt-1 font-medium text-slate-800">
-                    {getBranch(selectedRequest.branchId)?.name}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">วันที่แจ้ง</dt>
-                  <dd className="mt-1 font-medium text-slate-800">
-                    {formatThaiDate(selectedRequest.reportedAt)}
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-xs text-slate-500">อาการที่แจ้ง</dt>
-                  <dd className="mt-1 font-medium text-slate-800">
-                    {selectedRequest.issue}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">สถานะ</dt>
-                  <dd className="mt-1 font-medium text-slate-800">
-                    {statusLabels[selectedRequest.status]}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">หมายเหตุ</dt>
-                  <dd className="mt-1 font-medium text-slate-800">
-                    {selectedRequest.adminNote || "-"}
-                  </dd>
-                </div>
-              </dl>
-            ) : (
-              <form onSubmit={handleCreateRequest} className="space-y-4">
-                <label className="block text-sm font-medium text-slate-700">
-                  ทรัพย์สิน
-                  <select
-                    name="assetId"
-                    required
-                    defaultValue=""
-                    className="mt-1.5 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  >
-                    <option value="" disabled>
-                      เลือกทรัพย์สิน
-                    </option>
-                    {assets.map((asset) => (
-                      <option key={asset.id} value={asset.id}>
-                        {asset.name} ({asset.id})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-sm font-medium text-slate-700">
-                  สาขา
-                  <select
-                    name="branchId"
-                    required
-                    defaultValue=""
-                    className="mt-1.5 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  >
-                    <option value="" disabled>
-                      เลือกสาขา
-                    </option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-sm font-medium text-slate-700">
-                  อาการที่พบ
-                  <textarea
-                    name="issue"
-                    required
-                    rows={3}
-                    placeholder="อธิบายอาการหรือปัญหาที่พบ"
-                    className="mt-1.5 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm font-normal outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  />
-                </label>
-                <label className="block text-sm font-medium text-slate-700">
-                  ระดับความเร่งด่วน
-                  <select
-                    name="priority"
-                    defaultValue="medium"
-                    className="mt-1.5 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  >
-                    <option value="low">ต่ำ</option>
-                    <option value="medium">ปกติ</option>
-                    <option value="high">สูง</option>
-                    <option value="urgent">เร่งด่วน</option>
-                  </select>
-                </label>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateOpen(false)}
-                    className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
-                  >
-                    ยกเลิก
-                  </button>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                  >
-                    <Plus className="size-4" />
-                    ส่งคำร้อง
-                  </button>
-                </div>
-              </form>
-            )}
+            <dl className="grid gap-4 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs text-slate-500">อุปกรณ์</dt>
+                <dd className="mt-1 font-medium text-slate-800">
+                  {getAsset(selectedRequest.assetId)?.name} (
+                  {selectedRequest.assetId})
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">ผู้แจ้ง</dt>
+                <dd className="mt-1 font-medium text-slate-800">
+                  ผู้ใช้งาน #{selectedRequest.reporterId}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">สาขา</dt>
+                <dd className="mt-1 font-medium text-slate-800">
+                  {getBranch(selectedRequest.branchId)?.name}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">วันที่แจ้ง</dt>
+                <dd className="mt-1 font-medium text-slate-800">
+                  {formatThaiDate(selectedRequest.reportedAt)}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-xs text-slate-500">อาการที่แจ้ง</dt>
+                <dd className="mt-1 font-medium text-slate-800">
+                  {selectedRequest.issue}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">สถานะ</dt>
+                <dd className="mt-1 font-medium text-slate-800">
+                  {statusLabels[selectedRequest.status]}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-500">หมายเหตุ</dt>
+                <dd className="mt-1 font-medium text-slate-800">
+                  {selectedRequest.adminNote || "-"}
+                </dd>
+              </div>
+            </dl>
           </section>
         </div>
+      )}
+      {isCreateOpen && (
+        <CreateRepairModal
+          onClose={() => setIsCreateOpen(false)}
+          onSubmit={handleCreateRequest}
+        />
       )}
     </div>
   );

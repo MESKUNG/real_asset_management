@@ -32,8 +32,8 @@ const menus: Record<RoleKey, MenuEntry[]> = {
       name: "ซ่อมบำรุง",
       path: "/repairs",
       items: [
-        { name: "รายการแจ้งซ่อม", path: "/" },
-        { name: "ประวัติซ่อม", path: "/" },
+        { name: "รายการแจ้งซ่อม", path: "/repairsuser" },
+        { name: "ประวัติซ่อม", path: "/repair-historyuser" },
       ],
     },
     { name: "รายงาน", path: "/reports" },
