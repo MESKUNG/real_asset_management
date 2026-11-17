@@ -11,6 +11,7 @@ import { TextField } from "@/components/tailgrids/core/text-field";
 import { useState, type FormEvent } from "react";
 import { Form } from "react-aria-components";
 import { useRouter } from "next/navigation";
+import { createLoginHistory } from "@/lib/loginHistory";
 
 import { Globe2, MoonHalfLeft5 } from "@tailgrids/icons";
 
@@ -24,6 +25,7 @@ type RoleName = "user" | "admin" | "president" | "superadmin";      //ตัว�
 
 type Credential = {   //กำหนด Type ของ Credential ที่ใช้เก็บข้อมูลผู้ใช้หลังจากเข้าสู่ระบบสำเร็จ
   id: number;
+  staff_id: number | null;
   username: string;
   email: string;
   role_id: number;
@@ -128,6 +130,7 @@ export default function Home() {
 
       const credential: Credential = {       //เก็บข้อมูลผู้ใช้ใน credential
         id: user.id,                                                                   //นำ ID ของผู้ใช้จาก API มาเก็บใน Credential
+        staff_id: typeof user.staff_id === "number" ? user.staff_id : null,
         username: typeof user.username === "string" ? user.username : username,       //ถ้า username ไม่ใช่ String ให้ใช้ username ที่ผู้ใช้กรอก
         email: typeof user.email === "string" ? user.email : "",              //ถ้า email ไม่ใช่ String ให้ใช้ ""
         role_id: user.role_id,                                                  //เก็บ ID ของ Role
@@ -136,6 +139,24 @@ export default function Home() {
           ? { branch_id: user.branch_id.trim() }                     //ถ้ามี branch_id ให้เก็บใน Credential
           : {}),          //ถ้าไม่มี branch_id ให้เก็บเป็น Object ว่าง
       };
+
+      // บันทึกเฉพาะการเข้าสู่ระบบสำเร็จ โดยไม่ให้ปัญหาจาก resource ประวัติขัดขวางการล็อกอิน
+      try {
+        if (typeof credential.staff_id !== "number") {
+          throw new Error("บัญชีนี้ไม่มี StaffID จึงบันทึกประวัติไม่ได้");
+        }
+
+        await createLoginHistory({
+          account_id: credential.staff_id,
+          username: credential.username,
+          login_time: new Date().toISOString(),
+          status: "success",
+          device: navigator.userAgent || "ไม่ทราบอุปกรณ์",
+          ip_address: "ระบุไม่ได้",
+        });
+      } catch (historyError) {
+        console.warn("บันทึกประวัติการเข้าสู่ระบบไม่สำเร็จ:", historyError);
+      }
 
       localStorage.setItem("credential", JSON.stringify(credential));      //เก็บข้อมูล Credential ลงใน Local Storage ของ Browser ในรูปแบบ JSON String
       window.dispatchEvent(new Event("credentialchange"));        //แจ้งให้ Component อื่น ๆ ทราบว่ามีการเปลี่ยนแปลง Credential เกิดขึ้น โดยตั้งชื่อ Event นี้ว่า "credentialchange"

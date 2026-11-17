@@ -38,7 +38,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     },
     { name: "รายงาน", path: "/reports" },
     { name: "ตรวจนับ / รอบการตรวจนับ", path: "/inventories" },
-    { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
+    { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
   ],
   admin: [
     { name: "ภาพรวม", path: "/dashboardAdmin" },
@@ -64,7 +64,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
       ],
     },
     { name: "สถานที่และแผนก", path: "/locations" },
-    { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
+    { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
   ],
   president: [
     { name: "ภาพรวม", path: "/dashboardPresident" },
@@ -86,14 +86,14 @@ const menus: Record<RoleKey, MenuEntry[]> = {
         { name: "จัดการ Admin", path: "/admin_and_presidents" },
       ],
     },
-    { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
+    { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
     { name: "เบิก / คืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
   ],
   superadmin: [
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการบัญชี Admin / President", path: "/admin_and_presidents" },
 { name: "สถานที่และแผนก", path: "/" },
-    { name: "ประวัติการเข้าสู่ระบบ", path: "/account_history" },
+    { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
   ],
 };
 
