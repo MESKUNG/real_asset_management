@@ -1,0 +1,614 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  ChevronDown,
+  CheckCircle1,
+  FileText,
+  Gear1,
+  LaptopPhone,
+  MapMarker5,
+  Paperclip2,
+  Phone,
+  RefreshCircle1Clockwise,
+  Search1,
+  User2,
+} from "@tailgrids/icons";
+import { assets } from "@/data/asset";
+import { branches } from "@/data/branches";
+import {
+  repairRequests as initialRequests,
+  type RepairRequest,
+  type RepairStatus,
+} from "@/data/repairRequests";
+import { vendors } from "@/data/vendor";
+
+const pageSize = 5;
+
+const statusLabels: Record<RepairStatus, string> = {
+  pending: "รอดำเนินการ",
+  in_progress: "กำลังซ่อม",
+  completed: "เสร็จสิ้น",
+  rejected: "ไม่อนุมัติ",
+};
+
+const statusStyles: Record<RepairStatus, string> = {
+  pending: "bg-amber-50 text-amber-700",
+  in_progress: "bg-indigo-50 text-indigo-600",
+  completed: "bg-emerald-50 text-emerald-700",
+  rejected: "bg-rose-50 text-rose-600",
+};
+
+const statuses: RepairStatus[] = [
+  "pending",
+  "in_progress",
+  "completed",
+  "rejected",
+];
+const allowedFileTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+const maxFileSize = 10 * 1024 * 1024;
+
+function formatThaiDate(date: string) {
+  return new Date(date).toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatThaiDateTime(date: string) {
+  return new Date(date).toLocaleString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function RepairsAdminPage() {
+  const [requests, setRequests] = useState(initialRequests);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRequest, setSelectedRequest] = useState<RepairRequest | null>(
+    null,
+  );
+  const [editStatus, setEditStatus] = useState<RepairStatus>("pending");
+  const [adminNote, setAdminNote] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const filteredRequests = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("th");
+    return [...requests]
+      .filter((request) => {
+        const asset = assets.find((item) => item.id === request.assetId);
+        const branch = branches.find((item) => item.id === request.branchId);
+        const matchesSearch =
+          !query ||
+          [
+            request.id,
+            request.assetId,
+            asset?.name,
+            request.issue,
+            branch?.name,
+            String(request.reporterId),
+          ].some((value) => value?.toLocaleLowerCase("th").includes(query));
+
+        return (
+          matchesSearch &&
+          (statusFilter === "all" || request.status === statusFilter) &&
+          (branchFilter === "all" || request.branchId === branchFilter) &&
+          (!dateFrom || request.reportedAt.slice(0, 10) >= dateFrom)
+        );
+      })
+      .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
+  }, [requests, search, statusFilter, branchFilter, dateFrom]);
+
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredRequests.length / pageSize),
+  );
+  const visibleRequests = filteredRequests.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const asset = selectedRequest
+    ? assets.find((item) => item.id === selectedRequest.assetId)
+    : undefined;
+  const branch = selectedRequest
+    ? branches.find((item) => item.id === selectedRequest.branchId)
+    : undefined;
+  const vendor = selectedRequest
+    ? vendors.find((item) => item.id === selectedRequest.vendorId)
+    : undefined;
+
+  const updateFilter = (update: () => void) => {
+    update();
+    setCurrentPage(1);
+  };
+
+  const showDetails = (request: RepairRequest) => {
+    setSelectedRequest(request);
+    setEditStatus(request.status);
+    setAdminNote(request.adminNote);
+    setFiles([]);
+    setError("");
+    setSuccess("");
+  };
+
+  const handleFiles = (selectedFiles: File[]) => {
+    const invalidFile = selectedFiles.find(
+      (file) => !allowedFileTypes.has(file.type) || file.size > maxFileSize,
+    );
+    if (invalidFile) {
+      setFiles([]);
+      setError(
+        invalidFile.size > maxFileSize
+          ? "ไฟล์แนบต้องมีขนาดไม่เกิน 10 MB"
+          : "รองรับไฟล์รูปภาพ, PDF และ DOC เท่านั้น",
+      );
+      return;
+    }
+    setError("");
+    setFiles(selectedFiles);
+  };
+
+  const updateRequest = () => {
+    if (!selectedRequest) return;
+    setError("");
+    setSuccess("");
+    const updatedRequest = {
+      ...selectedRequest,
+      status: editStatus,
+      adminNote: adminNote.trim(),
+    };
+    setRequests((current) =>
+      current.map((request) =>
+        request.id === updatedRequest.id ? updatedRequest : request,
+      ),
+    );
+    setSelectedRequest(updatedRequest);
+    setSuccess("อัปเดตสถานะเรียบร้อยแล้ว");
+  };
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1440px]">
+        {selectedRequest ? (
+          <div className="mx-auto max-w-4xl">
+            <button
+              type="button"
+              onClick={() => setSelectedRequest(null)}
+              className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-700"
+            >
+              <ArrowLeft className="size-4" />
+              กลับไปหน้ารายการคำร้อง
+            </button>
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <h1 className="text-lg font-semibold text-slate-900">
+                  รายละเอียดคำร้อง
+                </h1>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-700">
+                    {selectedRequest.id}
+                  </span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[selectedRequest.status]}`}
+                  >
+                    {statusLabels[selectedRequest.status]}
+                  </span>
+                </div>
+              </header>
+
+              <div className="grid gap-5 border-b border-slate-200 pb-5 md:grid-cols-2">
+                <dl className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <User2 className="mt-0.5 size-4 shrink-0 text-slate-400" />
+                    <dt className="w-24 shrink-0 text-xs text-slate-500">
+                      ผู้แจ้ง
+                    </dt>
+                    <dd className="text-xs font-medium text-slate-700">
+                      ผู้ใช้งาน #{selectedRequest.reporterId}
+                    </dd>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <LaptopPhone className="mt-0.5 size-4 shrink-0 text-slate-400" />
+                    <dt className="w-24 shrink-0 text-xs text-slate-500">
+                      Asset
+                    </dt>
+                    <dd className="text-xs font-medium text-slate-700">
+                      {asset?.name ?? "ไม่พบข้อมูลทรัพย์สิน"}{" "}
+                      <span className="text-slate-400">
+                        {selectedRequest.assetId}
+                      </span>
+                    </dd>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <MapMarker5 className="mt-0.5 size-4 shrink-0 text-slate-400" />
+                    <dt className="w-24 shrink-0 text-xs text-slate-500">
+                      สาขา
+                    </dt>
+                    <dd className="text-xs font-medium text-slate-700">
+                      {branch?.name ?? "ไม่ระบุสาขา"}
+                    </dd>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Calendar className="mt-0.5 size-4 shrink-0 text-slate-400" />
+                    <dt className="w-24 shrink-0 text-xs text-slate-500">
+                      วันที่แจ้ง
+                    </dt>
+                    <dd className="text-xs font-medium text-slate-700">
+                      {formatThaiDateTime(selectedRequest.reportedAt)}
+                    </dd>
+                  </div>
+                </dl>
+                <dl className="space-y-4 border-slate-200 md:border-l md:pl-5">
+                  <div className="flex items-start gap-3">
+                    <Gear1 className="mt-0.5 size-4 shrink-0 text-slate-400" />
+                    <dt className="w-24 shrink-0 text-xs text-slate-500">
+                      ผู้จัดจำหน่าย
+                    </dt>
+                    <dd className="text-xs font-medium text-slate-700">
+                      {vendor?.name ?? "ไม่ระบุผู้จัดจำหน่าย"}
+                    </dd>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Phone className="mt-0.5 size-4 shrink-0 text-slate-400" />
+                    <dt className="w-24 shrink-0 text-xs text-slate-500">
+                      ช่องทางติดต่อ Vendor
+                    </dt>
+                    <dd className="text-xs leading-5 text-slate-700">
+                      {vendor?.phone ?? "-"}
+                      <br />
+                      {vendor?.email ?? "-"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="border-b border-slate-200 py-4">
+                <p className="mb-1 text-xs font-medium text-slate-500">
+                  อาการที่แจ้ง
+                </p>
+                <p className="text-sm text-slate-700">
+                  {selectedRequest.issue}
+                </p>
+              </div>
+
+              <div className="space-y-5 pt-4">
+                <label className="block text-xs font-medium text-slate-600">
+                  สถานะ <span className="text-rose-500">*</span>
+                  <span className="relative mt-2 block">
+                    <CheckCircle1 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                    <select
+                      required
+                      value={editStatus}
+                      onChange={(event) =>
+                        setEditStatus(event.target.value as RepairStatus)
+                      }
+                      className="h-10 w-full appearance-none rounded-md border border-slate-200 bg-white pl-9 pr-3 text-xs font-normal text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    >
+                      {statuses.map((status) => (
+                        <option key={status} value={status}>
+                          {statusLabels[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
+                </label>
+
+                <label className="block text-xs font-medium text-slate-600">
+                  หมายเหตุ (ภายใน)
+                  <textarea
+                    rows={3}
+                    value={adminNote}
+                    onChange={(event) => setAdminNote(event.target.value)}
+                    placeholder="ระบุหมายเหตุการดำเนินการ..."
+                    className="mt-2 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-xs font-normal outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+
+                <div>
+                  <p className="mb-2 text-xs font-medium text-slate-600">
+                    ไฟล์แนบ (ถ้ามี)
+                  </p>
+                  <label
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      handleFiles(Array.from(event.dataTransfer.files));
+                    }}
+                    className="flex min-h-16 cursor-pointer items-center justify-center gap-3 rounded-md border border-dashed border-slate-300 px-4 py-3 text-center transition hover:border-indigo-400 hover:bg-indigo-50/40"
+                  >
+                    <Paperclip2 className="size-5 shrink-0 text-slate-400" />
+                    <span className="text-xs text-slate-500">
+                      {files.length
+                        ? files.map((file) => file.name).join(", ")
+                        : "ลากไฟล์มาวางที่นี่ หรือ คลิกเพื่อเลือกไฟล์"}
+                      <span className="mt-1 block text-[10px] text-slate-400">
+                        รองรับไฟล์รูปภาพ, PDF, DOC (ไม่เกิน 10 MB)
+                      </span>
+                    </span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={(event) =>
+                        handleFiles(Array.from(event.currentTarget.files ?? []))
+                      }
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
+
+                {error && (
+                  <p role="alert" className="text-sm text-rose-600">
+                    {error}
+                  </p>
+                )}
+                {success && (
+                  <p role="status" className="text-sm text-emerald-700">
+                    {success}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={updateRequest}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-indigo-600 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+                >
+                  <RefreshCircle1Clockwise className="size-4" />
+                  อัปเดตสถานะ
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : (
+          <>
+            <header className="mb-6">
+              <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+                รายการแจ้งซ่อม
+              </h1>
+              <p className="mt-1 text-xs text-slate-500">
+                ตรวจสอบคำร้องแจ้งซ่อมและติดตามสถานะการดำเนินงาน
+              </p>
+            </header>
+
+            <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+              <div className="flex items-center gap-2 text-sm text-slate-700">
+                <FileText className="size-4 text-slate-500" />
+                <span>สาขาที่ดูแล</span>
+                <span className="font-semibold text-slate-900">
+                  {branchFilter === "all"
+                    ? "ทุกสาขา"
+                    : `${branches.find((item) => item.id === branchFilter)?.name} · ${branches.find((item) => item.id === branchFilter)?.code}`}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                แสดงรายการแจ้งซ่อมทั้งหมดในระบบ
+              </p>
+            </section>
+
+            <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row">
+                <label className="relative min-w-0 flex-1">
+                  <Search1 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(event) =>
+                      updateFilter(() => setSearch(event.target.value))
+                    }
+                    placeholder="ค้นหาคำร้อง, อุปกรณ์, ผู้แจ้ง..."
+                    aria-label="ค้นหารายการแจ้งซ่อม"
+                    className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </label>
+                <label className="relative">
+                  <span className="sr-only">กรองตามสถานะ</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(event) =>
+                      updateFilter(() => setStatusFilter(event.target.value))
+                    }
+                    className="h-10 w-full appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 sm:w-44"
+                  >
+                    <option value="all">สถานะทั้งหมด</option>
+                    {Object.entries(statusLabels).map(([status, label]) => (
+                      <option key={status} value={status}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                </label>
+                <label>
+                  <span className="sr-only">แสดงรายการตั้งแต่วันที่</span>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(event) =>
+                      updateFilter(() => setDateFrom(event.target.value))
+                    }
+                    className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 sm:w-44"
+                  />
+                </label>
+                <label className="relative">
+                  <span className="sr-only">กรองตามสาขา</span>
+                  <select
+                    value={branchFilter}
+                    onChange={(event) =>
+                      updateFilter(() => setBranchFilter(event.target.value))
+                    }
+                    className="h-10 w-full appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 sm:w-44"
+                  >
+                    <option value="all">ทุกสาขา</option>
+                    {branches.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                </label>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[850px] border-collapse text-left">
+                  <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">เลขที่คำร้อง</th>
+                      <th className="px-4 py-3">Asset / อุปกรณ์</th>
+                      <th className="px-4 py-3">ผู้แจ้ง</th>
+                      <th className="px-4 py-3">สาขา / ID</th>
+                      <th className="px-4 py-3">วันที่แจ้ง</th>
+                      <th className="px-4 py-3">สถานะ</th>
+                      <th className="px-4 py-3 text-center">ดำเนินการ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {visibleRequests.map((request) => {
+                      const rowAsset = assets.find(
+                        (item) => item.id === request.assetId,
+                      );
+                      const rowBranch = branches.find(
+                        (item) => item.id === request.branchId,
+                      );
+                      return (
+                        <tr
+                          key={request.id}
+                          className="text-xs text-slate-700 transition hover:bg-slate-50/70"
+                        >
+                          <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-slate-800">
+                            {request.id}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <p className="font-medium text-slate-800">
+                              {rowAsset?.name ?? "ไม่พบข้อมูลทรัพย์สิน"}
+                            </p>
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {request.assetId}
+                            </p>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3.5">
+                            ผู้ใช้งาน #{request.reporterId}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <p className="font-medium text-slate-700">
+                              {rowBranch?.name ?? "ไม่ระบุสาขา"}
+                            </p>
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {rowBranch?.code ?? request.branchId}
+                            </p>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3.5 text-slate-500">
+                            {formatThaiDate(request.reportedAt)}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3.5">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${statusStyles[request.status]}`}
+                            >
+                              {statusLabels[request.status]}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => showDetails(request)}
+                              className="whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            >
+                              ดูรายละเอียด
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {visibleRequests.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-4 py-12 text-center text-sm text-slate-500"
+                        >
+                          ไม่พบรายการแจ้งซ่อมที่ตรงกับการค้นหา
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
+                <p className="text-[11px] text-slate-500">
+                  แสดง{" "}
+                  {filteredRequests.length === 0
+                    ? 0
+                    : (currentPage - 1) * pageSize + 1}{" "}
+                  - {Math.min(currentPage * pageSize, filteredRequests.length)}{" "}
+                  จาก {filteredRequests.length} รายการ
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label="หน้าก่อนหน้า"
+                    disabled={currentPage === 1}
+                    onClick={() =>
+                      setCurrentPage((page) => Math.max(1, page - 1))
+                    }
+                    className="flex size-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ArrowLeft className="size-4" />
+                  </button>
+                  {Array.from(
+                    { length: pageCount },
+                    (_, index) => index + 1,
+                  ).map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      aria-label={`หน้า ${page}`}
+                      aria-current={page === currentPage ? "page" : undefined}
+                      onClick={() => setCurrentPage(page)}
+                      className={`size-8 rounded-md text-xs font-medium transition ${
+                        page === currentPage
+                          ? "bg-indigo-50 text-indigo-700"
+                          : "text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    aria-label="หน้าถัดไป"
+                    disabled={currentPage === pageCount}
+                    onClick={() =>
+                      setCurrentPage((page) => Math.min(pageCount, page + 1))
+                    }
+                    className="flex size-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ArrowRight className="size-4" />
+                  </button>
+                </div>
+              </footer>
+            </section>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
