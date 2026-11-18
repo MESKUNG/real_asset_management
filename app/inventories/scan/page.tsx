@@ -2,13 +2,12 @@
 import { useTranslate } from "@/lib/language";
 
 
-// หน้าสแกน QR ด้วยกล้องจริง (ใช้ไลบรารี @yudiel/react-qr-scanner)
+// หน้าสแกนตรวจนับ: ใช้ตัวสแกนกลางของกลุ่ม (components/scanner) อ่านได้ทั้ง QR Code และ Barcode
 // สแกนได้ต่อเนื่องหลายชิ้นโดยไม่ต้องกลับไปหน้ารายการทุกครั้ง
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState, type FormEvent } from "react";
-import type { IDetectedBarcode, IScannerError } from "@yudiel/react-qr-scanner";
+import { Suspense, useState } from "react";
+import CodeScanner from "@/components/scanner/CodeScanner";
 import {
   RESULT_LABEL,
   findAsset,
@@ -35,32 +34,6 @@ import {
   useToast,
 } from "../_components/ui";
 
-// กล้องใช้ได้เฉพาะบนเบราว์เซอร์ จึงปิดการ render ฝั่ง server (ssr: false)
-const Scanner = dynamic(
-  () => import("@yudiel/react-qr-scanner").then((m) => m.Scanner),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex aspect-square items-center justify-center text-base text-white">
-        กำลังเปิดกล้อง...
-      </div>
-    ),
-  },
-);
-
-const CAMERA_ERROR_TEXT: Record<IScannerError["kind"], string> = {
-  "permission-denied": "ยังไม่ได้อนุญาตให้ใช้กล้อง กดรูปกุญแจที่แถบที่อยู่เว็บแล้วอนุญาตกล้อง",
-  "no-camera": "ไม่พบกล้องในอุปกรณ์นี้",
-  "in-use": "กล้องถูกใช้งานโดยแอปอื่นอยู่",
-  overconstrained: "กล้องตัวนี้ใช้ไม่ได้ ลองกดสลับกล้อง",
-  "insecure-context": "เบราว์เซอร์อนุญาตกล้องเฉพาะเว็บที่เป็น https หรือ localhost",
-  unsupported: "เบราว์เซอร์นี้ไม่รองรับการสแกน",
-  aborted: "การเปิดกล้องถูกยกเลิก",
-  security: "เบราว์เซอร์ไม่อนุญาตให้ใช้กล้อง",
-  "type-error": "เปิดกล้องไม่สำเร็จ",
-  unknown: "เปิดกล้องไม่สำเร็จ",
-};
-
 export default function ScanPage() {
   return (
     <RoleGate allow={["user"]}>
@@ -79,9 +52,6 @@ function ScanContent() {
   const toast = useToast();
 
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
-  const [manualCode, setManualCode] = useState("");
-  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
-  const [cameraError, setCameraError] = useState<string | null>(null);
   // ผลที่เพิ่งสแกน เก็บ id ไว้ให้เปลี่ยนสภาพหรือยกเลิกได้ทันที
   const [lastCheckId, setLastCheckId] = useState<string | null>(null);
 
@@ -117,17 +87,6 @@ function ScanContent() {
       return;
     }
     setOutcome(result);
-  };
-
-  // ไลบรารีจะไม่ส่งโค้ดเดิมซ้ำติดกัน จึงไม่ต้องกันการอ่านซ้ำเอง
-  const handleScan = (codes: IDetectedBarcode[]) => {
-    handleCode(codes[0]?.rawValue ?? "");
-  };
-
-  const handleManualSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    handleCode(manualCode);
-    setManualCode("");
   };
 
   const lastCheck = checks.find((c) => c.id === lastCheckId);
@@ -199,31 +158,7 @@ function ScanContent() {
           </EmptyState>
         ) : (
           <>
-            <div className="overflow-hidden rounded-3xl bg-slate-900">
-              {cameraError ? (
-                <div className="flex aspect-square flex-col items-center justify-center gap-3 p-6 text-center text-base text-white">
-                  <p>{cameraError}</p>
-                  <p className="text-sm text-slate-300">ใช้ช่องพิมพ์รหัสด้านล่างแทนได้</p>
-                </div>
-              ) : (
-                <Scanner
-                  key={facingMode}
-                  onScan={handleScan}
-                          onError={(error) =>
-                            setCameraError(translateText(CAMERA_ERROR_TEXT[error.kind] ?? error.message))
-                          }
-                  paused={outcome !== null}
-                  constraints={{ facingMode }}
-                  formats={["qr_code", "code_128", "code_39", "ean_13"]}
-                  components={{ finder: true, torch: true }}
-                  sound
-                />
-              )}
-            </div>
-
-            <p className="text-center text-base text-slate-600">
-              {translateText("เล็งกล้องไปที่ QR Code บนทรัพย์สิน ระบบจะอ่านให้อัตโนมัติ")}
-            </p>
+            <CodeScanner onScan={(code) => handleCode(code)} paused={outcome !== null} />
 
             {lastCheck && lastAsset && (
               <section aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
@@ -250,36 +185,6 @@ function ScanContent() {
               </section>
             )}
 
-            <button
-              type="button"
-              onClick={() => {
-                setFacingMode((m) => (m === "environment" ? "user" : "environment"));
-                setCameraError(null);
-              }}
-              className={`${buttonStyle.secondary} w-full`}
-            >
-              {translateText("สลับกล้อง")} ·{" "}
-              {translateText(facingMode === "environment" ? "กล้องหลัง" : "กล้องหน้า")}
-            </button>
-
-            <form onSubmit={handleManualSubmit} className="rounded-2xl border border-slate-200 bg-white p-4">
-              <label htmlFor="manual-code" className="text-base font-semibold text-slate-800">
-                {translateText("สแกนไม่ติด? พิมพ์รหัสทรัพย์สิน")}
-              </label>
-              <div className="mt-2 flex gap-2">
-                <input
-                  id="manual-code"
-                  value={manualCode}
-                  onChange={(e) => setManualCode(e.target.value)}
-                  placeholder={translateText("เช่น AST-0005")}
-                  autoCapitalize="characters"
-                  className="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-300 px-3 text-base uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button type="submit" className={buttonStyle.primary} disabled={!manualCode.trim()}>
-                  {translateText("ตรวจ")}
-                </button>
-              </div>
-            </form>
           </>
         )}
 

@@ -74,6 +74,8 @@ export function useCredential() {
 // โหลดครั้งเดียวแล้วเก็บไว้ ถ้าโหลดไม่ได้จะแสดงเป็น "พนักงาน #รหัส"
 
 const staffNames: Record<number, string> = {};
+// ชื่อตามรหัสบัญชี (id ของ Account) ใช้เป็นชื่อผู้ตรวจ เพราะบัญชีที่ล็อกอินเก็บ id ไม่ใช่ staff_id
+const accountNames: Record<number, string> = {};
 let staffLoadStarted = false;
 let staffVersion = 0;
 
@@ -89,8 +91,9 @@ function loadStaffNames() {
       if (!Array.isArray(accounts)) return;
       for (const account of accounts) {
         const staffId = Number(account.staff_id);
-        const fullName = [account.first_name, account.last_name].filter(Boolean).join(" ");
-        if (staffId) staffNames[staffId] = fullName || account.username;
+        const fullName = [account.first_name, account.last_name].filter(Boolean).join(" ") || account.username;
+        if (staffId) staffNames[staffId] = fullName;
+        if (Number(account.id)) accountNames[Number(account.id)] = fullName;
       }
       staffVersion++;
       window.dispatchEvent(new Event("staffnamesloaded"));
@@ -112,6 +115,11 @@ export function useStaffNames() {
 export function getStaffName(id?: number | null): string {
   if (id === undefined || id === null) return "ยังไม่มอบหมาย";
   return staffNames[id] ?? `พนักงาน #${id}`;
+}
+
+// ชื่อจริงของคนที่ล็อกอินอยู่ (จาก MockAPI) ถ้ายังโหลดไม่ได้ใช้ username แทน
+function checkerNameOf(user: Credential): string {
+  return accountNames[user.id] ?? user.username;
 }
 
 /* ---------------- ที่เก็บข้อมูลรอบตรวจนับและผลตรวจ ---------------- */
@@ -445,7 +453,7 @@ export function completeSession(sessionId: string, by: Credential): boolean {
       assetId: asset.id,
       branchId: session.branchId,
       checkerId: by.id,
-      checkerName: by.username,
+      checkerName: checkerNameOf(by),
       result: away ? "found" : "missing",
       checkedAt: now,
       note: away
@@ -514,7 +522,7 @@ export function saveCheck(input: SaveCheckInput): StoredCheck | null {
     assetId: input.asset.id,
     branchId: session.branchId,
     checkerId: input.checker.id,
-    checkerName: input.checker.username,
+    checkerName: checkerNameOf(input.checker),
     result: input.result,
     checkedAt: toLocalISO(new Date()),
     note: input.note ?? "",
@@ -535,7 +543,7 @@ export function updateCheck(checkId: string, result: InventoryResult, checker: C
   if (!check || !session || session.status !== "in_progress") return false;
   const checks = store.checks.map((c) =>
     c.id === checkId
-      ? { ...c, result, checkerId: checker.id, checkerName: checker.username, checkedAt: toLocalISO(new Date()) }
+      ? { ...c, result, checkerId: checker.id, checkerName: checkerNameOf(checker), checkedAt: toLocalISO(new Date()) }
       : c,
   );
   saveStore({ ...store, checks });

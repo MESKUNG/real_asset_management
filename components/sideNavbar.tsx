@@ -29,6 +29,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     { name: "ภาพรวม", path: "/dashboardUser" },
     { name: "จัดการ Asset", path: "/assets" },
     { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
+    { name: "สแกน QR / Barcode", path: "/scanner" },
     {
       name: "ซ่อมบำรุง",
       path: "/repairs",
@@ -40,6 +41,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     { name: "รายงาน", path: "/reports" },
     { name: "ตรวจนับ / รอบการตรวจนับ", path: "/inventories" },
     { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
+    { name: "สแกน QR / Barcode", path: "/scanner" },
   ],
   admin: [
     { name: "ภาพรวม", path: "/dashboardAdmin" },
@@ -48,6 +50,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
     { name: "ติดตามการนับ / มอบหมายงาน", path: "/inventories" },
     { name: "QrCode", path: "/qrcode"},
+    { name: "สแกน QR / Barcode", path: "/scanner" },
     {
       name: "ซ่อมบำรุง",
       path: "/repairs",
@@ -72,6 +75,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     { name: "ภาพรวม", path: "/dashboardPresident" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการ Asset", path: "/assets" },
+    { name: "สแกน QR / Barcode", path: "/scanner" },
     {
       name: "ตรวจสอบและอนุมัติ",
       items: [
