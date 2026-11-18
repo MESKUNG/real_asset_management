@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import type { FormEventHandler } from "react";
 import { Plus } from "@tailgrids/icons";
@@ -14,6 +16,7 @@ export default function CreateRepairModal({
   onClose,
   onSubmit,
 }: CreateRepairModalProps) {
+  const translateText = useTranslate();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
       <section
@@ -27,12 +30,13 @@ export default function CreateRepairModal({
             id="create-repair-title"
             className="text-lg font-semibold text-slate-900"
           >
-            สร้างคำร้องแจ้งซ่อม
+            
+            {translateText("สร้างคำร้องแจ้งซ่อม")}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="ปิดหน้าต่าง"
+            aria-label={translateText("ปิดหน้าต่าง")}
             className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
             ×
@@ -41,7 +45,8 @@ export default function CreateRepairModal({
 
         <form onSubmit={onSubmit} className="space-y-4">
           <label className="block text-sm font-medium text-slate-700">
-            ทรัพย์สิน
+            
+            {translateText("ทรัพย์สิน")}
             <select
               name="assetId"
               required
@@ -49,7 +54,8 @@ export default function CreateRepairModal({
               className="mt-1.5 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             >
               <option value="" disabled>
-                เลือกทรัพย์สิน
+                
+                {translateText("เลือกทรัพย์สิน")}
               </option>
               {assets.map((asset) => (
                 <option key={asset.id} value={asset.id}>
@@ -59,7 +65,8 @@ export default function CreateRepairModal({
             </select>
           </label>
           <label className="block text-sm font-medium text-slate-700">
-            สาขา
+            
+            {translateText("สาขา")}
             <select
               name="branchId"
               required
@@ -67,7 +74,8 @@ export default function CreateRepairModal({
               className="mt-1.5 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             >
               <option value="" disabled>
-                เลือกสาขา
+                
+                {translateText("เลือกสาขา")}
               </option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
@@ -77,26 +85,28 @@ export default function CreateRepairModal({
             </select>
           </label>
           <label className="block text-sm font-medium text-slate-700">
-            อาการที่พบ
+            
+            {translateText("อาการที่พบ")}
             <textarea
               name="issue"
               required
               rows={3}
-              placeholder="อธิบายอาการหรือปัญหาที่พบ"
+              placeholder={translateText("อธิบายอาการหรือปัญหาที่พบ")}
               className="mt-1.5 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm font-normal outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </label>
           <label className="block text-sm font-medium text-slate-700">
-            ระดับความเร่งด่วน
+            
+            {translateText("ระดับความเร่งด่วน")}
             <select
               name="priority"
               defaultValue="medium"
               className="mt-1.5 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             >
-              <option value="low">ต่ำ</option>
-              <option value="medium">ปกติ</option>
-              <option value="high">สูง</option>
-              <option value="urgent">เร่งด่วน</option>
+              <option value="low">{translateText("ต่ำ")}</option>
+              <option value="medium">{translateText("ปกติ")}</option>
+              <option value="high">{translateText("สูง")}</option>
+              <option value="urgent">{translateText("เร่งด่วน")}</option>
             </select>
           </label>
           <div className="flex justify-end gap-2 pt-2">
@@ -105,14 +115,16 @@ export default function CreateRepairModal({
               onClick={onClose}
               className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
             >
-              ยกเลิก
+              
+              {translateText("ยกเลิก")}
             </button>
             <button
               type="submit"
               className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
               <Plus className="size-4" />
-              ส่งคำร้อง
+              
+              {translateText("ส่งคำร้อง")}
             </button>
           </div>
         </form>

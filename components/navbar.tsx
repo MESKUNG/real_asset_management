@@ -3,6 +3,8 @@
 import TopNavbar from "./topNavbar";
 import Sidebar from "./sideNavbar";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { useLanguage, useTheme } from "@/lib/language";
 
 type NavbarProps = {
   children: React.ReactNode;
@@ -10,6 +12,13 @@ type NavbarProps = {
 
 export default function Navbar({ children }: NavbarProps) {
   const pathname = usePathname();
+  const language = useLanguage();
+  const theme = useTheme();
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [language, theme]);
 
   return (
     <div className="flex min-h-screen">

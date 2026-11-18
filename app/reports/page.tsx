@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -133,6 +135,7 @@ const reportActivities: ActivityItem[] = assetHistories
   });
 
 export default function ReportSummaryPage() {
+  const translateText = useTranslate();
   const router = useRouter();
 
   const reportCards = buildReportCards();
@@ -221,12 +224,12 @@ export default function ReportSummaryPage() {
         <button
           type="button"
           onClick={() => router.back()}
-          aria-label="ย้อนกลับ"
+          aria-label={translateText("ย้อนกลับ")}
           className="text-slate-600 hover:text-slate-900 px-2 py-1 rounded-lg hover:bg-slate-100 font-bold"
         >
           ‹
         </button>
-        <h1 className="text-sm lg:text-lg font-bold text-slate-900">สรุปรายงานทั้งหมด</h1>
+        <h1 className="text-sm lg:text-lg font-bold text-slate-900">{translateText("สรุปรายงานทั้งหมด")}</h1>
       </div>
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-4 lg:pt-6 space-y-5">
@@ -234,37 +237,38 @@ export default function ReportSummaryPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 lg:gap-5">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">มูลค่าทรัพย์สิน</span>
+              <span className="text-xs font-semibold text-slate-500">{translateText("มูลค่าทรัพย์สิน")}</span>
               <span className="text-[#4f46e5]">
                 <CubeIcon />
               </span>
             </div>
             <p className="text-3xl font-extrabold text-slate-900 mb-2">฿{assets.reduce((sum, asset) => sum + asset.purchasePrice, 0).toLocaleString("th-TH")}</p>
             <p className="text-xs font-medium text-[#4f46e5]">
-              มูลค่าตามราคาซื้อของ Asset {assets.length} ชิ้น
+              
+              {translateText("มูลค่าตามราคาซื้อของ Asset")} {assets.length}  {translateText("ชิ้น")}
             </p>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">รอบตรวจนับที่เสร็จแล้ว</span>
+              <span className="text-xs font-semibold text-slate-500">{translateText("รอบตรวจนับที่เสร็จแล้ว")}</span>
               <span className="text-emerald-600">
                 <CheckCircleIcon />
               </span>
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 mb-2">{inventorySessions.filter((session) => session.status === "completed").length} รอบ</p>
-            <p className="text-xs font-medium text-emerald-600">ผลตรวจ {inventoryChecks.filter((check) => inventorySessions.some((session) => session.id === check.sessionId && session.status === "completed")).length.toLocaleString("th-TH")} รายการ</p>
+            <p className="text-3xl font-extrabold text-slate-900 mb-2">{inventorySessions.filter((session) => session.status === "completed").length}  {translateText("รอบ")}</p>
+            <p className="text-xs font-medium text-emerald-600">{translateText("ผลตรวจ")} {inventoryChecks.filter((check) => inventorySessions.some((session) => session.id === check.sessionId && session.status === "completed")).length.toLocaleString("th-TH")}  {translateText("รายการ")}</p>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">ค่าใช้จ่ายซ่อม</span>
+              <span className="text-xs font-semibold text-slate-500">{translateText("ค่าใช้จ่ายซ่อม")}</span>
               <span className="text-amber-600">
                 <WrenchIcon />
               </span>
             </div>
             <p className="text-3xl font-extrabold text-slate-900 mb-2">฿{repairRequests.reduce((sum, request) => sum + (request.actualCost ?? 0), 0).toLocaleString("th-TH")}</p>
-            <p className="text-xs font-medium text-amber-600">ค่าใช้จ่ายจริงจากคำขอซ่อม {repairRequests.length} งาน</p>
+            <p className="text-xs font-medium text-amber-600">{translateText("ค่าใช้จ่ายจริงจากคำขอซ่อม")} {repairRequests.length}  {translateText("งาน")}</p>
           </div>
         </div>
 
@@ -277,10 +281,10 @@ export default function ReportSummaryPage() {
             <select
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              aria-label="กรองตามสถานที่"
+              aria-label={translateText("กรองตามสถานที่")}
               className="w-full bg-white border border-slate-200/90 rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
             >
-              <option value="ทุกสถานที่">ทุกสถานที่</option>
+              <option value={translateText("ทุกสถานที่")}>{translateText("ทุกสถานที่")}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.name}>
                   {b.name}
@@ -296,11 +300,11 @@ export default function ReportSummaryPage() {
             <select
               value={periodFilter}
               onChange={(e) => setPeriodFilter(e.target.value)}
-              aria-label="กรองตามช่วงเวลา"
+              aria-label={translateText("กรองตามช่วงเวลา")}
               className="w-full bg-white border border-slate-200/90 rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
             >
-              <option value="ส.ค.–ต.ค. 2569">ส.ค.–ต.ค. 2569</option>
-              <option value="ทุกช่วงเวลา">ทุกช่วงเวลา</option>
+              <option value={translateText("ส.ค.–ต.ค. 2569")}>{translateText("ส.ค.–ต.ค. 2569")}</option>
+              <option value={translateText("ทุกช่วงเวลา")}>{translateText("ทุกช่วงเวลา")}</option>
             </select>
           </div>
 
@@ -311,15 +315,15 @@ export default function ReportSummaryPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              aria-label="กรองตามสถานะ"
+              aria-label={translateText("กรองตามสถานะ")}
               className="w-full bg-white border border-slate-200/90 rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
             >
-              <option value="ทุกสถานะ">ทุกสถานะ</option>
-              <option value="พร้อมใช้งาน">พร้อมใช้งาน</option>
-              <option value="มอบหมายแล้ว">มอบหมายแล้ว</option>
-              <option value="ซ่อมบำรุง">ซ่อมบำรุง</option>
-              <option value="ตรวจนับแล้ว">ตรวจนับแล้ว</option>
-              <option value="จำหน่ายแล้ว">จำหน่ายแล้ว</option>
+              <option value={translateText("ทุกสถานะ")}>{translateText("ทุกสถานะ")}</option>
+              <option value={translateText("พร้อมใช้งาน")}>{translateText("พร้อมใช้งาน")}</option>
+              <option value={translateText("มอบหมายแล้ว")}>{translateText("มอบหมายแล้ว")}</option>
+              <option value={translateText("ซ่อมบำรุง")}>{translateText("ซ่อมบำรุง")}</option>
+              <option value={translateText("ตรวจนับแล้ว")}>{translateText("ตรวจนับแล้ว")}</option>
+              <option value={translateText("จำหน่ายแล้ว")}>{translateText("จำหน่ายแล้ว")}</option>
             </select>
           </div>
 
@@ -331,8 +335,8 @@ export default function ReportSummaryPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ค้นหาชื่อ หรือรหัสทรัพย์สิน"
-              aria-label="ค้นหาชื่อ หรือรหัสทรัพย์สิน"
+              placeholder={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน")}
+              aria-label={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน")}
               className="w-full bg-white border border-slate-200/90 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-700 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
             />
           </div>
@@ -342,9 +346,10 @@ export default function ReportSummaryPage() {
         <section className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-6 shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
             <div>
-              <h2 className="text-sm lg:text-base font-bold text-slate-900">รายงานรวม 4 ประเภท</h2>
+              <h2 className="text-sm lg:text-base font-bold text-slate-900">{translateText("รายงานรวม 4 ประเภท")}</h2>
               <p className="text-[11px] lg:text-xs text-slate-400 mt-0.5">
-                รวม Asset · Movement · Inventory · Repair พร้อมแยกชิ้นการส่งออกเดียว
+                
+                {translateText("รวม Asset · Movement · Inventory · Repair พร้อมแยกชิ้นการส่งออกเดียว")}
               </p>
             </div>
 
@@ -354,13 +359,14 @@ export default function ReportSummaryPage() {
               className="w-full lg:w-auto bg-white hover:bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 shadow-sm flex items-center justify-center gap-2 transition"
             >
               <span>↓</span>
-              <span>ส่งออกรายงานทั้งหมด</span>
+              <span>{translateText("ส่งออกรายงานทั้งหมด")}</span>
             </button>
           </div>
 
           {filteredCards.length === 0 ? (
             <div className="py-10 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl">
-              ไม่พบประเภทรายงานที่ตรงกับเงื่อนไขการค้นหา
+              
+              {translateText("ไม่พบประเภทรายงานที่ตรงกับเงื่อนไขการค้นหา")}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
@@ -370,19 +376,19 @@ export default function ReportSummaryPage() {
                   className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between"
                 >
                   <div className="flex items-center justify-between gap-2 mb-3.5">
-                    <h3 className="text-xs font-bold text-slate-900">{card.title}</h3>
-                    <ReportBadge text={card.badgeText} tone={card.badgeTone} />
+                    <h3 className="text-xs font-bold text-slate-900">{translateText(card.title)}</h3>
+                    <ReportBadge text={translateText(card.badgeText)} tone={card.badgeTone} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3">
-                      <p className="text-[10px] text-slate-400 mb-1">{card.box1Label}</p>
+                      <p className="text-[10px] text-slate-400 mb-1">{translateText(card.box1Label)}</p>
                       <p className="text-xs font-bold text-slate-900 leading-snug">
                         {card.box1Value}
                       </p>
                     </div>
                     <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3">
-                      <p className="text-[10px] text-slate-400 mb-1">{card.box2Label}</p>
+                      <p className="text-[10px] text-slate-400 mb-1">{translateText(card.box2Label)}</p>
                       <p className="text-xs font-bold text-slate-900 leading-snug">
                         {card.box2Value}
                       </p>
@@ -400,16 +406,16 @@ export default function ReportSummaryPage() {
             <div>
               <div className="flex items-center justify-between mb-3.5">
                 <h3 className="text-sm font-bold text-slate-900">Export Excel</h3>
-                <ReportBadge text="พร้อมใช้งาน" tone="green" />
+                <ReportBadge text={translateText("พร้อมใช้งาน")} tone="green" />
               </div>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
-                  <p className="text-[11px] text-slate-400 mb-1">คอลัมน์</p>
-                  <p className="text-xs font-bold text-slate-900">{columnCount} คอลัมน์</p>
+                  <p className="text-[11px] text-slate-400 mb-1">{translateText("คอลัมน์")}</p>
+                  <p className="text-xs font-bold text-slate-900">{columnCount}  {translateText("คอลัมน์")}</p>
                 </div>
                 <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
-                  <p className="text-[11px] text-slate-400 mb-1">รูปแบบ</p>
+                  <p className="text-[11px] text-slate-400 mb-1">{translateText("รูปแบบ")}</p>
                   <p className="text-xs font-bold text-slate-900">.xlsx</p>
                 </div>
               </div>
@@ -422,7 +428,7 @@ export default function ReportSummaryPage() {
                 className="bg-white hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-800 flex items-center justify-center gap-1.5 transition"
               >
                 <span>↓</span>
-                <span>ส่งออก Excel</span>
+                <span>{translateText("ส่งออก Excel")}</span>
               </button>
               <button
                 type="button"
@@ -430,7 +436,7 @@ export default function ReportSummaryPage() {
                 className="bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-xl py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition"
               >
                 <span>+</span>
-                <span>ตั้งค่าข้อมูล</span>
+                <span>{translateText("ตั้งค่าข้อมูล")}</span>
               </button>
             </div>
           </div>
@@ -438,18 +444,18 @@ export default function ReportSummaryPage() {
           <div className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-5 shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3.5">
-                <h3 className="text-sm font-bold text-slate-900">ประวัติตรวจนับ</h3>
-                <ReportBadge text="พร้อมใช้งาน" tone="green" />
+                <h3 className="text-sm font-bold text-slate-900">{translateText("ประวัติตรวจนับ")}</h3>
+                <ReportBadge text={translateText("พร้อมใช้งาน")} tone="green" />
               </div>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
-                  <p className="text-[11px] text-slate-400 mb-1">รอบล่าสุด</p>
+                  <p className="text-[11px] text-slate-400 mb-1">{translateText("รอบล่าสุด")}</p>
                   <p className="text-xs font-bold text-slate-900">{latestCompletedMonth}</p>
                 </div>
                 <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
-                  <p className="text-[11px] text-slate-400 mb-1">สถานะ</p>
-                  <p className="text-xs font-bold text-slate-900">ปิดรอบแล้ว</p>
+                  <p className="text-[11px] text-slate-400 mb-1">{translateText("สถานะ")}</p>
+                  <p className="text-xs font-bold text-slate-900">{translateText("ปิดรอบแล้ว")}</p>
                 </div>
               </div>
             </div>
@@ -461,7 +467,7 @@ export default function ReportSummaryPage() {
                 className="bg-white hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-800 flex items-center justify-center gap-1.5 transition"
               >
                 <span>↓</span>
-                <span>ส่งออก Excel</span>
+                <span>{translateText("ส่งออก Excel")}</span>
               </button>
               <button
                 type="button"
@@ -469,7 +475,7 @@ export default function ReportSummaryPage() {
                 className="bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-xl py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition"
               >
                 <span>+</span>
-                <span>ดูรายละเอียด</span>
+                <span>{translateText("ดูรายละเอียด")}</span>
               </button>
             </div>
           </div>
@@ -478,13 +484,14 @@ export default function ReportSummaryPage() {
         {/* กิจกรรมล่าสุด */}
         <section className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm lg:text-base font-bold text-slate-900">กิจกรรมล่าสุด</h2>
+            <h2 className="text-sm lg:text-base font-bold text-slate-900">{translateText("กิจกรรมล่าสุด")}</h2>
             <ReportBadge text={`${filteredActivities.length} กิจกรรม`} tone="amber" />
           </div>
 
           {filteredActivities.length === 0 ? (
             <div className="py-8 text-center text-xs text-slate-400">
-              ไม่พบรายการกิจกรรมที่ตรงกับตัวกรอง
+              
+              {translateText("ไม่พบรายการกิจกรรมที่ตรงกับตัวกรอง")}
             </div>
           ) : (
             <>
@@ -492,10 +499,10 @@ export default function ReportSummaryPage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-100 bg-[#f8f9fc] text-[11px] font-semibold text-slate-400">
-                      <th className="py-2.5 px-4 rounded-l-lg">เวลา</th>
-                      <th className="py-2.5 px-4">ผู้ดำเนินการ</th>
-                      <th className="py-2.5 px-4">กิจกรรม</th>
-                      <th className="py-2.5 px-4 rounded-r-lg">รายการที่เกี่ยวข้อง</th>
+                      <th className="py-2.5 px-4 rounded-l-lg">{translateText("เวลา")}</th>
+                      <th className="py-2.5 px-4">{translateText("ผู้ดำเนินการ")}</th>
+                      <th className="py-2.5 px-4">{translateText("กิจกรรม")}</th>
+                      <th className="py-2.5 px-4 rounded-r-lg">{translateText("รายการที่เกี่ยวข้อง")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -516,7 +523,7 @@ export default function ReportSummaryPage() {
                   <div key={act.id} className="py-3 first:pt-1 last:pb-1 space-y-0.5">
                     <p className="text-[11px] text-slate-400">{act.time}</p>
                     <p className="text-xs font-bold text-slate-900">{act.action}</p>
-                    <p className="text-[11px] text-slate-500">ผู้ดำเนินการ · {act.operator}</p>
+                    <p className="text-[11px] text-slate-500">{translateText("ผู้ดำเนินการ ·")} {act.operator}</p>
                     <p className="text-xs font-semibold text-[#4f46e5] pt-0.5">{act.reference}</p>
                   </div>
                 ))}

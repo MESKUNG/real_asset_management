@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -82,6 +84,7 @@ const buildUserScheduleRows = (): UserScheduleRow[] => {
 };
 
 export default function UserSchedulePage() {
+  const translateText = useTranslate();
   const router = useRouter();
 
   const [rows, setRows] = useState<UserScheduleRow[]>(buildUserScheduleRows);
@@ -145,13 +148,14 @@ export default function UserSchedulePage() {
           <button
             type="button"
             onClick={() => router.back()}
-            aria-label="ย้อนกลับ"
+            aria-label={translateText("ย้อนกลับ")}
             className="text-slate-600 hover:text-slate-900 px-2 py-1 rounded-lg hover:bg-slate-100 font-bold"
           >
             ‹
           </button>
           <h1 className="text-sm lg:text-lg font-bold text-slate-900">
-            กำหนดการตรวจนับทรัพย์สิน
+            
+            {translateText("กำหนดการตรวจนับทรัพย์สิน")}
           </h1>
         </div>
 
@@ -168,18 +172,19 @@ export default function UserSchedulePage() {
 
       <main className="max-w-6xl mx-auto px-4 lg:px-8 pt-4 lg:pt-6">
         <p className="text-xs lg:text-sm text-slate-500 mb-3.5 font-medium">
-          กำหนดการนับจำนวนทรัพย์สิน {activeRow?.branchName ?? "สาขาปิ่นเกล้า"}
+          
+          {translateText("กำหนดการนับจำนวนทรัพย์สิน")} {activeRow?.branchName ?? "สาขาปิ่นเกล้า"}
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 mb-5 lg:mb-6">
           <div className="bg-[#f8f9fc] border border-slate-200/80 rounded-xl px-4 lg:px-5 py-3.5">
-            <p className="text-[11px] lg:text-xs text-slate-400 mb-1">ช่วงวันที่</p>
+            <p className="text-[11px] lg:text-xs text-slate-400 mb-1">{translateText("ช่วงวันที่")}</p>
             <p className="text-xs lg:text-sm font-bold text-slate-900">
               {activeRow?.fullDateText ?? "27 ต.ค. 2569"}
             </p>
           </div>
           <div className="bg-[#f8f9fc] border border-slate-200/80 rounded-xl px-4 lg:px-5 py-3.5">
-            <p className="text-[11px] lg:text-xs text-slate-400 mb-1">สถานที่</p>
+            <p className="text-[11px] lg:text-xs text-slate-400 mb-1">{translateText("สถานที่")}</p>
             <p className="text-xs lg:text-sm font-bold text-slate-900">
               {activeRow?.branchName ?? "สาขาปิ่นเกล้า"}
             </p>
@@ -189,31 +194,33 @@ export default function UserSchedulePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 lg:gap-5 mb-7">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">ทรัพย์สินทั้งหมด</span>
+              <span className="text-xs font-semibold text-slate-500">{translateText("ทรัพย์สินทั้งหมด")}</span>
               <span className="text-[#4f46e5]">
                 <CubeIcon />
               </span>
             </div>
             <p className="text-3xl font-extrabold text-slate-900 mb-2">115</p>
             <p className="text-xs font-medium text-[#4f46e5]">
-              +{assets.length} รายการหลักในฐานข้อมูล
+              +{assets.length}  {translateText("รายการหลักในฐานข้อมูล")}
             </p>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">ตรวจนับเวลา</span>
+              <span className="text-xs font-semibold text-slate-500">{translateText("ตรวจนับเวลา")}</span>
               <span className="text-emerald-600">
                 <CheckCircleIcon />
               </span>
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 mb-2">13:00 น.</p>
-            <p className="text-xs font-medium text-emerald-600">เวลาเริ่มนับทรัพย์สิน</p>
+            <p className="text-3xl font-extrabold text-slate-900 mb-2">
+              {translateText("13:00 น.")}
+            </p>
+            <p className="text-xs font-medium text-emerald-600">{translateText("เวลาเริ่มนับทรัพย์สิน")}</p>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">คนที่ได้รับมอบหมาย</span>
+              <span className="text-xs font-semibold text-slate-500">{translateText("คนที่ได้รับมอบหมาย")}</span>
               <div className="w-7 h-7 rounded-full bg-purple-100 border border-purple-300 flex items-center justify-center text-purple-700">
                 <UserIcon />
               </div>
@@ -228,14 +235,15 @@ export default function UserSchedulePage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
-          <h2 className="text-base lg:text-lg font-bold text-slate-900">ลำดับรอบตรวจนับ</h2>
+          <h2 className="text-base lg:text-lg font-bold text-slate-900">{translateText("ลำดับรอบตรวจนับ")}</h2>
           {activeRow && (
             <button
               type="button"
               onClick={() => handleOpenAuditPage(activeRow.id)}
               className="bg-[#4f46e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
             >
-              ดูรายการที่ต้องสแกน ›
+              
+              {translateText("ดูรายการที่ต้องสแกน ›")}
             </button>
           )}
         </div>
@@ -268,7 +276,8 @@ export default function UserSchedulePage() {
                       {item.title}
                     </p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      ลำดับที่ {item.order} · {item.id} · {item.itemCount} รายการ
+                      
+                      {translateText("ลำดับที่")} {item.order} · {item.id} · {item.itemCount}  {translateText("รายการ")}
                     </p>
                   </div>
                 </button>
@@ -294,7 +303,7 @@ export default function UserSchedulePage() {
               <button
                 type="button"
                 onClick={() => toggleRowStatus(item.id)}
-                title="คลิกเพื่อจำลองสลับสถานะ"
+                title={translateText("คลิกเพื่อจำลองสลับสถานะ")}
                 className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100"
               >
                 •••
@@ -341,7 +350,8 @@ export default function UserSchedulePage() {
                   <div>
                     <p className="text-xs font-bold text-slate-900">{item.title}</p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      ลำดับที่ {item.order} · {item.id} · {item.itemCount} รายการ
+                      
+                      {translateText("ลำดับที่")} {item.order} · {item.id} · {item.itemCount}  {translateText("รายการ")}
                     </p>
                   </div>
                 </button>
@@ -369,11 +379,12 @@ export default function UserSchedulePage() {
 }
 
 function StatusPill({ status }: { status: InventorySessionStatus }) {
+  const translateText = useTranslate();
   if (status === "in_progress") {
     return (
       <span className="inline-flex items-center gap-1.5 bg-[#e0e7ff] text-[#3730a3] text-[11px] font-bold px-3 py-1 rounded-full">
         <span className="w-1.5 h-1.5 rounded-full bg-[#4f46e5]" />
-        <span>กำลังนับ</span>
+        <span>{translateText("กำลังนับ")}</span>
       </span>
     );
   }
@@ -381,14 +392,14 @@ function StatusPill({ status }: { status: InventorySessionStatus }) {
     return (
       <span className="inline-flex items-center gap-1.5 bg-[#dcfce7] text-emerald-800 text-[11px] font-bold px-3 py-1 rounded-full">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-        <span>เสร็จสิ้น</span>
+        <span>{translateText("เสร็จสิ้น")}</span>
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1.5 bg-[#ede9fe] text-[#5b21b6] text-[11px] font-bold px-3 py-1 rounded-full">
       <span className="w-1.5 h-1.5 rounded-full bg-[#6d28d9]" />
-      <span>รอเริ่ม</span>
+      <span>{translateText("รอเริ่ม")}</span>
     </span>
   );
 }

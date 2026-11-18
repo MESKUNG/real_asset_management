@@ -1,4 +1,10 @@
 "use client";
+import {
+  formatLocalizedDate,
+  useLanguage,
+  useTranslate,
+} from "@/lib/language";
+
 
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Search1 } from "@tailgrids/icons";
@@ -22,15 +28,9 @@ function isCompletedRequest(
   return request.status === "completed" && request.completedAt !== null;
 }
 
-function formatThaiDate(date: string) {
-  return new Date(date).toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 export default function RepairHistoryAdminPage() {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRequest, setSelectedRequest] =
@@ -83,10 +83,12 @@ export default function RepairHistoryAdminPage() {
       <div className="mx-auto max-w-[1440px]">
         <header className="mb-6">
           <h1 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
-            ประวัติซ่อม
+            
+            {translateText("ประวัติซ่อม")}
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            ประวัติการซ่อมครุภัณฑ์ที่ดำเนินการเสร็จสิ้นแล้ว
+            
+            {translateText("ประวัติการซ่อมครุภัณฑ์ที่ดำเนินการเสร็จสิ้นแล้ว")}
           </p>
         </header>
 
@@ -101,13 +103,13 @@ export default function RepairHistoryAdminPage() {
                   setSearch(event.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="ค้นหารหัสหรือชื่อ Asset"
-                aria-label="ค้นหาประวัติซ่อม"
+                placeholder={translateText("ค้นหารหัสหรือชื่อ Asset")}
+                aria-label={translateText("ค้นหาประวัติซ่อม")}
                 className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
               />
             </label>
             <p className="text-xs text-slate-400">
-              {filteredRequests.length} รายการ · แสดงประวัติซ่อมที่เสร็จสิ้นแล้ว
+              {filteredRequests.length}  {translateText("รายการ · แสดงประวัติซ่อมที่เสร็จสิ้นแล้ว")}
             </p>
           </div>
 
@@ -126,11 +128,13 @@ export default function RepairHistoryAdminPage() {
                         {request.id}
                       </p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        เสร็จสิ้น {formatThaiDate(request.completedAt)}
+                        
+                        {translateText("เสร็จสิ้น")} {formatLocalizedDate(request.completedAt, language)}
                       </p>
                     </div>
                     <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
-                      เสร็จสิ้น
+                      
+                      {translateText("เสร็จสิ้น")}
                     </span>
                   </div>
                   <div className="min-w-0">
@@ -143,7 +147,7 @@ export default function RepairHistoryAdminPage() {
                   </div>
                   <p className="break-words text-xs text-slate-500">
                     {branch
-                      ? `${branch.code} · ${branch.name}`
+                      ? `${branch.code} · ${translateText(branch.name)}`
                       : request.branchId}
                   </p>
                   <button
@@ -151,14 +155,16 @@ export default function RepairHistoryAdminPage() {
                     onClick={() => setSelectedRequest(request)}
                     className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   >
-                    ดูรายละเอียด
+                    
+                    {translateText("ดูรายละเอียด")}
                   </button>
                 </article>
               );
             })}
             {visibleRequests.length === 0 && (
               <p className="px-4 py-10 text-center text-sm text-slate-500">
-                ไม่พบประวัติซ่อมที่ตรงกับการค้นหา
+                
+                {translateText("ไม่พบประวัติซ่อมที่ตรงกับการค้นหา")}
               </p>
             )}
           </div>
@@ -167,12 +173,12 @@ export default function RepairHistoryAdminPage() {
             <table className="w-full min-w-[760px] border-collapse text-left">
               <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">เลขที่คำร้อง</th>
-                  <th className="px-4 py-3">วันที่เสร็จสิ้น</th>
-                  <th className="px-4 py-3">ชื่อ Asset</th>
-                  <th className="px-4 py-3">สาขา</th>
-                  <th className="px-4 py-3">สถานะ</th>
-                  <th className="px-4 py-3">ดำเนินการ</th>
+                  <th className="px-4 py-3">{translateText("เลขที่คำร้อง")}</th>
+                  <th className="px-4 py-3">{translateText("วันที่เสร็จสิ้น")}</th>
+                  <th className="px-4 py-3">{translateText("ชื่อ Asset")}</th>
+                  <th className="px-4 py-3">{translateText("สาขา")}</th>
+                  <th className="px-4 py-3">{translateText("สถานะ")}</th>
+                  <th className="px-4 py-3">{translateText("ดำเนินการ")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -193,7 +199,7 @@ export default function RepairHistoryAdminPage() {
                         {request.id}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-800">
-                        {formatThaiDate(request.completedAt)}
+                        {formatLocalizedDate(request.completedAt, language)}
                       </td>
                       <td className="px-4 py-4">
                         <p className="font-medium text-slate-800">
@@ -205,12 +211,13 @@ export default function RepairHistoryAdminPage() {
                       </td>
                       <td className="px-4 py-4 text-slate-500">
                         {branch
-                          ? `${branch.code} · ${branch.name}`
+                          ? `${branch.code} · ${translateText(branch.name)}`
                           : request.branchId}
                       </td>
                       <td className="px-4 py-4">
                         <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
-                          เสร็จสิ้น
+                          
+                          {translateText("เสร็จสิ้น")}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -219,7 +226,8 @@ export default function RepairHistoryAdminPage() {
                           onClick={() => setSelectedRequest(request)}
                           className="whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         >
-                          ดูรายละเอียด
+                          
+                          {translateText("ดูรายละเอียด")}
                         </button>
                       </td>
                     </tr>
@@ -231,7 +239,8 @@ export default function RepairHistoryAdminPage() {
                       colSpan={6}
                       className="px-4 py-12 text-center text-sm text-slate-500"
                     >
-                      ไม่พบประวัติซ่อมที่ตรงกับการค้นหา
+                      
+                      {translateText("ไม่พบประวัติซ่อมที่ตรงกับการค้นหา")}
                     </td>
                   </tr>
                 )}
@@ -241,17 +250,18 @@ export default function RepairHistoryAdminPage() {
 
           <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
             <p className="text-[11px] text-slate-500">
-              แสดง{" "}
+              
+              {translateText("แสดง")}{" "}
               {filteredRequests.length === 0
                 ? 0
                 : (currentPage - 1) * pageSize + 1}{" "}
-              - {Math.min(currentPage * pageSize, filteredRequests.length)} จาก{" "}
-              {filteredRequests.length} รายการ
+              - {Math.min(currentPage * pageSize, filteredRequests.length)}  {translateText("จาก")}{" "}
+              {filteredRequests.length}  {translateText("รายการ")}
             </p>
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                aria-label="หน้าก่อนหน้า"
+                aria-label={translateText("หน้าก่อนหน้า")}
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                 className="flex size-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
@@ -278,7 +288,7 @@ export default function RepairHistoryAdminPage() {
               )}
               <button
                 type="button"
-                aria-label="หน้าถัดไป"
+                aria-label={translateText("หน้าถัดไป")}
                 disabled={currentPage === pageCount}
                 onClick={() =>
                   setCurrentPage((page) => Math.min(pageCount, page + 1))
@@ -306,7 +316,8 @@ export default function RepairHistoryAdminPage() {
                   id="repair-history-dialog-title"
                   className="text-lg font-semibold text-slate-900"
                 >
-                  รายละเอียดการซ่อม
+                  
+                  {translateText("รายละเอียดการซ่อม")}
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">
                   {selectedRequest.id}
@@ -315,7 +326,7 @@ export default function RepairHistoryAdminPage() {
               <button
                 type="button"
                 onClick={() => setSelectedRequest(null)}
-                aria-label="ปิดหน้าต่าง"
+                aria-label={translateText("ปิดหน้าต่าง")}
                 className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
                 ×
@@ -323,38 +334,38 @@ export default function RepairHistoryAdminPage() {
             </div>
             <dl className="grid gap-4 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-xs text-slate-500">Asset</dt>
+                <dt className="text-xs text-slate-500">{translateText("Asset")}</dt>
                 <dd className="mt-1 font-medium text-slate-800">
                   {selectedAsset?.name ?? "ไม่พบข้อมูลทรัพย์สิน"} (
                   {selectedRequest.assetId})
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-slate-500">สาขา</dt>
+                <dt className="text-xs text-slate-500">{translateText("สาขา")}</dt>
                 <dd className="mt-1 font-medium text-slate-800">
                   {selectedBranch?.name ?? selectedRequest.branchId}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-slate-500">วันที่เสร็จสิ้น</dt>
+                <dt className="text-xs text-slate-500">{translateText("วันที่เสร็จสิ้น")}</dt>
                 <dd className="mt-1 font-medium text-slate-800">
-                  {formatThaiDate(selectedRequest.completedAt)}
+                  {formatLocalizedDate(selectedRequest.completedAt, language)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-slate-500">ผู้จัดจำหน่าย</dt>
+                <dt className="text-xs text-slate-500">{translateText("ผู้จัดจำหน่าย")}</dt>
                 <dd className="mt-1 font-medium text-slate-800">
                   {selectedVendor?.name ?? "-"}
                 </dd>
               </div>
               <div className="sm:col-span-2">
-                <dt className="text-xs text-slate-500">อาการที่แจ้ง</dt>
+                <dt className="text-xs text-slate-500">{translateText("อาการที่แจ้ง")}</dt>
                 <dd className="mt-1 font-medium text-slate-800">
                   {selectedRequest.issue}
                 </dd>
               </div>
               <div className="sm:col-span-2">
-                <dt className="text-xs text-slate-500">วิธีแก้ไข</dt>
+                <dt className="text-xs text-slate-500">{translateText("วิธีแก้ไข")}</dt>
                 <dd className="mt-1 font-medium text-slate-800">
                   {selectedRequest.solution || "-"}
                 </dd>
