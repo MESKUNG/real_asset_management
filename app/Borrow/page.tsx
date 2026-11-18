@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { assets } from "@/data/asset";
 import {
   borrowRequests as initialRequests,
@@ -18,7 +24,9 @@ const CURRENT_USER_ID = 102;
 
 type RequestType = BorrowRequestType;
 
-type Request = BorrowRequest;
+type Request = BorrowRequest & {
+  decidedAt?: string; // เวลาที่แอดมิน/ประธานดำเนินการล่าสุด (ใช้แสดงใน timeline)
+};
 
 type NewRequest = {
   type: RequestType;
@@ -97,10 +105,13 @@ const fmtDate = (d: string | null) =>
       })
     : "-";
 
-// คำขอคืนที่อนุมัติแล้ว แต่เลยวันที่คาดว่าจะคืน และยังไม่ได้รับคืน = เกินกำหนด
+// เบิก / โอนย้ายไม่มีการคืนทรัพย์สิน จึงไม่มีสถานะ "เกินกำหนดคืน"
+// ส่วนคำขอคืนที่อนุมัติแล้ว แต่เลยวันที่คาดว่าจะคืนและยังไม่ได้รับคืน = เกินกำหนด
 function displayStatus(r: Request): BorrowStatus {
+  if (r.type !== "return") {
+    return r.status === "overdue" ? "approved" : r.status;
+  }
   if (
-    r.type === "return" &&
     r.status === "approved" &&
     r.expectedReturnDate &&
     r.expectedReturnDate < today()
@@ -157,6 +168,109 @@ function saveRequests(list: Request[]) {
     console.error("Save requests failed:", error);
   }
   window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+/* ---------- รายละเอียดคำขอ ---------- */
+
+// วันที่แบบเต็ม (ปี พ.ศ. 4 หลัก) ถ้ามีเวลาในค่าจะแสดงเวลาด้วย
+function fmtDateTime(d: string | null | undefined): string {
+  if (!d) return "-";
+  const date = new Date(d);
+  const day = date.toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  if (!d.includes("T")) return day;
+  const time = date.toLocaleTimeString("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `${day} ${time} น.`;
+}
+
+type StepTone = "done" | "current" | "wait" | "bad";
+type Step = { time: string; label: string; badge: string; tone: StepTone };
+
+// สร้าง timeline "สถานะการดำเนินการ" จากสถานะของคำขอ + ข้อมูลใน approvals
+function buildTimeline(r: Request): Step[] {
+  const s = displayStatus(r);
+  const ap = approvals.find((a) => a.requestId === r.id);
+  const receivedAt = fmtDateTime(ap?.requestedAt ?? r.createdAt);
+
+  const steps: Step[] = [
+    {
+      time: fmtDateTime(r.createdAt),
+      label: `แจ้งคำขอโดย พนักงาน #${r.borrowerId}`,
+      badge: "ดำเนินการแล้ว",
+      tone: "done",
+    },
+  ];
+
+  if (s === "pending") {
+    steps.push(
+      { time: receivedAt, label: "รับเรื่องรออนุมัติ", badge: "รออนุมัติ", tone: "current" },
+      { time: "-", label: "อยู่ระหว่างดำเนินการ", badge: "รอดำเนินการ", tone: "wait" },
+    );
+    return steps;
+  }
+
+  steps.push({
+    time: receivedAt,
+    label: "รับเรื่องรออนุมัติ",
+    badge: "ดำเนินการแล้ว",
+    tone: "done",
+  });
+
+  // ใช้ข้อมูลจาก approvals เฉพาะเมื่อผลตรงกับสถานะปัจจุบันของคำขอ
+  const wantApproval = s === "rejected" ? "rejected" : "approved";
+  const apMatches = !!ap && ap.status === wantApproval;
+  const decidedAt = fmtDateTime(r.decidedAt ?? (apMatches ? ap.approvedAt : null));
+
+  if (s === "revision") {
+    steps.push({
+      time: decidedAt,
+      label: "ส่งกลับให้ผู้ขอแก้ไข",
+      badge: "ส่งกลับแก้ไข",
+      tone: "current",
+    });
+  } else if (s === "rejected") {
+    steps.push({ time: decidedAt, label: "ไม่อนุมัติคำขอ", badge: "ไม่อนุมัติ", tone: "bad" });
+  } else {
+    const by = apMatches && ap.approverId ? ` โดย ผู้ดูแล #${ap.approverId}` : "";
+    steps.push({
+      time: decidedAt,
+      label: `อนุมัติคำขอ${by}`,
+      badge: "อนุมัติแล้ว",
+      tone: "done",
+    });
+    if (r.type === "return") {
+      if (s === "returned") {
+        steps.push({
+          time: fmtDateTime(r.actualReturnDate),
+          label: "รับคืนทรัพย์สินแล้ว",
+          badge: "คืนแล้ว",
+          tone: "done",
+        });
+      } else if (s === "overdue") {
+        steps.push({
+          time: "-",
+          label: `เกินกำหนดคืน (กำหนด ${fmtDateTime(r.expectedReturnDate)})`,
+          badge: "เกินกำหนดคืน",
+          tone: "bad",
+        });
+      } else {
+        steps.push({
+          time: "-",
+          label: "รอรับคืนทรัพย์สิน",
+          badge: "รอดำเนินการ",
+          tone: "wait",
+        });
+      }
+    }
+  }
+  return steps;
 }
 
 /* ---------- ส่งออกข้อมูล (President) ---------- */
@@ -300,6 +414,8 @@ export default function Page() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Request | null>(null); // คำขอที่ถูกส่งกลับมาแก้
   const [sendBackId, setSendBackId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = requests.find((r) => r.id === detailId) ?? null;
 
   // ตัวเลขบนปุ่มสถานะ นับตามประเภทที่เลือกอยู่
   const byType = useMemo(
@@ -331,7 +447,10 @@ export default function Page() {
   }, [byType, statusFilter, query]);
 
   function update(id: string, patch: Partial<Request>) {
-    saveRequests(requests.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    const decidedAt = new Date().toISOString();
+    saveRequests(
+      requests.map((r) => (r.id === id ? { ...r, decidedAt, ...patch } : r)),
+    );
   }
 
   // คืนรหัสคำขอใหม่ เพื่อให้ popup แสดงหลังส่งสำเร็จ
@@ -528,7 +647,18 @@ export default function Page() {
               const s = displayStatus(r);
               const note = r.note || approvalComment(r.id);
               return (
-                <tr key={r.id} className="border-t border-slate-200 align-top">
+                <tr
+                  key={r.id}
+                  tabIndex={0}
+                  onClick={() => setDetailId(r.id)}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && e.key === "Enter") {
+                      setDetailId(r.id);
+                    }
+                  }}
+                  title="คลิกเพื่อดูรายละเอียด"
+                  className="cursor-pointer border-t border-slate-200 align-top hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none"
+                >
                   <td className="p-3 font-semibold text-blue-950">{r.id}</td>
                   <td className="p-3 font-medium">{TYPES[r.type].label}</td>
                   <td className="p-3">
@@ -563,7 +693,7 @@ export default function Page() {
                     </span>
                   </td>
                   <td className="max-w-56 p-3 text-slate-800">{note || "-"}</td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
                     <RowActions
                       type={r.type}
                       status={s}
@@ -605,6 +735,8 @@ export default function Page() {
           onClose={() => setSendBackId(null)}
         />
       )}
+
+      {detail && <DetailModal request={detail} onClose={() => setDetailId(null)} />}
     </div>
   );
 }
@@ -666,10 +798,11 @@ function RowActions({
     );
   }
 
-  // คำขอคืนที่อนุมัติแล้วหรือเกินกำหนด: Admin รับคืนทรัพย์สิน
+  // เฉพาะคำขอ "คืน" ที่อนุมัติแล้วหรือเกินกำหนด: Admin รับคืนทรัพย์สิน
   if (
     canReceive &&
-    (status === "overdue" || (type === "return" && status === "approved"))
+    type === "return" &&
+    (status === "overdue" || status === "approved")
   ) {
     return (
       <button onClick={onReceive} className={`${base} bg-blue-950`}>
@@ -990,6 +1123,219 @@ function ReasonModal({
             className="rounded-lg bg-violet-700 px-6 py-2 text-sm font-bold text-white disabled:opacity-40"
           >
             ส่งกลับแก้ไข
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- popup รายละเอียดคำขอ (ทุก role เปิดดูได้) ---------- */
+
+const TONE: Record<StepTone, string> = {
+  done: "bg-blue-200 text-blue-950",
+  current: "bg-amber-200 text-amber-950",
+  wait: "bg-slate-200 text-slate-900",
+  bad: "bg-red-200 text-red-950",
+};
+
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="mt-0.5 size-5 shrink-0 text-slate-700"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+const ICONS = {
+  swap: (
+    <Icon>
+      <path d="M17 1l4 4-4 4" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+      <path d="M7 23l-4-4 4-4" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </Icon>
+  ),
+  box: (
+    <Icon>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <path d="M3.27 6.96 12 12.01l8.73-5.05" />
+      <path d="M12 22.08V12" />
+    </Icon>
+  ),
+  pin: (
+    <Icon>
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </Icon>
+  ),
+  calendar: (
+    <Icon>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </Icon>
+  ),
+};
+
+function DetailModal({
+  request: r,
+  onClose,
+}: {
+  request: Request;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const s = displayStatus(r);
+  const asset = assets.find((a) => a.id === r.assetId);
+  const note = r.note || approvalComment(r.id);
+
+  const info: { icon: ReactNode; label: string; value: string }[] = [
+    { icon: ICONS.swap, label: "ประเภทคำขอ", value: TYPES[r.type].label },
+    {
+      icon: ICONS.box,
+      label: "อุปกรณ์ / จำนวน",
+      value: `${asset?.name ?? r.assetId} (${r.assetId}) serial ${asset?.serialNumber ?? "-"} / 1`,
+    },
+    {
+      icon: ICONS.pin,
+      label: "ผู้ขอ / สาขา",
+      value: `พนักงาน #${r.borrowerId} / ${branchName(r.branchId)}`,
+    },
+  ];
+  if (r.type === "transfer") {
+    info.push({
+      icon: ICONS.pin,
+      label: "โอนย้าย",
+      value: `${branchName(r.branchId)} → ${branchName(r.toBranchId)}`,
+    });
+  }
+  info.push({
+    icon: ICONS.calendar,
+    label: "วันที่แจ้ง",
+    value: fmtDateTime(r.createdAt),
+  });
+  if (r.type === "return") {
+    info.push({
+      icon: ICONS.calendar,
+      label: "กำหนดคืน",
+      value: fmtDateTime(r.expectedReturnDate),
+    });
+    if (r.actualReturnDate) {
+      info.push({
+        icon: ICONS.calendar,
+        label: "วันที่คืนจริง",
+        value: fmtDateTime(r.actualReturnDate),
+      });
+    }
+  } else {
+    info.push({
+      icon: ICONS.calendar,
+      label: r.type === "transfer" ? "วันที่ต้องการโอนย้าย" : "วันที่ต้องการใช้",
+      value: fmtDateTime(r.borrowDate),
+    });
+  }
+
+  const steps = buildTimeline(r);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 text-slate-900 shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-xl font-bold text-blue-950">รายละเอียดคำขอ</h2>
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS[s].className}`}
+            >
+              {STATUS[s].label}
+            </span>
+            <button
+              onClick={onClose}
+              aria-label="ปิด"
+              className="rounded-md px-2 py-1 text-xl leading-none text-slate-800 hover:bg-slate-100"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-4 text-2xl font-bold text-blue-950">{r.id}</p>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {info.map((row) => (
+            <div key={row.label} className="flex items-start gap-3 text-sm">
+              {row.icon}
+              <span className="w-40 shrink-0 text-slate-800">{row.label}</span>
+              <span className="font-medium text-slate-900">{row.value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5">
+          <h3 className="text-sm font-bold text-slate-900">รายละเอียด</h3>
+          <p className="mt-1 text-sm text-slate-900">{r.purpose || "-"}</p>
+        </div>
+
+        {note && (
+          <div className="mt-4 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm">
+            <span className="font-bold">หมายเหตุจากผู้ดูแล:</span> {note}
+          </div>
+        )}
+
+        <div className="mt-6">
+          <h3 className="text-sm font-bold text-slate-900">สถานะการดำเนินการ</h3>
+          <ol className="relative ml-2 mt-4 flex flex-col gap-5 border-l-2 border-slate-300 pl-5">
+            {steps.map((st, i) => (
+              <li
+                key={i}
+                className="relative flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
+              >
+                <span
+                  className={`absolute top-1/2 -left-[27px] size-3 -translate-y-1/2 rounded-full border-2 ${
+                    st.tone === "wait"
+                      ? "border-slate-400 bg-white"
+                      : "border-blue-600 bg-blue-600"
+                  }`}
+                />
+                <span className="w-44 text-slate-800">{st.time}</span>
+                <span className="flex-1 font-medium text-slate-900">{st.label}</span>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold ${TONE[st.tone]}`}
+                >
+                  {st.badge}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={onClose}
+            className="rounded-lg bg-blue-950 px-8 py-2.5 text-sm font-bold text-white"
+          >
+            ปิด
           </button>
         </div>
       </div>
