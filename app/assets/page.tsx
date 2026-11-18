@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { assets as initialAssets, Asset, AssetStatus } from "@/data/asset";
+import Image from "next/image";
+import { Asset, AssetStatus } from "@/data/asset";
+import { useAssets } from "@/lib/assets";
 import { branches } from "@/data/branches";
 import {
   Search,
@@ -73,6 +75,7 @@ function getClientCredential(): CredentialData {
 }
 
 export default function AssetListPage() {
+  const allAssets = useAssets();
   const credential = useSyncExternalStore(
     subscribeCredential,
     getClientCredential,
@@ -102,13 +105,13 @@ export default function AssetListPage() {
 
   // รายชื่อสาขาสำหรับ Dropdown
   const branchOptions = useMemo(() => {
-    const ids = Array.from(new Set(initialAssets.map((a) => a.branchId)));
+    const ids = Array.from(new Set(allAssets.map((a) => a.branchId)));
     return ids.map((id) => ({ id, name: getBranchName(id) }));
-  }, []);
+  }, [allAssets]);
 
   // กรองข้อมูลตามสิทธิ์ Role + Search + Branch + Status
   const filteredAssets = useMemo(() => {
-    return initialAssets
+    return allAssets
       .filter((item) => {
         // 1. User / Admin เห็นเฉพาะสาขาของตัวเอง
         if (!canViewAllBranches && userBranchId && item.branchId !== userBranchId) {
@@ -136,7 +139,7 @@ export default function AssetListPage() {
         return true;
       })
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }, [canViewAllBranches, userBranchId, selectedBranch, selectedStatus, search]);
+  }, [allAssets, canViewAllBranches, userBranchId, selectedBranch, selectedStatus, search]);
 
   // คำนวณสถิติสำหรับ Summary Card (จากข้อมูลที่กรองตามสิทธิ์แล้ว)
   const stats = useMemo(() => {
@@ -398,8 +401,12 @@ export default function AssetListPage() {
               >
                 {/* ทรัพย์สิน / รหัส */}
                 <div className="col-span-4 flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0">
-                    <Laptop size={18} />
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 overflow-hidden">
+                    {asset.imageUrl ? (
+                      <Image src={asset.imageUrl} alt={asset.name} width={80} height={80} unoptimized className="h-full w-full object-cover" />
+                    ) : (
+                      <Laptop size={18} />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <Link

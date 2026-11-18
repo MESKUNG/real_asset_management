@@ -1,6 +1,7 @@
 // ข้อมูลและฟังก์ชันกลางของระบบตรวจนับ ใช้ร่วมกันทุกหน้าใน /inventories และ /reports
 import { useMemo, useSyncExternalStore } from "react";
-import { assets, type Asset, type AssetStatus } from "@/data/asset";
+import { type Asset, type AssetStatus } from "@/data/asset";
+import { getAssets } from "@/lib/assets";
 import { branches } from "@/data/branches";
 import { categories } from "@/data/catagories";
 import {
@@ -207,8 +208,8 @@ export function getVendorName(id: string): string {
 
 // หาทรัพย์สินจากรหัสที่สแกน (รองรับทั้งรหัสทรัพย์สิน, QR และ Barcode)
 export function findAsset(code: string): Asset | undefined {
-  const key = code.trim().toUpperCase();
-  return assets.find(
+  const key = code.trim().toUpperCase().replace(/^\*+|\*+$/g, "");
+  return getAssets().find(
     (a) =>
       a.id.toUpperCase() === key ||
       a.qrCode.toUpperCase() === key ||
@@ -218,7 +219,7 @@ export function findAsset(code: string): Asset | undefined {
 
 // ทรัพย์สินที่ต้องตรวจในรอบนี้ = ทรัพย์สินของสาขาที่ตรวจ ยกเว้นของที่จำหน่ายแล้ว
 export function getSessionAssets(session: InventorySession): Asset[] {
-  return assets.filter((a) => a.branchId === session.branchId && a.status !== "disposed");
+  return getAssets().filter((a) => a.branchId === session.branchId && a.status !== "disposed");
 }
 
 // ของที่ถูกเบิก/ยืม หรือส่งซ่อมแล้ว ไม่อยู่ในสาขาตอนตรวจนับ จึงไม่ต้องสแกน

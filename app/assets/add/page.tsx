@@ -3,7 +3,10 @@
 import { useState, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { assets as initialAssets, Asset } from "@/data/asset";
+import Image from "next/image";
+import { Asset } from "@/data/asset";
+import { notifyAssetDataChanged, prepareAssetImage, useAssets } from "@/lib/assets";
+import { AssetBarcode, AssetQrCode } from "@/components/assets/AssetCodes";
 import { branches } from "@/data/branches";
 import {
   LayoutGrid,
@@ -70,6 +73,7 @@ function getClientCredential(): CredentialData {
 
 export default function AddAssetPage() {
   const router = useRouter();
+  const allAssets = useAssets();
   const credential = useSyncExternalStore(
     subscribeCredential,
     getClientCredential,
@@ -81,16 +85,16 @@ export default function AddAssetPage() {
 
   // สร้างรหัสทรัพย์สินถัดไปอัตโนมัติ (เช่น AST-0439)
   const nextAssetId = useMemo(() => {
-    const maxNum = initialAssets.reduce((max, item) => {
+    const maxNum = allAssets.reduce((max, item) => {
       const num = parseInt(item.id.replace(/\D/g, ""), 10);
       return Number.isNaN(num) ? max : Math.max(max, num);
     }, 0);
     return `AST-${String(maxNum + 1).padStart(4, "0")}`;
-  }, []);
+  }, [allAssets]);
 
   // ดึงหมวดหมู่จากข้อมูลที่มีอยู่ (พร้อมค่าเริ่มต้น)
   const categoryOptions = useMemo(() => {
-    const fromData = Array.from(new Set(initialAssets.map((a) => a.category)));
+    const fromData = Array.from(new Set(allAssets.map((a) => a.category)));
     const defaults = [
       "คอมพิวเตอร์และอุปกรณ์ IT",
       "อุปกรณ์สำนักงาน",
@@ -99,7 +103,7 @@ export default function AddAssetPage() {
       "ยานพาหนะ",
     ];
     return Array.from(new Set([...defaults, ...fromData]));
-  }, []);
+  }, [allAssets]);
 
   // รายชื่อสาขา
   const branchOptions = useMemo(() => {
@@ -116,6 +120,8 @@ export default function AddAssetPage() {
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageError, setImageError] = useState("");
 
   const [branchId, setBranchId] = useState(
     credential.branch_id || branchOptions[0]?.id || "BR-001"
@@ -130,6 +136,19 @@ export default function AddAssetPage() {
   const [vendorAddress, setVendorAddress] = useState("");
   const [vendorPhone, setVendorPhone] = useState("");
   const [vendorEmail, setVendorEmail] = useState("");
+
+  const handleImageChange = async (file?: File) => {
+    setImageError("");
+    if (!file) {
+      setImageUrl("");
+      return;
+    }
+    try {
+      setImageUrl(await prepareAssetImage(file));
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "อ่านรูปภาพไม่สำเร็จ");
+    }
+  };
 
   // ป้องกันสิทธิ์ User / President เข้ามาเพิ่มข้อมูล
   if (!canManageAsset) {
@@ -167,6 +186,7 @@ export default function AddAssetPage() {
       brand: brand.trim() || "-",
       model: model.trim() || "-",
       serialNumber: serialNumber.trim() || "-",
+      imageUrl,
       branchId,
       responsiblePersonId: responsiblePersonId
         ? Number(responsiblePersonId)
@@ -191,8 +211,11 @@ export default function AddAssetPage() {
         JSON.stringify([newAsset, ...saved])
       );
     } catch {
-      // ignore storage error
+      alert("บันทึกข้อมูลไม่สำเร็จ พื้นที่จัดเก็บในเบราว์เซอร์อาจเต็ม");
+      return;
     }
+
+    notifyAssetDataChanged();
 
     alert(`บันทึกทรัพย์สิน ${newAsset.name} (${newAsset.id}) เรียบร้อยแล้ว`);
     router.push("/assets");
@@ -327,6 +350,56 @@ export default function AddAssetPage() {
                 placeholder="เช่น C02XK7QLMD6T"
                 className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
+          <h2 className="text-base font-bold text-slate-900 mb-4">ภาพทรัพย์สิน</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className="h-32 w-40 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+              {imageUrl ? (
+                <Image src={imageUrl} alt="ตัวอย่างภาพทรัพย์สิน" width={320} height={256} unoptimized className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-sm text-slate-400">ยังไม่มีภาพ</span>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-700">เลือกรูปภาพ 1 รูป</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  void handleImageChange(file);
+                }}
+                className="block w-full max-w-sm text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+              <p className="text-xs text-slate-400">ระบบย่อรูปก่อนบันทึก ขนาดไฟล์ต้นฉบับไม่เกิน 10 MB</p>
+              {imageError && <p role="alert" className="text-xs text-rose-600">{imageError}</p>}
+              {imageUrl && (
+                <button type="button" onClick={() => setImageUrl("")} className="text-xs font-medium text-rose-600 hover:text-rose-700">
+                  ลบภาพ
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
+          <h2 className="text-base font-bold text-slate-900 mb-2">QR Code / Barcode</h2>
+          <p className="text-xs text-slate-500 mb-5">ทั้งสองรหัสจะบันทึกเป็น Asset ID เพื่อให้ระบบค้นหารายละเอียดได้เมื่อสแกน</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="rounded-xl border border-slate-200 p-4 flex flex-col items-center gap-2">
+              <span className="text-sm font-semibold text-slate-700">QR Code</span>
+              <AssetQrCode value={nextAssetId} className="w-32 h-32" />
+              <span className="text-xs text-slate-500">{nextAssetId}</span>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4 flex flex-col items-center justify-center gap-2">
+              <span className="text-sm font-semibold text-slate-700">Barcode</span>
+              <AssetBarcode value={nextAssetId} className="h-16 w-64 max-w-full" />
+              <span className="text-xs text-slate-500">{nextAssetId}</span>
             </div>
           </div>
         </div>

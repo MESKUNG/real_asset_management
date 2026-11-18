@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useMemo, useSyncExternalStore, Suspense } from "react";
+import { useState, useMemo, useSyncExternalStore, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { assets as initialAssets, Asset } from "@/data/asset";
+import Image from "next/image";
+import { Asset } from "@/data/asset";
+import { notifyAssetDataChanged, prepareAssetImage, useAssets } from "@/lib/assets";
+import { AssetBarcode, AssetQrCode } from "@/components/assets/AssetCodes";
 import { branches } from "@/data/branches";
 import {
   LayoutGrid,
@@ -83,6 +86,7 @@ function EditAssetForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const assetId = searchParams.get("id") || "";
+  const allAssets = useAssets();
 
   const credential = useSyncExternalStore(
     subscribeCredential,
@@ -95,11 +99,11 @@ function EditAssetForm() {
 
   // ค้นหาทรัพย์สินที่จะแก้ไขจาก ID
   const targetAsset = useMemo(() => {
-    return initialAssets.find((item) => item.id === assetId);
-  }, [assetId]);
+    return allAssets.find((item) => item.id === assetId);
+  }, [allAssets, assetId]);
 
   const categoryOptions = useMemo(() => {
-    const fromData = Array.from(new Set(initialAssets.map((a) => a.category)));
+    const fromData = Array.from(new Set(allAssets.map((a) => a.category)));
     const defaults = [
       "คอมพิวเตอร์และอุปกรณ์ IT",
       "อุปกรณ์สำนักงาน",
@@ -108,7 +112,7 @@ function EditAssetForm() {
       "ยานพาหนะ",
     ];
     return Array.from(new Set([...defaults, ...fromData]));
-  }, []);
+  }, [allAssets]);
 
   const branchOptions = useMemo(() => {
     return (branches as Record<string, string>[]).map((b) => ({
@@ -130,6 +134,8 @@ function EditAssetForm() {
   const [serialNumber, setSerialNumber] = useState(
     targetAsset?.serialNumber || ""
   );
+  const [imageUrl, setImageUrl] = useState(targetAsset?.imageUrl || "");
+  const [imageError, setImageError] = useState("");
 
   const [branchId, setBranchId] = useState(
     targetAsset?.branchId || credential.branch_id || "BR-001"
@@ -154,9 +160,35 @@ function EditAssetForm() {
   const [vendorAddress, setVendorAddress] = useState("");
   const [vendorPhone, setVendorPhone] = useState("");
   const [vendorEmail, setVendorEmail] = useState("");
-  const [qrCodeText, setQrCodeText] = useState(
-    targetAsset?.qrCode || targetAsset?.id || ""
-  );
+  useEffect(() => {
+    if (!targetAsset) return;
+    setName(targetAsset.name);
+    setCategory(targetAsset.category || categoryOptions[0] || "");
+    setIsAvailable(targetAsset.status === "available");
+    setBrand(targetAsset.brand);
+    setModel(targetAsset.model);
+    setSerialNumber(targetAsset.serialNumber);
+    setImageUrl(targetAsset.imageUrl || "");
+    setBranchId(targetAsset.branchId);
+    setResponsiblePersonId(targetAsset.responsiblePersonId ? String(targetAsset.responsiblePersonId) : "");
+    setPurchasePrice(String(targetAsset.purchasePrice));
+    setPurchaseDate(toInputDate(targetAsset.purchaseDate));
+    setWarrantyEndDate(toInputDate(targetAsset.warrantyEndDate));
+    setVendorName(targetAsset.vendorId || "");
+  }, [targetAsset, categoryOptions]);
+
+  const handleImageChange = async (file?: File) => {
+    setImageError("");
+    if (!file) {
+      setImageUrl("");
+      return;
+    }
+    try {
+      setImageUrl(await prepareAssetImage(file));
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "อ่านรูปภาพไม่สำเร็จ");
+    }
+  };
 
   // ป้องกันสิทธิ์ User / President
   if (!canManageAsset) {
@@ -210,6 +242,7 @@ function EditAssetForm() {
       brand: brand.trim() || "-",
       model: model.trim() || "-",
       serialNumber: serialNumber.trim() || "-",
+      imageUrl,
       branchId,
       responsiblePersonId: responsiblePersonId
         ? Number(responsiblePersonId)
@@ -218,8 +251,8 @@ function EditAssetForm() {
       purchaseDate: purchaseDate || targetAsset.purchaseDate,
       warrantyEndDate: warrantyEndDate || targetAsset.warrantyEndDate,
       vendorId: vendorName.trim() || targetAsset.vendorId,
-      qrCode: qrCodeText.trim() || targetAsset.id,
-      barcode: qrCodeText.trim() || targetAsset.id,
+      qrCode: targetAsset.id,
+      barcode: targetAsset.id,
       updatedAt: new Date().toISOString(),
       updatedBy: credential.staff_id || 1,
     };
@@ -229,8 +262,11 @@ function EditAssetForm() {
       saved[updatedAsset.id] = updatedAsset;
       localStorage.setItem("updated_assets", JSON.stringify(saved));
     } catch {
-      // ignore storage error
+      alert("บันทึกข้อมูลไม่สำเร็จ พื้นที่จัดเก็บในเบราว์เซอร์อาจเต็ม");
+      return;
     }
+
+    notifyAssetDataChanged();
 
     alert(`บันทึกการเปลี่ยนแปลง ${updatedAsset.name} (${updatedAsset.id}) เรียบร้อยแล้ว`);
     router.push(`/assets/${updatedAsset.id}`);
@@ -369,6 +405,39 @@ function EditAssetForm() {
                 onChange={(e) => setSerialNumber(e.target.value)}
                 className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
+          <h2 className="text-base font-bold text-slate-900 mb-4">ภาพทรัพย์สิน</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className="h-32 w-40 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">
+              {imageUrl ? (
+                <Image src={imageUrl} alt="ตัวอย่างภาพทรัพย์สิน" width={320} height={256} unoptimized className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-sm text-slate-400">ยังไม่มีภาพ</span>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-700">เลือกรูปภาพ 1 รูป</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  void handleImageChange(file);
+                }}
+                className="block w-full max-w-sm text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+              <p className="text-xs text-slate-400">ระบบย่อรูปก่อนบันทึก ขนาดไฟล์ต้นฉบับไม่เกิน 10 MB</p>
+              {imageError && <p role="alert" className="text-xs text-rose-600">{imageError}</p>}
+              {imageUrl && (
+                <button type="button" onClick={() => setImageUrl("")} className="text-xs font-medium text-rose-600 hover:text-rose-700">
+                  ลบภาพ
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -551,10 +620,11 @@ function EditAssetForm() {
             </label>
             <input
               type="text"
-              value={qrCodeText}
-              onChange={(e) => setQrCodeText(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              readOnly
+              value={targetAsset.id}
+              className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-700"
             />
+            <p className="mt-2 text-xs text-slate-400">QR Code และ Barcode จะใช้รหัส Asset นี้เป็นข้อมูลสำหรับสแกน</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -572,13 +642,7 @@ function EditAssetForm() {
 
               <div className="border border-slate-100 rounded-xl py-8 flex flex-col items-center justify-center bg-slate-50/30">
                 <div className="p-3 bg-slate-100 rounded-xl">
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="w-24 h-24 text-slate-900"
-                    fill="currentColor"
-                  >
-                    <path d="M10 10h25v25H10V10zm5 5v15h15V15H15zm5 5h5v5h-5v-5zm45-10h25v25H65V10zm5 5v15h15V15H70zm5 5h5v5h-5v-5zM10 65h25v25H10V65zm5 5v15h15V70H15zm5 5h5v5h-5v-5zm25-65h5v10h-5V10zm10 5h5v15h-5V15zM45 30h10v5H45v-5zM10 45h15v5H10v-5zm20 0h10v10H30V45zm15 5h10v5H45v-5zm15-5h15v5H60v-5zm20 0h10v10H80V45zM45 60h10v10H45V60zm15 5h10v5H60v-5zm15-5h15v10H75V60zM45 75h5v15h-5V75zm10 5h15v10H55V80zm20 0h15v10H75V80z" />
-                  </svg>
+                  <AssetQrCode value={targetAsset.id} className="w-28 h-28" />
                 </div>
               </div>
             </div>
@@ -596,41 +660,7 @@ function EditAssetForm() {
               </div>
 
               <div className="border border-slate-100 rounded-xl py-8 flex flex-col items-center justify-center bg-slate-50/30">
-                <div className="h-[120px] flex items-center justify-center px-6">
-                  <svg
-                    viewBox="0 0 180 60"
-                    className="w-44 h-16 text-slate-900"
-                    fill="currentColor"
-                  >
-                    <rect x="4" y="5" width="3" height="50" />
-                    <rect x="10" y="5" width="1.5" height="50" />
-                    <rect x="15" y="5" width="4" height="50" />
-                    <rect x="23" y="5" width="2" height="50" />
-                    <rect x="29" y="5" width="1.5" height="50" />
-                    <rect x="34" y="5" width="3.5" height="50" />
-                    <rect x="42" y="5" width="2" height="50" />
-                    <rect x="47" y="5" width="1.5" height="50" />
-                    <rect x="52" y="5" width="4" height="50" />
-                    <rect x="60" y="5" width="2.5" height="50" />
-                    <rect x="66" y="5" width="1.5" height="50" />
-                    <rect x="72" y="5" width="3" height="50" />
-                    <rect x="79" y="5" width="2" height="50" />
-                    <rect x="85" y="5" width="4" height="50" />
-                    <rect x="93" y="5" width="1.5" height="50" />
-                    <rect x="98" y="5" width="3" height="50" />
-                    <rect x="105" y="5" width="2" height="50" />
-                    <rect x="111" y="5" width="3.5" height="50" />
-                    <rect x="118" y="5" width="1.5" height="50" />
-                    <rect x="124" y="5" width="2.5" height="50" />
-                    <rect x="130" y="5" width="4" height="50" />
-                    <rect x="138" y="5" width="1.5" height="50" />
-                    <rect x="144" y="5" width="3" height="50" />
-                    <rect x="151" y="5" width="2" height="50" />
-                    <rect x="157" y="5" width="1.5" height="50" />
-                    <rect x="163" y="5" width="3.5" height="50" />
-                    <rect x="171" y="5" width="2.5" height="50" />
-                  </svg>
-                </div>
+                <AssetBarcode value={targetAsset.id} className="h-16 w-64 max-w-full" />
               </div>
             </div>
           </div>

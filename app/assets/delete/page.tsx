@@ -3,7 +3,8 @@
 import { useState, useMemo, useSyncExternalStore, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { assets as initialAssets, AssetStatus } from "@/data/asset";
+import { AssetStatus } from "@/data/asset";
+import { notifyAssetDataChanged, useAssets } from "@/lib/assets";
 import { branches } from "@/data/branches";
 import { Trash2, ShieldAlert, ArrowLeft } from "lucide-react";
 
@@ -59,6 +60,7 @@ function DeleteAssetForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const assetId = searchParams.get("id") || "";
+  const allAssets = useAssets();
 
   const credential = useSyncExternalStore(
     subscribeCredential,
@@ -73,8 +75,8 @@ function DeleteAssetForm() {
 
   // ค้นหาทรัพย์สินที่จะลบ
   const targetAsset = useMemo(() => {
-    return initialAssets.find((item) => item.id === assetId);
-  }, [assetId]);
+    return allAssets.find((item) => item.id === assetId);
+  }, [allAssets, assetId]);
 
   const getBranchName = (branchId: string) => {
     const found = (branches as Record<string, string>[]).find(
@@ -155,6 +157,8 @@ function DeleteAssetForm() {
     } catch {
       // ignore storage error
     }
+
+    notifyAssetDataChanged();
 
     alert(`ลบทรัพย์สิน ${targetAsset.name} (${targetAsset.id}) เรียบร้อยแล้ว`);
     router.push("/assets");

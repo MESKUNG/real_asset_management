@@ -18,6 +18,7 @@ export type Asset = {
   brand: string;
   model: string;
   serialNumber: string;
+  imageUrl?: string;
 
   // สาขาและผู้รับผิดชอบ
   branchId: string;
