@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import { useSyncExternalStore } from "react";
 
@@ -30,11 +32,12 @@ function getServerRole() {
 }
 
 export default function InventoriesPage() {
+  const translateText = useTranslate();
   const role = useSyncExternalStore(subscribeToCredential, getRole, getServerRole);
 
   if (role === "loading") return null;
   if (role === "user") return <UserSchedulePage />;
   if (role === "admin") return <AuditBoard canScan={false} />;
 
-  return <p className="p-8 text-sm text-slate-500">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>;
+  return <p className="p-8 text-sm text-slate-500">{translateText("ไม่มีสิทธิ์เข้าถึงหน้านี้")}</p>;
 }

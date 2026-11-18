@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { assets } from "@/data/asset";
@@ -279,6 +281,7 @@ function exportPdf(list: Request[], subtitle: string) {
 /* ---------- page ---------- */
 
 export default function Page() {
+  const translateText = useTranslate();
   const role = useSyncExternalStore(subscribe, getRole, () => null);
   // สิทธิ์ตาม role
   const isAdmin = role === "admin" || role === "superadmin";
@@ -397,10 +400,12 @@ export default function Page() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-blue-950">
-            เบิก / ยืมคืน / ขอโอนย้ายทรัพย์สิน
+            
+            {translateText("เบิก / ยืมคืน / ขอโอนย้ายทรัพย์สิน")}
           </h1>
           <p className="text-sm text-slate-700">
-            ติดตามคำขอ สถานะการอนุมัติ และกำหนดคืน
+            
+            {translateText("ติดตามคำขอ สถานะการอนุมัติ และกำหนดคืน")}
           </p>
         </div>
         {canCreate && (
@@ -408,7 +413,8 @@ export default function Page() {
             onClick={() => setShowModal(true)}
             className="rounded-lg bg-yellow-400 px-5 py-2.5 font-bold text-blue-950 hover:bg-yellow-300"
           >
-            + สร้างคำขอ
+            
+            {translateText("+ สร้างคำขอ")}
           </button>
         )}
         {isPresident && (
@@ -418,14 +424,16 @@ export default function Page() {
               disabled={rows.length === 0}
               className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
             >
-              ส่งออก Excel
+              
+              {translateText("ส่งออก Excel")}
             </button>
             <button
               onClick={() => exportPdf(rows, exportSubtitle)}
               disabled={rows.length === 0}
               className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
             >
-              ส่งออก PDF
+              
+              {translateText("ส่งออก PDF")}
             </button>
           </div>
         )}
@@ -445,17 +453,20 @@ export default function Page() {
                 className="rounded-xl border border-slate-300 bg-white p-4 text-left hover:bg-indigo-50"
               >
                 <div className="text-sm font-semibold text-slate-900">
-                  คำขอ{TYPES[t].label}
+                  
+                  {translateText("คำขอ")}{translateText(TYPES[t].label)}
                 </div>
                 <div className="my-1 text-3xl font-bold text-blue-950">
                   {list.length}
                   <span className="ml-1 text-sm font-medium text-slate-800">
-                    รายการ
+                    
+                    {translateText("รายการ")}
                   </span>
                 </div>
                 <div className="text-xs text-slate-800">
-                  รออนุมัติ {n("pending")} · อนุมัติแล้ว {n("approved")} ·
-                  ไม่อนุมัติ {n("rejected")}
+                  
+                  {translateText("รออนุมัติ")} {n("pending")}  {translateText("· อนุมัติแล้ว")} {n("approved")} ·
+                  {translateText("ไม่อนุมัติ")} {n("rejected")}
                 </div>
               </button>
             );
@@ -465,35 +476,35 @@ export default function Page() {
 
       {/* ตัวกรองประเภทคำขอ */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-sm font-semibold text-slate-900">ประเภท</span>
+        <span className="mr-1 text-sm font-semibold text-slate-900">{translateText("ประเภท")}</span>
         {TYPE_FILTERS.map((t) => (
           <button
             key={t}
             onClick={() => setTypeFilter(t)}
             className={pill(typeFilter === t)}
           >
-            {t === "all" ? "ทั้งหมด" : TYPES[t].label}
+            {t === "all" ? translateText("ทั้งหมด") : translateText(TYPES[t].label)}
           </button>
         ))}
       </div>
 
       {/* ตัวกรองสถานะ + ค้นหา */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-sm font-semibold text-slate-900">สถานะ</span>
+        <span className="mr-1 text-sm font-semibold text-slate-900">{translateText("สถานะ")}</span>
         {STATUS_FILTERS.map((f) => (
           <button
             key={f}
             onClick={() => setStatusFilter(f)}
             className={pill(statusFilter === f)}
           >
-            {f === "all" ? "ทั้งหมด" : STATUS[f].label}
+            {f === "all" ? translateText("ทั้งหมด") : translateText(STATUS[f].label)}
             <span className="ml-1.5 font-normal opacity-80">{counts[f] ?? 0}</span>
           </button>
         ))}
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="ค้นหารหัสคำขอ ชื่อทรัพย์สิน หรือวัตถุประสงค์"
+          placeholder={translateText("ค้นหารหัสคำขอ ชื่อทรัพย์สิน หรือวัตถุประสงค์")}
           className="ml-auto w-full rounded-lg border border-slate-400 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600 sm:w-80"
         />
       </div>
@@ -502,15 +513,15 @@ export default function Page() {
         <table className="w-full min-w-[1040px] text-left text-sm text-slate-900">
           <thead className="bg-slate-100 text-slate-900">
             <tr>
-              <th className="p-3 font-bold">รหัส</th>
-              <th className="p-3 font-bold">ประเภท</th>
-              <th className="p-3 font-bold">ทรัพย์สิน</th>
-              <th className="p-3 font-bold">ผู้ขอ</th>
-              <th className="p-3 font-bold">รายละเอียด</th>
-              <th className="p-3 font-bold">วันที่คืนจริง</th>
-              <th className="p-3 font-bold">สถานะ</th>
-              <th className="p-3 font-bold">หมายเหตุ</th>
-              <th className="p-3 font-bold">ดำเนินการ</th>
+              <th className="p-3 font-bold">{translateText("รหัส")}</th>
+              <th className="p-3 font-bold">{translateText("ประเภท")}</th>
+              <th className="p-3 font-bold">{translateText("ทรัพย์สิน")}</th>
+              <th className="p-3 font-bold">{translateText("ผู้ขอ")}</th>
+              <th className="p-3 font-bold">{translateText("รายละเอียด")}</th>
+              <th className="p-3 font-bold">{translateText("วันที่คืนจริง")}</th>
+              <th className="p-3 font-bold">{translateText("สถานะ")}</th>
+              <th className="p-3 font-bold">{translateText("หมายเหตุ")}</th>
+              <th className="p-3 font-bold">{translateText("ดำเนินการ")}</th>
             </tr>
           </thead>
           <tbody>
@@ -520,7 +531,8 @@ export default function Page() {
                   colSpan={9}
                   className="p-8 text-center text-slate-700"
                 >
-                  ไม่พบคำขอที่ตรงกับตัวกรอง
+                  
+                  {translateText("ไม่พบคำขอที่ตรงกับตัวกรอง")}
                 </td>
               </tr>
             )}
@@ -530,14 +542,14 @@ export default function Page() {
               return (
                 <tr key={r.id} className="border-t border-slate-200 align-top">
                   <td className="p-3 font-semibold text-blue-950">{r.id}</td>
-                  <td className="p-3 font-medium">{TYPES[r.type].label}</td>
+                  <td className="p-3 font-medium">{translateText(TYPES[r.type].label)}</td>
                   <td className="p-3">
                     <div className="font-semibold">{assetName(r.assetId)}</div>
                     <div className="text-xs text-slate-700">
                       {r.assetId} · {branchName(r.branchId)}
                     </div>
                   </td>
-                  <td className="p-3">พนักงาน #{r.borrowerId}</td>
+                  <td className="p-3">{translateText("พนักงาน #")}{r.borrowerId}</td>
                   <td className="p-3">
                     {r.type === "transfer" ? (
                       <div className="font-medium">
@@ -545,11 +557,13 @@ export default function Page() {
                       </div>
                     ) : r.type === "return" ? (
                       <div className="font-medium">
-                        กำหนดคืน {fmtDate(r.expectedReturnDate)}
+                        
+                        {translateText("กำหนดคืน")} {fmtDate(r.expectedReturnDate)}
                       </div>
                     ) : (
                       <div className="font-medium">
-                        ต้องการวันที่ {fmtDate(r.borrowDate)}
+                        
+                        {translateText("ต้องการวันที่")} {fmtDate(r.borrowDate)}
                       </div>
                     )}
                     <div className="max-w-56 text-xs text-slate-700">{r.purpose}</div>
@@ -559,7 +573,7 @@ export default function Page() {
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS[s].className}`}
                     >
-                      {STATUS[s].label}
+                      {translateText(STATUS[s].label)}
                     </span>
                   </td>
                   <td className="max-w-56 p-3 text-slate-800">{note || "-"}</td>
@@ -636,6 +650,7 @@ function RowActions({
   onReceive: () => void;
   onEdit: () => void;
 }) {
+  const translateText = useTranslate();
   const base = "rounded-md px-3 py-1.5 text-xs font-bold text-white";
 
   // รออนุมัติ: Admin / SuperAdmin / President อนุมัติหรือไม่อนุมัติ, Admin ส่งกลับแก้ไขได้
@@ -643,14 +658,17 @@ function RowActions({
     return (
       <div className="flex flex-wrap gap-2">
         <button onClick={onApprove} className={`${base} bg-emerald-700`}>
-          อนุมัติ
+          
+          {translateText("อนุมัติ")}
         </button>
         <button onClick={onReject} className={`${base} bg-red-700`}>
-          ไม่อนุมัติ
+          
+          {translateText("ไม่อนุมัติ")}
         </button>
         {canSendBack && (
           <button onClick={onSendBack} className={`${base} bg-violet-700`}>
-            ส่งกลับแก้ไข
+            
+            {translateText("ส่งกลับแก้ไข")}
           </button>
         )}
       </div>
@@ -661,7 +679,8 @@ function RowActions({
   if (status === "revision" && canEdit) {
     return (
       <button onClick={onEdit} className={`${base} bg-blue-950`}>
-        แก้ไขคำขอ
+        
+        {translateText("แก้ไขคำขอ")}
       </button>
     );
   }
@@ -673,7 +692,8 @@ function RowActions({
   ) {
     return (
       <button onClick={onReceive} className={`${base} bg-blue-950`}>
-        รับคืน
+        
+        {translateText("รับคืน")}
       </button>
     );
   }
@@ -690,6 +710,7 @@ function RequestModal({
   onSubmit: (d: NewRequest) => string;
   onClose: () => void;
 }) {
+  const translateText = useTranslate();
   const [type, setType] = useState<RequestType>(editing?.type ?? "withdraw");
   const [assetId, setAssetId] = useState(editing?.assetId ?? "");
   const [borrowDate, setBorrowDate] = useState(editing?.borrowDate ?? "");
@@ -783,13 +804,15 @@ function RequestModal({
               {editing ? "ส่งคำขอแก้ไขเรียบร้อย" : "ส่งคำขอเรียบร้อย"}
             </h2>
             <p className="text-sm text-slate-800">
-              คำขอ{TYPES[type].label} รหัส {submittedId} อยู่ในสถานะรออนุมัติ
+              
+              {translateText("คำขอ")}{translateText(TYPES[type].label)}  {translateText("รหัส")} {submittedId}  {translateText("อยู่ในสถานะรออนุมัติ")}
             </p>
             <button
               onClick={onClose}
               className="mt-2 rounded-lg bg-blue-950 px-8 py-2.5 text-sm font-bold text-white"
             >
-              ปิด
+              
+              {translateText("ปิด")}
             </button>
           </div>
         ) : (
@@ -800,7 +823,7 @@ function RequestModal({
               </h2>
               <button
                 onClick={onClose}
-                aria-label="ปิด"
+                aria-label={translateText("ปิด")}
                 className="rounded-md px-2 py-1 text-xl leading-none text-slate-800 hover:bg-slate-100"
               >
                 ×
@@ -809,17 +832,18 @@ function RequestModal({
 
             {editing?.note && (
               <div className="rounded-lg border border-violet-300 bg-violet-50 p-3 text-sm text-violet-950">
-                <span className="font-bold">เหตุผลที่ส่งกลับ:</span> {editing.note}
+                <span className="font-bold">{translateText("เหตุผลที่ส่งกลับ:")}</span> {editing.note}
               </div>
             )}
 
             {editing ? (
               <p className="text-sm font-semibold text-slate-900">
-                ประเภทคำขอ: {TYPES[type].label} ({editing.id})
+                
+                {translateText("ประเภทคำขอ:")} {translateText(TYPES[type].label)} ({editing.id})
               </p>
             ) : (
             <div>
-              <span className={label}>ประเภทคำขอ</span>
+              <span className={label}>{translateText("ประเภทคำขอ")}</span>
               <div className="grid grid-cols-3 gap-2">
                 {(Object.keys(TYPES) as RequestType[]).map((t) => (
                   <button
@@ -831,8 +855,8 @@ function RequestModal({
                         : "border-slate-400 bg-white text-slate-900 hover:bg-indigo-100"
                     }`}
                   >
-                    <div className="text-sm font-bold">{TYPES[t].label}</div>
-                    <div className="text-xs">{TYPES[t].hint}</div>
+                    <div className="text-sm font-bold">{translateText(TYPES[t].label)}</div>
+                    <div className="text-xs">{translateText(TYPES[t].hint)}</div>
                   </button>
                 ))}
               </div>
@@ -840,7 +864,7 @@ function RequestModal({
             )}
 
             <div>
-              <label className={label}>ทรัพย์สิน</label>
+              <label className={label}>{translateText("ทรัพย์สิน")}</label>
               {options.length === 0 ? (
                 <p className="text-sm text-slate-800">
                   {type === "return"
@@ -865,7 +889,7 @@ function RequestModal({
             {type === "transfer" && (
               <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
                 <div>
-                  <label className={label}>จากสาขา</label>
+                  <label className={label}>{translateText("จากสาขา")}</label>
                   <input
                     disabled
                     value={branchName(asset?.branchId)}
@@ -874,13 +898,13 @@ function RequestModal({
                 </div>
                 <span className="hidden pb-2 text-lg font-bold sm:block">→</span>
                 <div>
-                  <label className={label}>ไปยังสาขา</label>
+                  <label className={label}>{translateText("ไปยังสาขา")}</label>
                   <select
                     value={toBranch}
                     onChange={(e) => setToBranchId(e.target.value)}
                     className={field}
                   >
-                    <option value="">เลือกสาขาปลายทาง</option>
+                    <option value="">{translateText("เลือกสาขาปลายทาง")}</option>
                     {destinations.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.name}
@@ -923,7 +947,8 @@ function RequestModal({
                 onClick={onClose}
                 className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold text-slate-900"
               >
-                ยกเลิก
+                
+                {translateText("ยกเลิก")}
               </button>
               <button
                 disabled={!ready}
@@ -947,6 +972,7 @@ function ReasonModal({
   onConfirm: (reason: string) => void;
   onClose: () => void;
 }) {
+  const translateText = useTranslate();
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -966,15 +992,16 @@ function ReasonModal({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md rounded-2xl bg-white p-6 text-slate-900 shadow-xl"
       >
-        <h2 className="text-xl font-bold text-blue-950">ส่งกลับแก้ไข</h2>
+        <h2 className="text-xl font-bold text-blue-950">{translateText("ส่งกลับแก้ไข")}</h2>
         <p className="mt-1 text-sm text-slate-800">
-          ระบุสิ่งที่ผู้ขอต้องแก้ไข คำขอจะถูกส่งกลับให้ผู้ขอแก้ไขแล้วส่งใหม่
+          
+          {translateText("ระบุสิ่งที่ผู้ขอต้องแก้ไข คำขอจะถูกส่งกลับให้ผู้ขอแก้ไขแล้วส่งใหม่")}
         </p>
         <textarea
           rows={4}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="เช่น ระบุวันที่คืนไม่ชัดเจน กรุณาแก้ไข"
+          placeholder={translateText("เช่น ระบุวันที่คืนไม่ชัดเจน กรุณาแก้ไข")}
           className="mt-3 w-full rounded-lg border border-slate-400 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600"
         />
         <div className="mt-4 flex justify-end gap-2">
@@ -982,14 +1009,16 @@ function ReasonModal({
             onClick={onClose}
             className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold text-slate-900"
           >
-            ยกเลิก
+            
+            {translateText("ยกเลิก")}
           </button>
           <button
             disabled={!reason.trim()}
             onClick={() => onConfirm(reason.trim())}
             className="rounded-lg bg-violet-700 px-6 py-2 text-sm font-bold text-white disabled:opacity-40"
           >
-            ส่งกลับแก้ไข
+            
+            {translateText("ส่งกลับแก้ไข")}
           </button>
         </div>
       </div>

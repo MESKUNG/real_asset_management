@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 ////////////////////////////////////////////////////
 /////////////// เรียกใช้ Library ////////////////////
@@ -13,6 +15,12 @@ import { Form } from "react-aria-components";
 import { useRouter } from "next/navigation";
 
 import { Globe2, MoonHalfLeft5 } from "@tailgrids/icons";
+import {
+  saveLanguage,
+  saveTheme,
+  useLanguage,
+  useTheme,
+} from "@/lib/language";
 
 ////////////////////////////////////////////////////
 
@@ -32,9 +40,33 @@ type Credential = {   //กำหนด Type ของ Credential ที่ใ�
 };
 
 export default function Home() {
+  const translateText = useTranslate();
+  const language = useLanguage();
+  const theme = useTheme();
   const [isLoading, setIsLoading] = useState(false);      //ตรวจสอบว่าขณะนี้กำลังเข้าสู่ระบบอยู่หรือไม่ false เป็นค่าเริ่มต้น
   const [errorMessage, setErrorMessage] = useState("");      //ใช้เก็บข้อความ Error ที่เกิดขึ้นระหว่าง Login
+  const [preferenceError, setPreferenceError] = useState(false);
   const router = useRouter();     //เป็น Hook ของ Next.js ที่ใช้สำหรับจัดการ Navigation หรือการเปลี่ยนหน้า
+
+  const changeLanguage = () => {
+    try {
+      saveLanguage(language === "th" ? "en" : "th");
+      setPreferenceError(false);
+    } catch (error) {
+      console.error("Could not save language preference:", error);
+      setPreferenceError(true);
+    }
+  };
+
+  const toggleTheme = () => {
+    try {
+      saveTheme(theme === "dark" ? "light" : "dark");
+      setPreferenceError(false);
+    } catch (error) {
+      console.error("Could not save theme preference:", error);
+      setPreferenceError(true);
+    }
+  };
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {   //ฟังก์ชัน handleLogin จะถูกเรียกเมื่อผู้ใช้กดปุ่มเข้าสู่ระบบ  และ async หมายถึงฟังก์ชันนี้สามารถใช้ await ได้ เพราะต้องรอ API ตอบกลับ
     e.preventDefault();         //ป้องกันการรีเฟรชหน้าเว็บเมื่อฟอร์มถูกส่ง
@@ -153,7 +185,7 @@ export default function Home() {
   return (
     <>
       <div className="bg-gray-100 min-h-screen flex justify-center items-center">
-        <div className="bg-white  border-gray-300 border-2 p-4 rounded-2xl w-100">
+        <div className="bg-white border-gray-300 border-2 p-4 rounded-2xl w-100">
           <div className="flex text-3xl font-bold underline justify-center">
             <Image
               src="/All images/avengers_doomsday_logo_by_airielashf23_dlc8ekd-fullview.png"
@@ -168,12 +200,12 @@ export default function Home() {
             className="flex flex-col items-center gap-6 w-full max-w-sm p-4"
           >
             <TextField className="w-full" name="username" type="text" required>
-              <FieldLabel className="font-bold">ชื่อ / Username</FieldLabel>
+              <FieldLabel className="font-bold">{translateText("ชื่อ / Username")}</FieldLabel>
 
               <Input
                 id="username"
                 name="username"
-                placeholder="กรอกชื่อ / Username..."
+                placeholder={translateText("กรอกชื่อ / Username...")}
               />
             </TextField>
 
@@ -183,33 +215,44 @@ export default function Home() {
               type="password"
               required
             >
-              <FieldLabel className="font-bold">รหัสผ่าน</FieldLabel>
+              <FieldLabel className="font-bold">{translateText("รหัสผ่าน")}</FieldLabel>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                placeholder="กรอกรหัสผ่าน..."
+                placeholder={translateText("กรอกรหัสผ่าน...")}
               />
             </TextField>
 
             <div className="w-full flex justify-between">
               <Button
                 type="button"
-                className="bg-white-600 hover:bg-gray-100 text-black border-2 border-gray-300 rounded-2xl"
+                className="bg-white hover:bg-gray-100 text-black border-2 border-gray-300 rounded-2xl"
+                aria-label={translateText("เปลี่ยนภาษา")}
+                onClick={changeLanguage}
               >
                 <Globe2 />
-                TH
+                {language.toUpperCase()}
               </Button>
               <Button
                 type="button"
-                className="bg-white-600 hover:bg-gray-100 text-black border-2 border-gray-300 rounded-2xl"
+                className="bg-white hover:bg-gray-100 text-black border-2 border-gray-300 rounded-2xl"
+                aria-label={translateText(
+                  theme === "dark" ? "เปลี่ยนเป็นธีมสว่าง" : "เปลี่ยนเป็นธีมมืด",
+                )}
+                onClick={toggleTheme}
               >
                 <MoonHalfLeft5 />
               </Button>
             </div>
+            {preferenceError && (
+              <p className="w-full text-sm text-red-600" role="alert">
+                {translateText("บันทึกไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าเบราว์เซอร์")}
+              </p>
+            )}
             {errorMessage && (         //ถ้า errorMessage มีข้อความ จะนำข้อความนั้นมาแสดง
               <p className="w-full text-sm text-red-600" role="alert">
-                {errorMessage}
+                {translateText(errorMessage)}
               </p>
             )}
             <Button
@@ -217,7 +260,9 @@ export default function Home() {
               disabled={isLoading}
               className="w-full bg-gray-600 hover:bg-gray-700 text-white"
             >
-              {isLoading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+              {isLoading
+                ? translateText("กำลังเข้าสู่ระบบ...")
+                : translateText("เข้าสู่ระบบ")}
             </Button>
           </Form>
           <div></div>

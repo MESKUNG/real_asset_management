@@ -1,9 +1,12 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function QrScannerMockupPage() {
+  const translateText = useTranslate();
   const router = useRouter();
   const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
   const [isFrontCamera, setIsFrontCamera] = useState<boolean>(false);
@@ -39,12 +42,12 @@ export default function QrScannerMockupPage() {
         <button type="button" onClick={() => router.back()} className="text-slate-700 font-bold">
           ←
         </button>
-        <h1 className="text-base font-bold text-slate-900">สแกน QR Code</h1>
+        <h1 className="text-base font-bold text-slate-900">{translateText("สแกน QR Code")}</h1>
       </header>
 
       <main className="max-w-md mx-auto px-4 pt-5">
-        <h2 className="text-sm font-bold text-slate-900">สแกน QR Code บนทรัพย์สิน</h2>
-        <p className="text-xs text-slate-500 mt-0.5 mb-4">วาง QR Code ให้อยู่ภายในกรอบเพื่อสแกน</p>
+        <h2 className="text-sm font-bold text-slate-900">{translateText("สแกน QR Code บนทรัพย์สิน")}</h2>
+        <p className="text-xs text-slate-500 mt-0.5 mb-4">{translateText("วาง QR Code ให้อยู่ภายในกรอบเพื่อสแกน")}</p>
 
         {/* กรอบกล้องจำลอง */}
         <div
@@ -63,10 +66,12 @@ export default function QrScannerMockupPage() {
 
           <div className="text-center pb-2">
             <p className="text-xs font-bold text-white">
-              เล็งกล้องไปที่ QR Code ({isFrontCamera ? "กล้องหน้า" : "กล้องหลัง"})
+              
+              {translateText("เล็งกล้องไปที่ QR Code (")}{isFrontCamera ? "กล้องหน้า" : "กล้องหลัง"})
             </p>
             <p className="text-[11px] text-slate-300 mt-1">
-              (แตะที่กรอบมืดนี้เพื่อจำลองการสแกนสำเร็จ)
+              
+              {translateText("(แตะที่กรอบมืดนี้เพื่อจำลองการสแกนสำเร็จ)")}
             </p>
           </div>
         </div>
@@ -99,7 +104,7 @@ export default function QrScannerMockupPage() {
             >
               📷
             </button>
-            <span className="text-xs font-bold">สลับกล้อง</span>
+            <span className="text-xs font-bold">{translateText("สลับกล้อง")}</span>
           </div>
         </div>
       </main>

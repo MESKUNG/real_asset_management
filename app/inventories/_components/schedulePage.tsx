@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -92,6 +94,7 @@ const buildInitialAdminSchedules = (): AdminScheduleRow[] => {
 
 // Main Component
 export default function SchedulePage() {
+  const translateText = useTranslate();
   const router = useRouter();
 
   const [schedules, setSchedules] = useState<AdminScheduleRow[]>(buildInitialAdminSchedules);
@@ -233,19 +236,21 @@ export default function SchedulePage() {
         <button
           type="button"
           onClick={() => router.back()}
-          aria-label="ย้อนกลับ"
+          aria-label={translateText("ย้อนกลับ")}
           className="text-slate-600 hover:text-slate-900 px-2 py-1 rounded-lg hover:bg-slate-100 font-bold"
         >
           ‹
         </button>
         <h1 className="text-sm lg:text-lg font-bold text-slate-900">
-          กำหนดการตรวจนับทรัพย์สิน
+          
+          {translateText("กำหนดการตรวจนับทรัพย์สิน")}
         </h1>
       </div>
 
       <main className="max-w-6xl mx-auto px-4 lg:px-8 pt-4 lg:pt-6 relative">
         <p className="text-xs lg:text-sm text-slate-500 mb-3.5 font-medium">
-          วางแผนรอบตรวจนับและมอบหมายผู้รับผิดชอบ
+          
+          {translateText("วางแผนรอบตรวจนับและมอบหมายผู้รับผิดชอบ")}
         </p>
 
         {/* ส่วนบน: ช่วงวันที่/สถานที่ และ overlay สร้างกำหนดการ */}
@@ -261,11 +266,11 @@ export default function SchedulePage() {
             <div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 mb-4">
                 <div className="bg-[#f8f9fc] border border-slate-200/80 rounded-xl px-4 lg:px-5 py-3 lg:py-3.5">
-                  <p className="text-[11px] lg:text-xs text-slate-400 mb-1">ช่วงวันที่</p>
+                  <p className="text-[11px] lg:text-xs text-slate-400 mb-1">{translateText("ช่วงวันที่")}</p>
                   <p className="text-xs lg:text-sm font-bold text-slate-900">{topDateRangeText}</p>
                 </div>
                 <div className="bg-[#f8f9fc] border border-slate-200/80 rounded-xl px-4 lg:px-5 py-3 lg:py-3.5">
-                  <p className="text-[11px] lg:text-xs text-slate-400 mb-1">สถานที่</p>
+                  <p className="text-[11px] lg:text-xs text-slate-400 mb-1">{translateText("สถานที่")}</p>
                   <p className="text-xs lg:text-sm font-bold text-slate-900">{topLocationText}</p>
                 </div>
               </div>
@@ -276,7 +281,7 @@ export default function SchedulePage() {
                 className="w-full lg:w-auto min-w-[210px] bg-[#4f46e5] hover:bg-[#4338ca] text-white text-xs font-bold px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition"
               >
                 <span className="text-base leading-none">+</span>
-                <span>สร้างกำหนดการตรวจนับ</span>
+                <span>{translateText("สร้างกำหนดการตรวจนับ")}</span>
               </button>
             </div>
           )}
@@ -294,10 +299,12 @@ export default function SchedulePage() {
                   </div>
                   <div>
                     <h2 className="text-sm lg:text-base font-bold text-slate-900">
-                      สร้างกำหนดการตรวจนับ
+                      
+                      {translateText("สร้างกำหนดการตรวจนับ")}
                     </h2>
                     <p className="hidden sm:block text-[11px] text-slate-400">
-                      เลือกวันที่ เดือน และสาขาจากฐานข้อมูลระบบ ({branches.length} สาขา)
+                      
+                      {translateText("เลือกวันที่ เดือน และสาขาจากฐานข้อมูลระบบ (")}{branches.length}  {translateText("สาขา)")}
                     </p>
                   </div>
                 </div>
@@ -305,7 +312,7 @@ export default function SchedulePage() {
                 <button
                   type="button"
                   onClick={() => setIsCreateOpen(false)}
-                  aria-label="ปิดหน้าต่าง"
+                  aria-label={translateText("ปิดหน้าต่าง")}
                   className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center"
                 >
                   ✕
@@ -316,7 +323,7 @@ export default function SchedulePage() {
                 {/* ช่วงวันที่ */}
                 <div className="lg:col-span-5 bg-[#eff0fe]/70 border border-indigo-100/80 rounded-xl p-4 flex flex-col justify-between">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-slate-600">ช่วงวันที่</span>
+                    <span className="text-xs font-semibold text-slate-600">{translateText("ช่วงวันที่")}</span>
                     <span className="text-[10px] text-slate-500">
                       (1–{maxDay} {selectedMonth})
                     </span>
@@ -329,7 +336,7 @@ export default function SchedulePage() {
                       max={maxDay}
                       value={startDay}
                       onChange={(e) => setStartDay(e.target.value)}
-                      aria-label="วันที่เริ่มต้น"
+                      aria-label={translateText("วันที่เริ่มต้น")}
                       className="w-full max-w-[110px] lg:max-w-[76px] bg-white border border-indigo-200/80 rounded-lg px-3 py-2 text-center text-sm font-bold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
                     />
                     <span className="text-slate-400 font-bold">–</span>
@@ -339,7 +346,7 @@ export default function SchedulePage() {
                       max={maxDay}
                       value={endDay}
                       onChange={(e) => setEndDay(e.target.value)}
-                      aria-label="วันที่สิ้นสุด"
+                      aria-label={translateText("วันที่สิ้นสุด")}
                       className="w-full max-w-[110px] lg:max-w-[76px] bg-white border border-indigo-200/80 rounded-lg px-3 py-2 text-center text-sm font-bold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
                     />
                   </div>
@@ -350,7 +357,8 @@ export default function SchedulePage() {
                     </p>
                   ) : (
                     <p className="text-[11px] text-center text-indigo-600/80 font-medium mt-1">
-                      รวมระยะเวลา {durationDays} วัน
+                      
+                      {translateText("รวมระยะเวลา")} {durationDays}  {translateText("วัน")}
                     </p>
                   )}
                 </div>
@@ -358,7 +366,8 @@ export default function SchedulePage() {
                 {/* ช่วงเดือน */}
                 <div className="lg:col-span-7 bg-[#eff0fe]/70 border border-indigo-100/80 rounded-xl p-4">
                   <p className="text-xs font-semibold text-slate-600 mb-2.5">
-                    ช่วงเดือน (พ.ศ. {CURRENT_YEAR})
+                    
+                    {translateText("ช่วงเดือน (พ.ศ.")} {CURRENT_YEAR})
                   </p>
 
                   <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -385,12 +394,13 @@ export default function SchedulePage() {
                 {/* สถานที่ */}
                 <div className="lg:col-span-6 bg-[#eff0fe]/70 border border-indigo-100/80 rounded-xl p-4">
                   <label className="block text-xs font-semibold text-slate-600 mb-2">
-                    สถานที่ (ดึงจากไฟล์ branches.ts)
+                    
+                    {translateText("สถานที่ (ดึงจากไฟล์ branches.ts)")}
                   </label>
                   <select
                     value={selectedBranchId}
                     onChange={(e) => setSelectedBranchId(e.target.value)}
-                    aria-label="เลือกสถานที่"
+                    aria-label={translateText("เลือกสถานที่")}
                     className="w-full bg-white border border-indigo-200/80 rounded-lg px-3.5 py-2.5 text-xs font-bold text-emerald-700 lg:text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
                   >
                     {branches.map((b) => (
@@ -404,7 +414,8 @@ export default function SchedulePage() {
                 {/* ชื่อประกาศตรวจนับ */}
                 <div className="lg:col-span-6 bg-[#eff0fe]/70 border border-indigo-100/80 rounded-xl p-4">
                   <label className="block text-xs font-semibold text-slate-600 mb-2">
-                    ชื่อรอบตรวจนับ (เว้นว่างเพื่อใช้ชื่ออัตโนมัติได้)
+                    
+                    {translateText("ชื่อรอบตรวจนับ (เว้นว่างเพื่อใช้ชื่ออัตโนมัติได้)")}
                   </label>
                   <input
                     type="text"
@@ -423,11 +434,13 @@ export default function SchedulePage() {
                     <span className="text-rose-600 font-medium">{dateError}</span>
                   ) : (
                     <span>
-                      สรุปประกาศ:{" "}
+                      
+                      {translateText("สรุปประกาศ:")}{" "}
                       <strong className="text-slate-800">
                         {startNum}–{endNum} {selectedMonth} {CURRENT_YEAR}
                       </strong>{" "}
-                      ณ{" "}
+                      
+                      {translateText("ณ")}{" "}
                       <strong className="text-[#4f46e5]">
                         {branches.find((b) => b.id === selectedBranchId)?.name}
                       </strong>
@@ -441,14 +454,16 @@ export default function SchedulePage() {
                     onClick={() => setIsCreateOpen(false)}
                     className="hidden sm:inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
                   >
-                    ยกเลิก
+                    
+                    {translateText("ยกเลิก")}
                   </button>
                   <button
                     type="submit"
                     disabled={!!dateError}
                     className="w-full sm:w-auto min-w-[130px] bg-[#4f46e5] hover:bg-[#4338ca] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-sm transition"
                   >
-                    ยืนยัน
+                    
+                    {translateText("ยืนยัน")}
                   </button>
                 </div>
               </div>
@@ -467,45 +482,48 @@ export default function SchedulePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 lg:gap-5 mb-7">
             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-500">ทรัพย์สินทั้งหมด</span>
+                <span className="text-xs font-semibold text-slate-500">{translateText("ทรัพย์สินทั้งหมด")}</span>
                 <span className="text-[#4f46e5]">
                   <CubeIcon />
                 </span>
               </div>
               <p className="text-3xl font-extrabold text-slate-900 mb-2">{assets.length.toLocaleString("th-TH")}</p>
               <p className="text-xs font-medium text-[#4f46e5]">
-                ทรัพย์สินใน 5 สาขา
+                
+                {translateText("ทรัพย์สินใน 5 สาขา")}
               </p>
             </div>
 
             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-500">พร้อมใช้งาน</span>
+                <span className="text-xs font-semibold text-slate-500">{translateText("พร้อมใช้งาน")}</span>
                 <span className="text-emerald-600">
                   <CheckCircleIcon />
                 </span>
               </div>
               <p className="text-3xl font-extrabold text-slate-900 mb-2">{availableAssetCount.toLocaleString("th-TH")}</p>
-              <p className="text-xs font-medium text-emerald-600">พร้อมสำหรับการมอบหมาย</p>
+              <p className="text-xs font-medium text-emerald-600">{translateText("พร้อมสำหรับการมอบหมาย")}</p>
             </div>
 
             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-500">อยู่ระหว่างซ่อมบำรุง</span>
+                <span className="text-xs font-semibold text-slate-500">{translateText("อยู่ระหว่างซ่อมบำรุง")}</span>
                 <span className="text-amber-600">
                   <WrenchIcon />
                 </span>
               </div>
               <p className="text-3xl font-extrabold text-slate-900 mb-2">{repairInDataCount.toLocaleString("th-TH")}</p>
               <p className="text-xs font-medium text-amber-600">
-                รายการที่ชำรุดหรืออยู่ระหว่างซ่อม
+                
+                {translateText("รายการที่ชำรุดหรืออยู่ระหว่างซ่อม")}
               </p>
             </div>
           </div>
 
           <div className="flex items-center justify-between mb-3.5">
             <h2 className="text-base lg:text-lg font-bold text-slate-900">
-              รายการกำหนดการตรวจนับ
+              
+              {translateText("รายการกำหนดการตรวจนับ")}
             </h2>
 
             {selectedCount > 0 && (
@@ -514,14 +532,15 @@ export default function SchedulePage() {
                 onClick={handleDeleteSelected}
                 className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-lg transition"
               >
-                ลบที่เลือก ({selectedCount})
+                {translateText("ลบที่เลือก (")}{selectedCount})
               </button>
             )}
           </div>
 
           {pagedSchedules.length === 0 ? (
             <div className="bg-white border border-slate-200/80 rounded-2xl p-10 text-center text-xs text-slate-400 shadow-sm">
-              ยังไม่มีรอบตรวจนับที่กำลังจะมาถึง
+              
+              {translateText("ยังไม่มีรอบตรวจนับที่กำลังจะมาถึง")}
             </div>
           ) : (
             <>
@@ -546,7 +565,7 @@ export default function SchedulePage() {
                       <div>
                         <p className="text-xs font-bold text-slate-900">{item.title}</p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          {item.id} · {item.itemCount} รายการ
+                          {item.id} · {item.itemCount}  {translateText("รายการ")}
                         </p>
                       </div>
                     </div>
@@ -571,7 +590,7 @@ export default function SchedulePage() {
                     {item.status !== "completed" && <button
                       type="button"
                       onClick={() => toggleItemStatus(item.id)}
-                      title="คลิกเพื่อจำลองสลับสถานะ"
+                      title={translateText("คลิกเพื่อจำลองสลับสถานะ")}
                       className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100"
                     >
                       •••
@@ -616,7 +635,7 @@ export default function SchedulePage() {
                         <div>
                           <p className="text-xs font-bold text-slate-900">{item.title}</p>
                           <p className="text-[11px] text-slate-500 mt-0.5">
-                            {item.id} · {item.itemCount} รายการ
+                            {item.id} · {item.itemCount}  {translateText("รายการ")}
                           </p>
                         </div>
                       </div>
@@ -643,7 +662,8 @@ export default function SchedulePage() {
 
           <div className="mt-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 text-xs text-slate-500">
             <div>
-              แสดง {startItem}–{endItem} จาก {schedules.length} รายการ
+              
+              {translateText("แสดง")} {startItem}–{endItem}  {translateText("จาก")} {schedules.length}  {translateText("รายการ")}
             </div>
 
             <div className="flex items-center justify-center gap-1.5">
@@ -688,11 +708,12 @@ export default function SchedulePage() {
 }
 
 function StatusPill({ status }: { status: InventorySessionStatus }) {
+  const translateText = useTranslate();
   if (status === "in_progress") {
     return (
       <span className="inline-flex items-center gap-1.5 bg-[#e0e7ff] text-[#3730a3] text-[11px] font-bold px-3 py-1 rounded-full">
         <span className="w-1.5 h-1.5 rounded-full bg-[#4f46e5]" />
-        <span>กำลังนับ</span>
+        <span>{translateText("กำลังนับ")}</span>
       </span>
     );
   }
@@ -700,14 +721,14 @@ function StatusPill({ status }: { status: InventorySessionStatus }) {
     return (
       <span className="inline-flex items-center gap-1.5 bg-[#dcfce7] text-emerald-800 text-[11px] font-bold px-3 py-1 rounded-full">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-        <span>เสร็จสิ้น</span>
+        <span>{translateText("เสร็จสิ้น")}</span>
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1.5 bg-[#ede9fe] text-[#5b21b6] text-[11px] font-bold px-3 py-1 rounded-full">
       <span className="w-1.5 h-1.5 rounded-full bg-[#6d28d9]" />
-      <span>รอเริ่ม</span>
+      <span>{translateText("รอเริ่ม")}</span>
     </span>
   );
 }
