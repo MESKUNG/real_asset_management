@@ -64,7 +64,13 @@ export default function NotificationsCenterPage() {
     } catch (error) {
       console.error("อ่านข้อมูลบัญชีไม่สำเร็จ:", error);
     }
-    router.push(getNotificationsPath(role, notification.request.status));
+    router.push(
+      getNotificationsPath(
+        role,
+        notification.request.status,
+        notification.request.id,
+      ),
+    );
   };
 
   return (

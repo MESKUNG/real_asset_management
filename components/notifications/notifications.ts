@@ -130,18 +130,24 @@ export function markNotificationsRead(ids: string[]) {
   }
 }
 
-export function getNotificationsPath(role: unknown, status: string) {
+export function getNotificationsPath(
+  role: unknown,
+  status: string,
+  requestId: string,
+) {
   // เลือกหน้าให้ตรงกับผู้ใช้: Admin ไปหน้าของ Admin, User ไปหน้าของ User
   const isAdmin = ["admin", "president", "superadmin"].includes(
     typeof role === "string" ? role : "",
   );
   const isCompleted = status === "completed";
 
-  if (isAdmin) {
-    return isCompleted ? "/repair-historyadmin" : "/repairsadmin";
-  }
+  const path = isAdmin
+    ? isCompleted
+      ? "/repair-historyadmin"
+      : "/repairsadmin"
+    : "/repairsuser";
 
-  return isCompleted ? "/repair-historyuser" : "/repairsuser";
+  return `${path}?requestId=${encodeURIComponent(requestId)}`;
 }
 
 export function formatNotificationTime(value: string) {

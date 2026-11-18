@@ -121,7 +121,13 @@ export default function NotificationDropdown() {
       return;
     }
     setIsOpen(false);
-    router.push(getNotificationsPath(getRole(), notification.request.status));
+    router.push(
+      getNotificationsPath(
+        getRole(),
+        notification.request.status,
+        notification.request.id,
+      ),
+    );
   };
 
   return (

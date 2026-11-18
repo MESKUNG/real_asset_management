@@ -8,7 +8,8 @@ import {
 
 // หน้านี้ให้ User ค้นหา ดูรายละเอียด และส่งคำร้องแจ้งซ่อม
 // ตอนนี้แก้รายการได้ชั่วคราว ถ้ารีเฟรชหน้ารายการที่สร้างใหม่จะหายไป
-import { useMemo, useState, type FormEvent } from "react";
+import { Suspense, useMemo, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -53,7 +54,10 @@ function getAsset(assetId: string) {
   return assets.find((asset) => asset.id === assetId);
 }
 
-export default function RepairsPage() {
+function RepairsPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestId = searchParams.get("requestId");
   const language = useLanguage();
   const translateText = useTranslate();
   const [requests, setRequests] = useState(initialRepairRequests);
@@ -62,10 +66,18 @@ export default function RepairsPage() {
   const [branchFilter, setBranchFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRequest, setSelectedRequest] = useState<RepairRequest | null>(
+  const [manuallySelectedRequest, setManuallySelectedRequest] = useState<RepairRequest | null>(
     null,
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const selectedRequest =
+    requests.find((request) => request.id === requestId) ??
+    manuallySelectedRequest;
+
+  const closeDetails = () => {
+    setManuallySelectedRequest(null);
+    if (requestId) router.replace("/repairsuser", { scroll: false });
+  };
 
   // แสดงเฉพาะรายการที่ตรงกับคำค้นหา สถานะ สาขา และวันที่
   const filteredRequests = useMemo(() => {
@@ -316,7 +328,7 @@ export default function RepairsPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSelectedRequest(request)}
+                    onClick={() => setManuallySelectedRequest(request)}
                     className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   >
                     
@@ -393,7 +405,7 @@ export default function RepairsPage() {
                       <td className="px-4 py-3.5 text-center">
                         <button
                           type="button"
-                          onClick={() => setSelectedRequest(request)}
+                          onClick={() => setManuallySelectedRequest(request)}
                           className="whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         >
                           
@@ -497,9 +509,7 @@ export default function RepairsPage() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedRequest(null);
-                }}
+                onClick={closeDetails}
                 aria-label={translateText("ปิดหน้าต่าง")}
                 className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
@@ -566,5 +576,13 @@ export default function RepairsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function RepairsPage() {
+  return (
+    <Suspense fallback={null}>
+      <RepairsPageContent />
+    </Suspense>
   );
 }

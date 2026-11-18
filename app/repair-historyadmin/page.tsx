@@ -7,7 +7,8 @@ import {
 
 
 // หน้าประวัติซ่อมของ Admin แสดงงานที่ซ่อมเสร็จแล้ว
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Search1 } from "@tailgrids/icons";
 import { assets } from "@/data/asset";
 import { branches } from "@/data/branches";
@@ -41,12 +42,15 @@ function formatThaiDate(date: string) {
   });
 }
   // จำคำค้นหา หน้าที่กำลังดู และรายการที่เลือกเปิดรายละเอียด
-export default function RepairHistoryAdminPage() {
+function RepairHistoryAdminPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestId = searchParams.get("requestId");
   const language = useLanguage();
   const translateText = useTranslate();
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRequest, setSelectedRequest] =
+  const [manuallySelectedRequest, setManuallySelectedRequest] =
     useState<CompletedRepairRequest | null>(null);
 
   // เลือกงานที่เสร็จแล้วมาเรียง โดยให้งานล่าสุดอยู่ด้านบน
@@ -57,6 +61,15 @@ export default function RepairHistoryAdminPage() {
         .sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
     [],
   );
+
+  const selectedRequest =
+    completedRequests.find((request) => request.id === requestId) ??
+    manuallySelectedRequest;
+
+  const closeDetails = () => {
+    setManuallySelectedRequest(null);
+    if (requestId) router.replace("/repair-historyadmin", { scroll: false });
+  };
 
   // ช่องค้นหาหาได้จากเลขคำร้อง อุปกรณ์ สาขา อาการ และวิธีแก้
   const filteredRequests = useMemo(() => {
@@ -170,7 +183,7 @@ export default function RepairHistoryAdminPage() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => setSelectedRequest(request)}
+                    onClick={() => setManuallySelectedRequest(request)}
                     className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   >
                     
@@ -242,7 +255,7 @@ export default function RepairHistoryAdminPage() {
                       <td className="px-4 py-4">
                         <button
                           type="button"
-                          onClick={() => setSelectedRequest(request)}
+                          onClick={() => setManuallySelectedRequest(request)}
                           className="whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         >
                           
@@ -346,7 +359,7 @@ export default function RepairHistoryAdminPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedRequest(null)}
+                onClick={closeDetails}
                 aria-label={translateText("ปิดหน้าต่าง")}
                 className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
@@ -396,5 +409,13 @@ export default function RepairHistoryAdminPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function RepairHistoryAdminPage() {
+  return (
+    <Suspense fallback={null}>
+      <RepairHistoryAdminPageContent />
+    </Suspense>
   );
 }
