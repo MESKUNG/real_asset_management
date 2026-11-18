@@ -12,6 +12,7 @@ import {
   subscribeAssets,
 } from "@/lib/assetStorage";
 import { Laptop, ArrowLeft } from "lucide-react";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 type RoleKey = "user" | "admin" | "president" | "superadmin";
 
@@ -60,27 +61,27 @@ function getClientCredential(): CredentialData {
 }
 
 // แปลงวันที่เป็นรูปแบบไทย (เช่น 15 มกราคม 2569)
-function formatThaiDate(dateStr?: string) {
+function formatThaiDate(dateStr: string | undefined, language: "th" | "en") {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString("th-TH", {
+  return d.toLocaleDateString(language === "en" ? "en-US" : "th-TH", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 }
 
-function formatThaiDateTime(dateStr?: string) {
+function formatThaiDateTime(dateStr: string | undefined, language: "th" | "en") {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
-  const datePart = d.toLocaleDateString("th-TH", {
+  const datePart = d.toLocaleDateString(language === "en" ? "en-US" : "th-TH", {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
-  const timePart = d.toLocaleTimeString("th-TH", {
+  const timePart = d.toLocaleTimeString(language === "en" ? "en-US" : "th-TH", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -88,6 +89,8 @@ function formatThaiDateTime(dateStr?: string) {
 }
 
 export default function AssetDetailPage() {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const params = useParams();
   const assetId = decodeURIComponent(String(params?.id || ""));
 
@@ -173,14 +176,15 @@ export default function AssetDetailPage() {
     return (
       <div className="min-h-screen bg-[#F8FAFC] p-8 flex flex-col items-center justify-center text-slate-600">
         <p className="text-lg font-semibold mb-3">
-          ไม่พบข้อมูลทรัพย์สินรหัส {assetId}
+
+          {translateText("ไม่พบข้อมูลทรัพย์สินรหัส")} {assetId}
         </p>
         <Link
           href="/assets"
           className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-xl"
         >
           <ArrowLeft size={16} />
-          <span>กลับหน้ารายการทรัพย์สิน</span>
+          <span>{translateText("กลับหน้ารายการทรัพย์สิน")}</span>
         </Link>
       </div>
     );
@@ -193,11 +197,13 @@ export default function AssetDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              รายละเอียดทรัพย์สิน
+
+              {translateText("รายละเอียดทรัพย์สิน")}
             </h1>
             <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1">
               <Link href="/assets" className="hover:text-indigo-600 transition">
-                ทรัพย์สินทั้งหมด
+
+                {translateText("ทรัพย์สินทั้งหมด")}
               </Link>
               <span>/</span>
               <span className="text-slate-500 font-medium">{asset.id}</span>
@@ -211,13 +217,15 @@ export default function AssetDetailPage() {
                 href={`/assets/edit?id=${asset.id}`}
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-xs transition"
               >
-                แก้ไขข้อมูล
+
+                {translateText("แก้ไขข้อมูล")}
               </Link>
               <Link
                 href={`/assets/delete?id=${asset.id}`}
                 className="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-medium rounded-xl transition"
               >
-                ลบทรัพย์สิน
+
+                {translateText("ลบทรัพย์สิน")}
               </Link>
             </div>
           )}
@@ -268,26 +276,27 @@ export default function AssetDetailPage() {
             {/* การ์ดข้อมูลทั่วไป */}
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
               <h3 className="text-base font-bold text-slate-900 mb-5">
-                ข้อมูลทั่วไป
+
+                {translateText("ข้อมูลทั่วไป")}
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-8">
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">รหัสทรัพย์สิน</p>
+                  <p className="text-xs text-slate-400 mb-1">{translateText("รหัสทรัพย์สิน")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {asset.id}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">หมวดหมู่</p>
+                  <p className="text-xs text-slate-400 mb-1">{translateText("หมวดหมู่")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {asset.category}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">ยี่ห้อ / รุ่น</p>
+                  <p className="text-xs text-slate-400 mb-1">{translateText("ยี่ห้อ / รุ่น")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {asset.brand} / {asset.model}
                   </p>
@@ -301,17 +310,17 @@ export default function AssetDetailPage() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">วันที่ซื้อ</p>
+                  <p className="text-xs text-slate-400 mb-1">{translateText("วันที่ซื้อ")}</p>
                   <p className="text-sm font-semibold text-slate-800">
-                    {formatThaiDate(asset.purchaseDate)}
+                    {formatThaiDate(asset.purchaseDate, language)}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">มูลค่าที่ซื้อ</p>
+                  <p className="text-xs text-slate-400 mb-1">{translateText("มูลค่าที่ซื้อ")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     ฿
-                    {asset.purchasePrice.toLocaleString("th-TH", {
+                    {asset.purchasePrice.toLocaleString(language === "en" ? "en-US" : "th-TH", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
@@ -319,7 +328,7 @@ export default function AssetDetailPage() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">ผู้จำหน่าย</p>
+                  <p className="text-xs text-slate-400 mb-1">{translateText("ผู้จำหน่าย")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {asset.vendorId || "-"}
                   </p>
@@ -327,10 +336,11 @@ export default function AssetDetailPage() {
 
                 <div>
                   <p className="text-xs text-slate-400 mb-1">
-                    วันสิ้นสุดการรับประกัน
+
+                    {translateText("วันสิ้นสุดการรับประกัน")}
                   </p>
                   <p className="text-sm font-semibold text-slate-800">
-                    {formatThaiDate(asset.warrantyEndDate)}
+                    {formatThaiDate(asset.warrantyEndDate, language)}
                   </p>
                 </div>
               </div>
@@ -339,19 +349,20 @@ export default function AssetDetailPage() {
             {/* การ์ดสาขาและผู้รับผิดชอบ */}
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
               <h3 className="text-base font-bold text-slate-900 mb-5">
-                สาขาและผู้รับผิดชอบ
+
+                {translateText("สาขาและผู้รับผิดชอบ")}
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-8">
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">สาขา</p>
+                  <p className="text-xs text-slate-400 mb-1">{translateText("สาขา")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {getBranchLabel(asset.branchId)}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">ผู้รับผิดชอบ</p>
+                  <p className="text-xs text-slate-400 mb-1">{translateText("ผู้รับผิดชอบ")}</p>
                   <p className="text-sm font-semibold text-slate-800">
                     {asset.responsiblePersonId
                       ? `รหัสพนักงาน #${asset.responsiblePersonId}`
@@ -366,33 +377,38 @@ export default function AssetDetailPage() {
           <div className="lg:col-span-4">
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs h-full">
               <h3 className="text-base font-bold text-slate-900 mb-5">
-                ประวัติการอัปเดต
+
+                {translateText("ประวัติการอัปเดต")}
               </h3>
 
               <div className="space-y-5">
                 {asset.updatedAt && asset.updatedAt !== asset.createdAt && (
                   <div className="border-b border-slate-100 pb-4">
                     <p className="text-xs text-slate-400">
-                      {formatThaiDateTime(asset.updatedAt)}
+                      {formatThaiDateTime(asset.updatedAt, language)}
                     </p>
                     <p className="text-sm font-semibold text-slate-800 mt-1">
-                      อัปเดตข้อมูลทรัพย์สิน
+
+                      {translateText("อัปเดตข้อมูลทรัพย์สิน")}
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
-                      ผู้ใช้งาน #{asset.updatedBy}
+
+                      {translateText("ผู้ใช้งาน #")}{asset.updatedBy}
                     </p>
                   </div>
                 )}
 
                 <div>
                   <p className="text-xs text-slate-400">
-                    {formatThaiDateTime(asset.createdAt)}
+                    {formatThaiDateTime(asset.createdAt, language)}
                   </p>
                   <p className="text-sm font-semibold text-slate-800 mt-1">
-                    เพิ่มทรัพย์สินเข้าระบบ
+
+                    {translateText("เพิ่มทรัพย์สินเข้าระบบ")}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
-                    ผู้ใช้งาน #{asset.createdBy}
+
+                    {translateText("ผู้ใช้งาน #")}{asset.createdBy}
                   </p>
                 </div>
               </div>
@@ -408,7 +424,8 @@ export default function AssetDetailPage() {
 
           <div className="mb-5">
             <label className="block text-xs font-medium text-slate-600 mb-1.5">
-              รหัส QR / Barcode
+
+              {translateText("รหัส QR / Barcode")}
             </label>
             <input
               type="text"
@@ -499,7 +516,8 @@ export default function AssetDetailPage() {
 
         {/* Bottom Timestamp */}
         <p className="text-xs text-slate-400">
-          อัปเดตล่าสุด {formatThaiDateTime(asset.updatedAt)} โดยผู้ใช้งาน #
+
+          {translateText("อัปเดตล่าสุด")} {formatThaiDateTime(asset.updatedAt, language)}  {translateText("โดยผู้ใช้งาน #")}
           {asset.updatedBy}
         </p>
       </div>

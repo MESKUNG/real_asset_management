@@ -6,6 +6,7 @@ import { useState } from "react";
 import CodeScanner from "@/components/scanner/CodeScanner";
 import { findAsset, formatThaiDateTime, getBranchName, toLocalISO } from "@/lib/inventory";
 import { EmptyState, PageHeader, RoleGate, buttonStyle } from "../inventories/_components/ui";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 type ScanResult = { id: number; code: string; format: string; at: string };
 
@@ -26,6 +27,8 @@ export default function ScannerPage() {
 }
 
 function ScannerContent() {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const [results, setResults] = useState<ScanResult[]>([]);
 
   const handleScan = (code: string, format: string) => {
@@ -42,10 +45,11 @@ function ScannerContent() {
 
         <section>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-lg font-bold text-slate-900">ผลที่อ่านได้ ({results.length})</h2>
+            <h2 className="text-lg font-bold text-slate-900">{translateText("ผลที่อ่านได้ (")}{results.length})</h2>
             {results.length > 0 && (
               <button type="button" onClick={() => setResults([])} className={buttonStyle.secondary}>
-                ล้างรายการ
+
+                {translateText("ล้างรายการ")}
               </button>
             )}
           </div>
@@ -63,13 +67,14 @@ function ScannerContent() {
                         {formatLabel(r.format)}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">{formatThaiDateTime(r.at)}</p>
+                    <p className="mt-1 text-sm text-slate-500">{formatThaiDateTime(r.at, language)}</p>
                     {asset ? (
                       <p className="mt-2 text-base text-slate-700">
-                        ทรัพย์สิน: <strong>{asset.name}</strong> · {getBranchName(asset.branchId)}
+
+                        {translateText("ทรัพย์สิน:")} <strong>{asset.name}</strong> · {getBranchName(asset.branchId)}
                       </p>
                     ) : (
-                      <p className="mt-2 text-base text-slate-500">ไม่ใช่รหัสทรัพย์สินในระบบ</p>
+                      <p className="mt-2 text-base text-slate-500">{translateText("ไม่ใช่รหัสทรัพย์สินในระบบ")}</p>
                     )}
                   </li>
                 );

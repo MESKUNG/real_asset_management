@@ -1,5 +1,5 @@
 "use client";
-import { useTranslate } from "@/lib/language";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 
 import { useMemo, useState } from "react";
@@ -34,9 +34,9 @@ const branchName = (id: string) =>
   branches.find((item) => item.id === id)?.name ?? "Error: ไม่พบข้อมูลสาขา";
 const assetName = (id: string) =>
   assets.find((item) => item.id === id)?.name ?? "Error: ไม่พบข้อมูล Asset";
-const dateText = (date: string) =>
+const dateText = (date: string, language: "th" | "en") =>
   date
-    ? new Intl.DateTimeFormat("th-TH", {
+    ? new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
@@ -57,6 +57,7 @@ const categoryColors: Record<Task["category"], string> = {        //สีปร
 };
 
 export default function Page() {
+  const language = useLanguage();
   const translateText = useTranslate();
   const [type, setType] = useState("all");
   const [branch, setBranch] = useState("all");
@@ -130,7 +131,7 @@ export default function Page() {
       (type === "all" || task.category === type) &&
       (branch === "all" || task.branchId === branch) &&
       (status === "all" || task.status === status) &&
-      `${task.id} ${task.type} ${task.asset} ${branchName(task.branchId)} ${task.date} ${dateText(task.date)}`
+      `${task.id} ${task.type} ${task.asset} ${branchName(task.branchId)} ${task.date} ${dateText(task.date, language)}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
@@ -249,7 +250,7 @@ export default function Page() {
                 <option value="all">{translateText("ทุกสถานะ")}</option>
                 {[...new Set(tasks.map((item) => item.status))].map((s) => (
                   <option key={s} value={s}>
-                    {statusNames[s] ?? s}
+                    {translateText(statusNames[s] ?? s)}
                   </option>
                 ))}
               </select>
@@ -294,12 +295,12 @@ export default function Page() {
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">{translateText("วันที่")}</dt>
-                    <dd>{dateText(task.date)}</dd>
+                    <dd>{dateText(task.date, language)}</dd>
                   </div>
                 </dl>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">
-                    ● {statusNames[task.status] ?? "Error: ไม่มีสถานะ"}
+                    ● {translateText(statusNames[task.status] ?? "Error: ไม่มีสถานะ")}
                   </span>
                   <Link
                     href={task.href}
@@ -361,11 +362,11 @@ export default function Page() {
                       {branchName(task.branchId)}
                     </td>
                     <td className="px-4 py-4 text-slate-500">
-                      {dateText(task.date)}
+                      {dateText(task.date, language)}
                     </td>
                     <td className="px-4 py-4">
                       <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">
-                        ● {statusNames[task.status] ?? "Error: ไม่มีสถานะ"}
+                        ● {translateText(statusNames[task.status] ?? "Error: ไม่มีสถานะ")}
                       </span>
                     </td>
                     <td className="px-4 py-4">
@@ -373,7 +374,7 @@ export default function Page() {
                         href={task.href}
                         className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50"
                       >
-                        
+
                         {translateText("ดูรายละเอียด")}
                       </Link>
                     </td>
@@ -385,7 +386,7 @@ export default function Page() {
                       colSpan={7}
                       className="px-4 py-9 text-center text-slate-500"
                     >
-                      
+
                       {translateText("ไม่พบงานตามตัวกรอง")}
                     </td>
                   </tr>
@@ -396,14 +397,14 @@ export default function Page() {
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-500">
             <div className="flex flex-wrap items-center gap-3">
               <span>
-                
+
                 {translateText("แสดง")} {matching.length ? (page - 1) * pageSize + 1 : 0}–
                 {Math.min(page * pageSize, matching.length)}  {translateText("จาก")} {matching.length}{" "}
-                
+
                 {translateText("งาน")}
               </span>
               <label className="flex items-center gap-2">
-                
+
                 {translateText("รายการต่อหน้า")}
                 <select
                   aria-label={translateText("จำนวนรายการต่อหน้า")}
@@ -479,7 +480,7 @@ export default function Page() {
                   key={item.id}
                   left={assetName(item.assetId)}
                   leftId={item.assetId}
-                  right={dateText(item.reportedAt)}
+                  right={dateText(item.reportedAt, language)}
                 />
               ))}
             </InfoCard>
@@ -489,7 +490,7 @@ export default function Page() {
                   <InfoLine
                     key={item.id}
                     left={branchName(item.branchId)}
-                    right={dateText(item.startDate)}
+                    right={dateText(item.startDate, language)}
                     accent
                   />
                 ))

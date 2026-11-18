@@ -17,6 +17,7 @@ import {
   pillClass,
   useRequests,
 } from "@/components/borrow/borrowShared";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 type HistoryFilter = "all" | "approved" | "rejected";
 
@@ -27,6 +28,8 @@ const FILTERS: { key: HistoryFilter; label: string }[] = [
 ];
 
 export default function Page() {
+  const translateText = useTranslate();
+  const language = useLanguage();
   const requests = useRequests();
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [branchId, setBranchId] = useState("all");
@@ -67,50 +70,58 @@ export default function Page() {
       ? history.length
       : history.filter((r) => displayStatus(r) === k).length;
 
-  const subtitle = `ออกรายงานวันที่ ${new Date().toLocaleDateString("th-TH", {
+  const subtitle = `${translateText("ออกรายงานวันที่")} ${new Date().toLocaleDateString(
+    language === "en" ? "en-US" : "th-TH",
+    {
     day: "numeric",
     month: "long",
     year: "numeric",
-  })} · ${FILTERS.find((f) => f.key === filter)?.label} · สาขา: ${
-    branchId === "all" ? "ทุกสาขา" : branchName(branchId)
-  } · ${rows.length} รายการ`;
+    },
+  )} · ${translateText(FILTERS.find((f) => f.key === filter)?.label ?? "")} · ${translateText("สาขา")}: ${
+    branchId === "all" ? translateText("ทุกสาขา") : branchName(branchId)
+  } · ${rows.length} ${translateText("รายการ")}`;
 
   return (
     <div className="flex flex-col gap-5 p-6 text-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-blue-950">ประวัติการโอนย้าย</h1>
+          <h1 className="text-2xl font-bold text-blue-950">{translateText("ประวัติการโอนย้าย")}</h1>
           <p className="text-sm text-slate-700">
-            คำขอโอนย้ายทรัพย์สินที่ได้รับการอนุมัติหรือไม่อนุมัติแล้ว
+
+            {translateText("คำขอโอนย้ายทรัพย์สินที่ได้รับการอนุมัติหรือไม่อนุมัติแล้ว")}
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => void exportExcel(rows, "transfer-history")}
+            onClick={() => void exportExcel(rows, "transfer-history", language)}
             disabled={rows.length === 0}
             className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
           >
-            ส่งออก Excel
+
+            {translateText("ส่งออก Excel")}
           </button>
           <button
-            onClick={() => exportPdf(rows, subtitle, "ประวัติการโอนย้ายทรัพย์สิน")}
+            onClick={() =>
+              exportPdf(rows, subtitle, "ประวัติการโอนย้ายทรัพย์สิน", language)
+            }
             disabled={rows.length === 0}
             className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
           >
-            ส่งออก PDF
+
+            {translateText("ส่งออก PDF")}
           </button>
         </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-sm font-semibold">สถานะ</span>
+        <span className="mr-1 text-sm font-semibold">{translateText("สถานะ")}</span>
         {FILTERS.map((f) => (
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={pillClass(filter === f.key)}
           >
-            {f.label}
+            {translateText(f.label)}
             <span className="ml-1.5 font-normal opacity-80">{countOf(f.key)}</span>
           </button>
         ))}
@@ -118,9 +129,9 @@ export default function Page() {
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
           className={`ml-auto ${inputClass}`}
-          aria-label="สาขา"
+          aria-label={translateText("สาขา")}
         >
-          <option value="all">ทุกสาขา (ต้นทางหรือปลายทาง)</option>
+          <option value="all">{translateText("ทุกสาขา (ต้นทางหรือปลายทาง)")}</option>
           {branches.map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
@@ -139,22 +150,23 @@ export default function Page() {
         <table className="w-full min-w-[1040px] text-left text-sm text-slate-900">
           <thead className="bg-slate-100">
             <tr>
-              <th className="p-3 font-bold">รหัส</th>
-              <th className="p-3 font-bold">ทรัพย์สิน</th>
-              <th className="p-3 font-bold">จากสาขา</th>
-              <th className="p-3 font-bold">ไปยังสาขา</th>
-              <th className="p-3 font-bold">ผู้ขอ</th>
-              <th className="p-3 font-bold">วันที่ต้องการโอนย้าย</th>
-              <th className="p-3 font-bold">วันที่ดำเนินการ</th>
-              <th className="p-3 font-bold">สถานะ</th>
-              <th className="p-3 font-bold">หมายเหตุ</th>
+              <th className="p-3 font-bold">{translateText("รหัส")}</th>
+              <th className="p-3 font-bold">{translateText("ทรัพย์สิน")}</th>
+              <th className="p-3 font-bold">{translateText("จากสาขา")}</th>
+              <th className="p-3 font-bold">{translateText("ไปยังสาขา")}</th>
+              <th className="p-3 font-bold">{translateText("ผู้ขอ")}</th>
+              <th className="p-3 font-bold">{translateText("วันที่ต้องการโอนย้าย")}</th>
+              <th className="p-3 font-bold">{translateText("วันที่ดำเนินการ")}</th>
+              <th className="p-3 font-bold">{translateText("สถานะ")}</th>
+              <th className="p-3 font-bold">{translateText("หมายเหตุ")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
                 <td colSpan={9} className="p-8 text-center text-slate-700">
-                  ไม่พบประวัติการโอนย้ายที่ตรงกับตัวกรอง
+
+                  {translateText("ไม่พบประวัติการโอนย้ายที่ตรงกับตัวกรอง")}
                 </td>
               </tr>
             )}
@@ -174,9 +186,9 @@ export default function Page() {
                 </td>
                 <td className="p-3">{branchName(r.branchId)}</td>
                 <td className="p-3">{branchName(r.toBranchId)}</td>
-                <td className="p-3">พนักงาน #{r.borrowerId}</td>
-                <td className="p-3">{fmtDate(r.borrowDate)}</td>
-                <td className="p-3">{decidedAtText(r)}</td>
+                <td className="p-3">{translateText("พนักงาน #")}{r.borrowerId}</td>
+                <td className="p-3">{fmtDate(r.borrowDate, language)}</td>
+                <td className="p-3">{decidedAtText(r, language)}</td>
                 <td className="p-3">
                   <StatusBadge status={displayStatus(r)} />
                 </td>

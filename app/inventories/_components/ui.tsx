@@ -11,6 +11,7 @@ import {
   useCredential,
   type Role,
 } from "@/lib/inventory";
+import { useTranslate } from "@/lib/language";
 
 export function PageHeader({
   title,
@@ -23,6 +24,7 @@ export function PageHeader({
   backHref?: string;
   actions?: ReactNode;
 }) {
+  const translateText = useTranslate();
   return (
     <div className="border-b border-slate-200 bg-white px-4 py-4 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
@@ -30,15 +32,15 @@ export function PageHeader({
           {backHref && (
             <Link
               href={backHref}
-              aria-label="ย้อนกลับ"
+              aria-label={translateText("ย้อนกลับ")}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-2xl text-slate-700 hover:bg-slate-100"
             >
               ‹
             </Link>
           )}
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-900 lg:text-2xl">{title}</h1>
-            {subtitle && <p className="mt-0.5 text-base text-slate-500">{subtitle}</p>}
+            <h1 className="text-xl font-bold text-slate-900 lg:text-2xl">{translateText(title)}</h1>
+            {subtitle && <p className="mt-0.5 text-base text-slate-500">{translateText(subtitle)}</p>}
           </div>
         </div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -55,11 +57,12 @@ const STATUS_STYLE: Record<InventorySessionStatus, string> = {
 };
 
 export function StatusPill({ status }: { status: InventorySessionStatus }) {
+  const translateText = useTranslate();
   return (
     <span
       className={`inline-flex shrink-0 items-center rounded-full px-3 py-1 text-sm font-semibold ${STATUS_STYLE[status]}`}
     >
-      {SESSION_STATUS_LABEL[status]}
+      {translateText(SESSION_STATUS_LABEL[status])}
     </span>
   );
 }
@@ -72,11 +75,12 @@ const RESULT_STYLE: Record<InventoryResult, string> = {
 };
 
 export function ResultPill({ result }: { result: InventoryResult }) {
+  const translateText = useTranslate();
   return (
     <span
       className={`inline-flex shrink-0 items-center rounded-full px-3 py-1 text-sm font-semibold ${RESULT_STYLE[result]}`}
     >
-      {RESULT_LABEL[result]}
+      {translateText(RESULT_LABEL[result])}
     </span>
   );
 }
@@ -99,13 +103,15 @@ export function ProgressBar({ percent }: { percent: number }) {
 }
 
 export function Loading() {
-  return <div className="p-10 text-center text-base text-slate-500">กำลังโหลด...</div>;
+  const translateText = useTranslate();
+  return <div className="p-10 text-center text-base text-slate-500">{translateText("กำลังโหลด...")}</div>;
 }
 
 export function EmptyState({ text, children }: { text: string; children?: ReactNode }) {
+  const translateText = useTranslate();
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-base text-slate-500">
-      <p>{text}</p>
+      <p>{translateText(text)}</p>
       {children && <div className="mt-4">{children}</div>}
     </div>
   );
@@ -120,6 +126,7 @@ const DASHBOARD_PATH: Record<Role, string> = {
 };
 
 export function NoAccess({ message }: { message: string }) {
+  const translateText = useTranslate();
   const { credential } = useCredential();
   // ยังไม่ล็อกอิน → กลับหน้าเข้าสู่ระบบ, ล็อกอินแล้ว → กลับหน้าภาพรวมของ role ตัวเอง
   const backHref = credential ? DASHBOARD_PATH[credential.role] : "/";
@@ -129,7 +136,7 @@ export function NoAccess({ message }: { message: string }) {
     <div className="mx-auto max-w-md p-6 pt-16">
       <EmptyState text={message}>
         <Link href={backHref} className="font-semibold text-blue-600 underline">
-          {backText}
+          {translateText(backText)}
         </Link>
       </EmptyState>
     </div>
@@ -138,9 +145,10 @@ export function NoAccess({ message }: { message: string }) {
 
 // ครอบหน้าที่ต้องเช็คสิทธิ์ แสดงเนื้อหาเฉพาะ role ที่อนุญาต
 export function RoleGate({ allow, children }: { allow: Role[]; children: ReactNode }) {
+  const translateText = useTranslate();
   const { credential, ready } = useCredential();
   if (!ready) return <Loading />;
-  if (!credential) return <NoAccess message="กรุณาเข้าสู่ระบบก่อนใช้งานหน้านี้" />;
+  if (!credential) return <NoAccess message={translateText("กรุณาเข้าสู่ระบบก่อนใช้งานหน้านี้")} />;
   if (!allow.includes(credential.role)) {
     return <NoAccess message="บัญชีของคุณไม่มีสิทธิ์เข้าถึงหน้านี้" />;
   }
@@ -165,6 +173,7 @@ export function useToast(duration = 2500) {
 }
 
 export function Toast({ message }: { message: string | null }) {
+  const translateText = useTranslate();
   if (!message) return null;
   return (
     <div
@@ -172,7 +181,7 @@ export function Toast({ message }: { message: string | null }) {
       aria-live="polite"
       className="fixed inset-x-4 top-20 z-50 mx-auto max-w-md rounded-2xl bg-slate-900 px-4 py-3 text-center text-base font-medium text-white shadow-lg"
     >
-      {message}
+      {translateText(message)}
     </div>
   );
 }

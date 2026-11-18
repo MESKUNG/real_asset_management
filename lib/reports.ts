@@ -75,6 +75,23 @@ export function getPeriods(today = new Date()): Period[] {
   ];
 }
 
+export function localizedPeriodLabel(period: Period, language: "th" | "en") {
+  if (language === "th") return period.label;
+  if (period.key === "all") return "All time";
+  if (period.key.startsWith("year-")) return `All year ${period.key.slice(5)}`;
+
+  const from = new Date(`${period.from.slice(0, 7)}-01T00:00:00`);
+  const to = new Date(`${period.to.slice(0, 7)}-01T00:00:00`);
+  const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "short" });
+  if (period.key === "last3") {
+    return `${monthFormatter.format(from)}–${monthFormatter.format(to)} ${to.getFullYear()}`;
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(from);
+}
+
 export function inPeriod(value: string | null | undefined, period: Period) {
   if (!value) return false;
   const day = value.slice(0, 10);

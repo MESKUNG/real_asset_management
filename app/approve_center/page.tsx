@@ -22,12 +22,15 @@ import {
   type StatusFilter,
   type TypeFilter,
 } from "@/components/borrow/borrowShared";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 // จำนวนรายการต่อหน้า (เลือกแสดง 5 / 10 / ทั้งหมด)
 type PageSize = 5 | 10 | "all";
 const PAGE_SIZES: PageSize[] = [5, 10, "all"];
 
 export default function Page() {
+  const translateText = useTranslate();
+  const language = useLanguage();
   const requests = useRequests();
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -100,39 +103,52 @@ export default function Page() {
     pageSize === "all" ? rows.length : Math.min(page * pageSize, rows.length);
   const goPage = (p: number) => setPageState({ key: filterKey, page: p });
 
-  const subtitle = `ออกรายงานวันที่ ${new Date().toLocaleDateString("th-TH", {
+  const subtitle = `${translateText("ออกรายงานวันที่")} ${new Date().toLocaleDateString(
+    language === "en" ? "en-US" : "th-TH",
+    {
     day: "numeric",
     month: "long",
     year: "numeric",
-  })} · ประเภท: ${typeFilter === "all" ? "ทั้งหมด" : TYPES[typeFilter].label} · สถานะ: ${
-    statusFilter === "all" ? "ทั้งหมด" : STATUS[statusFilter].label
-  } · ${rows.length} รายการ`;
+    },
+  )} · ${translateText("ประเภท")}: ${
+    typeFilter === "all" ? translateText("ทั้งหมด") : translateText(TYPES[typeFilter].label)
+  } · ${translateText("สถานะ")}: ${
+    statusFilter === "all" ? translateText("ทั้งหมด") : translateText(STATUS[statusFilter].label)
+  } · ${rows.length} ${translateText("รายการ")}`;
 
   return (
     <div className="flex flex-col gap-5 p-6 text-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-blue-950">ภาพรวมคำขอ</h1>
+          <h1 className="text-2xl font-bold text-blue-950">{translateText("ภาพรวมคำขอ")}</h1>
           <p className="text-sm text-slate-700">
-            สรุปคำขอเบิก รับคืน และขอโอนย้ายทรัพย์สินทั้งหมด
+
+            {translateText("สรุปคำขอเบิก รับคืน และขอโอนย้ายทรัพย์สินทั้งหมด")}
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => void exportExcel(rows, "request-overview")}
+            onClick={() => void exportExcel(rows, "request-overview", language)}
             disabled={rows.length === 0}
             className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
           >
-            ส่งออก Excel
+
+            {translateText("ส่งออก Excel")}
           </button>
           <button
             onClick={() =>
-              exportPdf(rows, subtitle, "ภาพรวมคำขอเบิก / รับคืน / โอนย้ายทรัพย์สิน")
+              exportPdf(
+                rows,
+                subtitle,
+                "ภาพรวมคำขอเบิก / รับคืน / โอนย้ายทรัพย์สิน",
+                language,
+              )
             }
             disabled={rows.length === 0}
             className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
           >
-            ส่งออก PDF
+
+            {translateText("ส่งออก PDF")}
           </button>
         </div>
       </header>
@@ -145,49 +161,51 @@ export default function Page() {
             className="rounded-xl border border-slate-300 bg-white p-4 text-left hover:bg-indigo-50"
           >
             <div className="text-sm font-semibold text-slate-900">
-              คำขอ{TYPES[c.type].label}
+
+              {translateText("คำขอ")}{translateText(TYPES[c.type].label)}
             </div>
             <div className="my-1 text-3xl font-bold text-blue-950">
               {c.total}
-              <span className="ml-1 text-sm font-medium text-slate-800">รายการ</span>
+              <span className="ml-1 text-sm font-medium text-slate-800">{translateText("รายการ")}</span>
             </div>
             <div className="text-xs text-slate-800">
-              รออนุมัติ {c.pending} · ส่งกลับแก้ไข {c.revision} · อนุมัติแล้ว{" "}
-              {c.approved} · ไม่อนุมัติ {c.rejected}
+
+              {translateText("รออนุมัติ")} {c.pending}  {translateText("· ส่งกลับแก้ไข")} {c.revision}  {translateText("· อนุมัติแล้ว")}{" "}
+              {c.approved}  {translateText("· ไม่อนุมัติ")} {c.rejected}
             </div>
           </button>
         ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-sm font-semibold">ประเภท</span>
+        <span className="mr-1 text-sm font-semibold">{translateText("ประเภท")}</span>
         {TYPE_FILTERS.map((t) => (
           <button
             key={t}
             onClick={() => setTypeFilter(t)}
             className={pillClass(typeFilter === t)}
           >
-            {t === "all" ? "ทั้งหมด" : TYPES[t].label}
+            {t === "all" ? translateText("ทั้งหมด") : translateText(TYPES[t].label)}
           </button>
         ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-sm font-semibold">สถานะ</span>
+        <span className="mr-1 text-sm font-semibold">{translateText("สถานะ")}</span>
         {STATUS_FILTERS.map((f) => (
           <button
             key={f}
             onClick={() => setStatusFilter(f)}
             className={pillClass(statusFilter === f)}
           >
-            {f === "all" ? "ทั้งหมด" : STATUS[f].label}
+            {f === "all" ? translateText("ทั้งหมด") : translateText(STATUS[f].label)}
             <span className="ml-1.5 font-normal opacity-80">{counts[f] ?? 0}</span>
           </button>
         ))}
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="ค้นหารหัสคำขอ ชื่อทรัพย์สิน หรือวัตถุประสงค์"
+          placeholder={translateText("ค้นหารหัสคำขอ ชื่อทรัพย์สิน หรือวัตถุประสงค์")}
           className={`ml-auto w-full sm:w-80 ${inputClass}`}
         />
       </div>
@@ -196,20 +214,21 @@ export default function Page() {
         <table className="w-full min-w-[960px] text-left text-sm text-slate-900">
           <thead className="bg-slate-100">
             <tr>
-              <th className="p-3 font-bold">รหัส</th>
-              <th className="p-3 font-bold">ประเภท</th>
-              <th className="p-3 font-bold">ทรัพย์สิน</th>
-              <th className="p-3 font-bold">ผู้ขอ</th>
-              <th className="p-3 font-bold">รายละเอียด</th>
-              <th className="p-3 font-bold">สถานะ</th>
-              <th className="p-3 font-bold">หมายเหตุ</th>
+              <th className="p-3 font-bold">{translateText("รหัส")}</th>
+              <th className="p-3 font-bold">{translateText("ประเภท")}</th>
+              <th className="p-3 font-bold">{translateText("ทรัพย์สิน")}</th>
+              <th className="p-3 font-bold">{translateText("ผู้ขอ")}</th>
+              <th className="p-3 font-bold">{translateText("รายละเอียด")}</th>
+              <th className="p-3 font-bold">{translateText("สถานะ")}</th>
+              <th className="p-3 font-bold">{translateText("หมายเหตุ")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-slate-700">
-                  ไม่พบคำขอที่ตรงกับตัวกรอง
+
+                  {translateText("ไม่พบคำขอที่ตรงกับตัวกรอง")}
                 </td>
               </tr>
             )}
@@ -225,14 +244,14 @@ export default function Page() {
                   className="cursor-pointer border-t border-slate-200 align-top hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none"
                 >
                   <td className="p-3 font-semibold text-blue-950">{r.id}</td>
-                  <td className="p-3 font-medium">{TYPES[r.type].label}</td>
+                  <td className="p-3 font-medium">{translateText(TYPES[r.type].label)}</td>
                   <td className="p-3">
                     <div className="font-semibold">{assetName(r.assetId)}</div>
                     <div className="text-xs text-slate-700">
                       {r.assetId} · {branchName(r.branchId)}
                     </div>
                   </td>
-                  <td className="p-3">พนักงาน #{r.borrowerId}</td>
+                  <td className="p-3">{translateText("พนักงาน #")}{r.borrowerId}</td>
                   <td className="p-3">
                     <div className="font-medium">
                       {r.type === "transfer"
@@ -257,7 +276,7 @@ export default function Page() {
       {/* เลือกจำนวนรายการที่แสดง + เปลี่ยนหน้า */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-sm font-semibold text-slate-900">แสดง</span>
+          <span className="mr-1 text-sm font-semibold text-slate-900">{translateText("แสดง")}</span>
           {PAGE_SIZES.map((n) => (
             <button
               key={n}
@@ -270,14 +289,14 @@ export default function Page() {
         </div>
         <div className="flex items-center gap-3 text-sm text-slate-900">
           <span>
-            {rangeFrom}–{rangeTo} จาก {rows.length} รายการ
+            {rangeFrom}–{rangeTo}  {translateText("จาก")} {rows.length}  {translateText("รายการ")}
           </span>
           {pageSize !== "all" && totalPages > 1 && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => goPage(page - 1)}
                 disabled={page <= 1}
-                aria-label="หน้าก่อนหน้า"
+                aria-label={translateText("หน้าก่อนหน้า")}
                 className="rounded-lg border border-slate-400 bg-white px-3 py-1.5 font-semibold hover:bg-indigo-100 disabled:opacity-40"
               >
                 ‹
@@ -288,7 +307,7 @@ export default function Page() {
               <button
                 onClick={() => goPage(page + 1)}
                 disabled={page >= totalPages}
-                aria-label="หน้าถัดไป"
+                aria-label={translateText("หน้าถัดไป")}
                 className="rounded-lg border border-slate-400 bg-white px-3 py-1.5 font-semibold hover:bg-indigo-100 disabled:opacity-40"
               >
                 ›

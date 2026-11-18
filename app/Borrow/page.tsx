@@ -1,5 +1,5 @@
 "use client";
-import { useTheme, useTranslate } from "@/lib/language";
+import { translate, useLanguage, useTheme, useTranslate } from "@/lib/language";
 
 import React from 'react'
 import { Suspense } from "react";
@@ -156,9 +156,9 @@ function getRole(): string | null {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const fmtDate = (d: string | null) =>
+const fmtDate = (d: string | null, language: "th" | "en" = "th") =>
   d
-    ? new Date(d).toLocaleDateString("th-TH", {
+    ? new Date(d).toLocaleDateString(language === "en" ? "en-US" : "th-TH", {
         day: "numeric",
         month: "short",
         year: "2-digit",
@@ -235,36 +235,44 @@ function saveRequests(list: Request[]): boolean {
 /* ---------- รายละเอียดคำขอ ---------- */
 
 // วันที่แบบเต็ม (ปี พ.ศ. 4 หลัก) ถ้ามีเวลาในค่าจะแสดงเวลาด้วย
-function fmtDateTime(d: string | null | undefined): string {
+function fmtDateTime(
+  d: string | null | undefined,
+  language: "th" | "en" = "th",
+): string {
   if (!d) return "-";
   const date = new Date(d);
-  const day = date.toLocaleDateString("th-TH", {
+  const locale = language === "en" ? "en-US" : "th-TH";
+  const day = date.toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
   if (!d.includes("T")) return day;
-  const time = date.toLocaleTimeString("th-TH", {
+  const time = date.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hour12: language === "en",
   });
-  return `${day} ${time} น.`;
+  return language === "en" ? `${day} ${time}` : `${day} ${time} น.`;
 }
 
 type StepTone = "done" | "current" | "wait" | "bad";
 type Step = { time: string; label: string; badge: string; tone: StepTone };
 
 // สร้าง timeline "สถานะการดำเนินการ" จากสถานะของคำขอ + ข้อมูลใน approvals
-function buildTimeline(r: Request): Step[] {
+function buildTimeline(
+  r: Request,
+  language: "th" | "en",
+  translateText: (text: string) => string,
+): Step[] {
   const s = displayStatus(r);
   const ap = approvals.find((a) => a.requestId === r.id);
-  const receivedAt = fmtDateTime(ap?.requestedAt ?? r.createdAt);
+  const receivedAt = fmtDateTime(ap?.requestedAt ?? r.createdAt, language);
 
   const steps: Step[] = [
     {
-      time: fmtDateTime(r.createdAt),
-      label: `แจ้งคำขอโดย พนักงาน #${r.borrowerId}`,
+      time: fmtDateTime(r.createdAt, language),
+      label: `${translateText("แจ้งคำขอโดย")} ${translateText("พนักงาน #")}${r.borrowerId}`,
       badge: "ดำเนินการแล้ว",
       tone: "done",
     },
@@ -288,7 +296,10 @@ function buildTimeline(r: Request): Step[] {
   // ใช้ข้อมูลจาก approvals เฉพาะเมื่อผลตรงกับสถานะปัจจุบันของคำขอ
   const wantApproval = s === "rejected" ? "rejected" : "approved";
   const apMatches = !!ap && ap.status === wantApproval;
-  const decidedAt = fmtDateTime(r.decidedAt ?? (apMatches ? ap.approvedAt : null));
+  const decidedAt = fmtDateTime(
+    r.decidedAt ?? (apMatches ? ap.approvedAt : null),
+    language,
+  );
 
   if (s === "revision") {
     steps.push({
@@ -303,14 +314,14 @@ function buildTimeline(r: Request): Step[] {
     const by = apMatches && ap.approverId ? ` โดย ผู้ดูแล #${ap.approverId}` : "";
     steps.push({
       time: decidedAt,
-      label: `อนุมัติคำขอ${by}`,
+      label: `${translateText("อนุมัติคำขอ")}${by ? `${translateText(" โดย ผู้ดูแล #")}${ap?.approverId}` : ""}`,
       badge: "อนุมัติแล้ว",
       tone: "done",
     });
     if (r.type === "return") {
       if (s === "returned") {
         steps.push({
-          time: fmtDateTime(r.actualReturnDate),
+          time: fmtDateTime(r.actualReturnDate, language),
           label: "รับคืนทรัพย์สินแล้ว",
           badge: "คืนแล้ว",
           tone: "done",
@@ -318,7 +329,7 @@ function buildTimeline(r: Request): Step[] {
       } else if (s === "overdue") {
         steps.push({
           time: "-",
-          label: `เกินกำหนดคืน (กำหนด ${fmtDateTime(r.expectedReturnDate)})`,
+          label: `${translateText("เกินกำหนดคืน (กำหนด")} ${fmtDateTime(r.expectedReturnDate, language)})`,
           badge: "เกินกำหนดคืน",
           tone: "bad",
         });
@@ -352,36 +363,36 @@ const EXPORT_HEADERS = [
   "หมายเหตุ",
 ];
 
-function toTable(list: Request[]): string[][] {
+function toTable(list: Request[], language: "th" | "en" = "th"): string[][] {
   return list.map((r) => [
     r.id,
-    TYPES[r.type].label,
+    translate(TYPES[r.type].label, language),
     assetName(r.assetId),
     r.assetId,
     branchName(r.branchId),
     r.type === "transfer" ? branchName(r.toBranchId) : "-",
-    `พนักงาน #${r.borrowerId}`,
-    fmtDate(r.type === "return" ? r.expectedReturnDate : r.borrowDate),
-    fmtDate(r.actualReturnDate),
-    STATUS[displayStatus(r)].label,
+    `${translate("พนักงาน #", language)}${r.borrowerId}`,
+    fmtDate(r.type === "return" ? r.expectedReturnDate : r.borrowDate, language),
+    fmtDate(r.actualReturnDate, language),
+    translate(STATUS[displayStatus(r)].label, language),
     r.purpose,
     r.note || approvalComment(r.id) || "-",
   ]);
 }
 
-async function exportExcel(list: Request[]) {
+async function exportExcel(list: Request[], language: "th" | "en") {
   try {
     const ExcelJS = (await import("exceljs")).default;
-    const body = toTable(list);
+    const body = toTable(list, language);
 
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("คำขอ");
+    const ws = wb.addWorksheet(translate("คำขอ", language));
     ws.columns = EXPORT_HEADERS.map((header, i) => ({
-      header,
+      header: translate(header, language),
       key: String(i),
       width: Math.min(
         45,
-        Math.max(header.length, ...body.map((row) => row[i].length)) + 4,
+        Math.max(translate(header, language).length, ...body.map((row) => row[i].length)) + 4,
       ),
     }));
     body.forEach((row) => ws.addRow(row));
@@ -403,17 +414,17 @@ async function exportExcel(list: Request[]) {
 }
 
 // PDF: เปิดหน้าพิมพ์ของเบราว์เซอร์ แล้วเลือก "Save as PDF" (ภาษาไทยแสดงถูกต้อง)
-function exportPdf(list: Request[], subtitle: string) {
+function exportPdf(list: Request[], subtitle: string, language: "th" | "en") {
   const esc = (v: string) =>
     v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  const head = EXPORT_HEADERS.map((h) => `<th>${esc(h)}</th>`).join("");
-  const rowsHtml = toTable(list)
+  const head = EXPORT_HEADERS.map((h) => `<th>${esc(translate(h, language))}</th>`).join("");
+  const rowsHtml = toTable(list, language)
     .map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
     .join("");
 
-  const html = `<!doctype html><html lang="th"><head><meta charset="utf-8">
-<title>รายงานคำขอ</title>
+  const html = `<!doctype html><html lang="${language === "en" ? "en" : "th"}"><head><meta charset="utf-8">
+<title>${esc(translate("รายงานคำขอ", language))}</title>
 <style>
   @page { size: A4 landscape; margin: 12mm; }
   body { font-family: "Sarabun", "Noto Sans Thai", Tahoma, sans-serif; font-size: 11px; color: #111; }
@@ -425,7 +436,7 @@ function exportPdf(list: Request[], subtitle: string) {
   thead { display: table-header-group; }
   tr { page-break-inside: avoid; }
 </style></head><body>
-<h1>รายงานคำขอเบิก / รับคืน / โอนย้ายทรัพย์สิน</h1>
+<h1>${esc(translate("รายงานคำขอเบิก / รับคืน / โอนย้ายทรัพย์สิน", language))}</h1>
 <p>${esc(subtitle)}</p>
 <table><thead><tr>${head}</tr></thead><tbody>${rowsHtml}</tbody></table>
 </body></html>`;
@@ -468,6 +479,7 @@ function BorrowPageContent() {
   const searchParams = useSearchParams();
   const requestId = searchParams.get("requestId");
   const translateText = useTranslate();
+  const language = useLanguage();
   const isDark = useTheme() === "dark";
   const role = useSyncExternalStore(subscribe, getRole, () => null);
   const currentStaffId = useSyncExternalStore(
@@ -652,13 +664,18 @@ function BorrowPageContent() {
     setEditing(null);
   }
 
-  const exportSubtitle = `ออกรายงานวันที่ ${new Date().toLocaleDateString("th-TH", {
+  const exportSubtitle = `${translateText("ออกรายงานวันที่")} ${new Date().toLocaleDateString(
+    language === "en" ? "en-US" : "th-TH",
+    {
     day: "numeric",
     month: "long",
     year: "numeric",
-  })} · ประเภท: ${typeFilter === "all" ? "ทั้งหมด" : TYPES[typeFilter].label} · สถานะ: ${
-    statusFilter === "all" ? "ทั้งหมด" : STATUS[statusFilter].label
-  } · ${rows.length} รายการ`;
+    },
+  )} · ${translateText("ประเภท")}: ${
+    typeFilter === "all" ? translateText("ทั้งหมด") : translateText(TYPES[typeFilter].label)
+  } · ${translateText("สถานะ")}: ${
+    statusFilter === "all" ? translateText("ทั้งหมด") : translateText(STATUS[statusFilter].label)
+  } · ${rows.length} ${translateText("รายการ")}`;
 
   const pill = (active: boolean) =>
     `rounded-full border px-4 py-1.5 text-sm font-semibold ${
@@ -674,11 +691,11 @@ function BorrowPageContent() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className={`text-2xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>
-            
+
             {translateText("เบิก / ยืมคืน / ขอโอนย้ายทรัพย์สิน")}
           </h1>
           <p className="text-sm text-slate-700">
-            
+
             {translateText("ติดตามคำขอ สถานะการอนุมัติ และกำหนดคืน")}
           </p>
         </div>
@@ -687,26 +704,26 @@ function BorrowPageContent() {
             onClick={() => setShowModal(true)}
             className="rounded-lg bg-yellow-400 px-5 py-2.5 font-bold text-blue-950 hover:bg-yellow-300"
           >
-            
+
             {translateText("+ สร้างคำขอ")}
           </button>
         )}
         {isPresident && (
           <div className="flex gap-2">
             <button
-              onClick={() => void exportExcel(rows)}
+              onClick={() => void exportExcel(rows, language)}
               disabled={rows.length === 0}
               className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
             >
-              
+
               {translateText("ส่งออก Excel")}
             </button>
             <button
-              onClick={() => exportPdf(rows, exportSubtitle)}
+              onClick={() => exportPdf(rows, exportSubtitle, language)}
               disabled={rows.length === 0}
               className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
             >
-              
+
               {translateText("ส่งออก PDF")}
             </button>
           </div>
@@ -729,18 +746,18 @@ function BorrowPageContent() {
                 }`}
               >
                 <div className="text-sm font-semibold text-slate-900">
-                  
+
                   {translateText("คำขอ")}{translateText(TYPES[t].label)}
                 </div>
                 <div className={`my-1 text-3xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>
                   {list.length}
                   <span className="ml-1 text-sm font-medium text-slate-800">
-                    
+
                     {translateText("รายการ")}
                   </span>
                 </div>
                 <div className="text-xs text-slate-800">
-                  
+
                   {translateText("รออนุมัติ")} {n("pending")}  {translateText("· อนุมัติแล้ว")} {n("approved")} ·
                   {translateText("ไม่อนุมัติ")} {n("rejected")}
                 </div>
@@ -816,7 +833,7 @@ function BorrowPageContent() {
                   colSpan={8}
                   className="p-8 text-center text-slate-700"
                 >
-                  
+
                   {translateText("ไม่พบคำขอที่ตรงกับตัวกรอง")}
                 </td>
               </tr>
@@ -857,13 +874,13 @@ function BorrowPageContent() {
                       </div>
                     ) : r.type === "return" ? (
                       <div className="font-medium">
-                        
-                        {translateText("กำหนดคืน")} {fmtDate(r.expectedReturnDate)}
+
+                        {translateText("กำหนดคืน")} {fmtDate(r.expectedReturnDate, language)}
                       </div>
                     ) : (
                       <div className="font-medium">
-                        
-                        {translateText("ต้องการวันที่")} {fmtDate(r.borrowDate)}
+
+                        {translateText("ต้องการวันที่")} {fmtDate(r.borrowDate, language)}
                       </div>
                     )}
                     <div className="max-w-56 text-xs text-slate-700">{r.purpose}</div>
@@ -1006,16 +1023,16 @@ function RowActions({
     return (
       <div className="flex flex-wrap gap-2">
         <button onClick={onApprove} className={`${base} bg-emerald-700`}>
-          
+
           {translateText("อนุมัติ")}
         </button>
         <button onClick={onReject} className={`${base} bg-red-700`}>
-          
+
           {translateText("ไม่อนุมัติ")}
         </button>
         {canSendBack && (
           <button onClick={onSendBack} className={`${base} bg-violet-700`}>
-            
+
             {translateText("ส่งกลับแก้ไข")}
           </button>
         )}
@@ -1027,7 +1044,7 @@ function RowActions({
   if (status === "revision" && canEdit) {
     return (
       <button onClick={onEdit} className={`${base} bg-blue-950`}>
-        
+
         {translateText("แก้ไขคำขอ")}
       </button>
     );
@@ -1041,7 +1058,7 @@ function RowActions({
   ) {
     return (
       <button onClick={onReceive} className={`${base} bg-blue-950`}>
-        
+
         {translateText("รับคืน")}
       </button>
     );
@@ -1166,14 +1183,14 @@ function RequestModal({
               {editing ? "ส่งคำขอแก้ไขเรียบร้อย" : "ส่งคำขอเรียบร้อย"}
             </h2>
             <p className="text-sm text-slate-800">
-              
+
               {translateText("คำขอ")}{translateText(TYPES[type].label)}  {translateText("รหัส")} {submittedId}  {translateText("อยู่ในสถานะรออนุมัติ")}
             </p>
             <button
               onClick={onClose}
               className="mt-2 rounded-lg bg-blue-950 px-8 py-2.5 text-sm font-bold text-white"
             >
-              
+
               {translateText("ปิด")}
             </button>
           </div>
@@ -1202,7 +1219,7 @@ function RequestModal({
 
             {editing ? (
               <p className="text-sm font-semibold text-slate-900">
-                
+
                 {translateText("ประเภทคำขอ:")} {translateText(TYPES[type].label)} ({editing.id})
               </p>
             ) : (
@@ -1263,7 +1280,7 @@ function RequestModal({
                 />
                 </div>
                 <label
-                  title="สแกน QR Code"
+                  title={translateText("สแกน QR Code")}
                   aria-label={translateText("สแกน QR Code")}
                   className={`inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-500 ${
                     isDark
@@ -1393,11 +1410,12 @@ function RequestModal({
 
             {type === "return" && (
               <div>
-                <label className={label}>รูปภาพประกอบการรับคืน</label>
+                <label className={label}>{translateText("รูปภาพประกอบการรับคืน")}</label>
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50">
                     <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3"/></svg>
-                    แนบรูปภาพ
+
+                    {translateText("แนบรูปภาพ")}
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
@@ -1408,10 +1426,10 @@ function RequestModal({
                       e.target.value = "";
                     }} />
                   </label>
-                  {attachmentDataUrl && <button type="button" onClick={() => setAttachmentDataUrl("")} className="text-sm font-semibold text-red-700">ลบรูป</button>}
+                  {attachmentDataUrl && <button type="button" onClick={() => setAttachmentDataUrl("")} className="text-sm font-semibold text-red-700">{translateText("ลบรูป")}</button>}
                 </div>
-                {attachmentDataUrl && <img src={attachmentDataUrl} alt="รูปภาพประกอบการรับคืน" className="mt-3 max-h-48 rounded-lg border border-slate-300 object-contain" />}
-                <p className="mt-1 text-xs text-slate-600">แนบรูปสภาพทรัพย์สินขณะรับคืน (ไม่บังคับ)</p>
+                {attachmentDataUrl && <img src={attachmentDataUrl} alt={translateText("รูปภาพประกอบการรับคืน")} className="mt-3 max-h-48 rounded-lg border border-slate-300 object-contain" />}
+                <p className="mt-1 text-xs text-slate-600">{translateText("แนบรูปสภาพทรัพย์สินขณะรับคืน (ไม่บังคับ)")}</p>
               </div>
             )}
 
@@ -1498,7 +1516,7 @@ function RequestModal({
                 onClick={onClose}
                 className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold text-slate-900"
               >
-                
+
                 {translateText("ยกเลิก")}
               </button>
               <button
@@ -1546,7 +1564,7 @@ function ReasonModal({
       >
         <h2 className={`text-xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>{translateText("ส่งกลับแก้ไข")}</h2>
         <p className="mt-1 text-sm text-slate-800">
-          
+
           {translateText("ระบุสิ่งที่ผู้ขอต้องแก้ไข คำขอจะถูกส่งกลับให้ผู้ขอแก้ไขแล้วส่งใหม่")}
         </p>
         <textarea
@@ -1561,7 +1579,7 @@ function ReasonModal({
             onClick={onClose}
             className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold text-slate-900"
           >
-            
+
             {translateText("ยกเลิก")}
           </button>
           <button
@@ -1569,7 +1587,7 @@ function ReasonModal({
             onClick={() => onConfirm(reason.trim())}
             className="rounded-lg bg-violet-700 px-6 py-2 text-sm font-bold text-white disabled:opacity-40"
           >
-            
+
             {translateText("ส่งกลับแก้ไข")}
           </button>
         </div>
@@ -1641,6 +1659,8 @@ function DetailModal({
   request: Request;
   onClose: () => void;
 }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const isDark = useTheme() === "dark";
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -1653,7 +1673,7 @@ function DetailModal({
   const note = r.note || approvalComment(r.id);
 
   const info: { icon: ReactNode; label: string; value: string }[] = [
-    { icon: ICONS.swap, label: "ประเภทคำขอ", value: TYPES[r.type].label },
+    { icon: ICONS.swap, label: "ประเภทคำขอ", value: translateText(TYPES[r.type].label) },
     {
       icon: ICONS.box,
       label: "อุปกรณ์ / จำนวน",
@@ -1675,23 +1695,23 @@ function DetailModal({
   info.push({
     icon: ICONS.calendar,
     label: "วันที่แจ้ง",
-    value: fmtDateTime(r.createdAt),
+    value: fmtDateTime(r.createdAt, language),
   });
   if (r.type === "return") {
     info.push({
       icon: ICONS.calendar,
       label: "กำหนดคืน",
-      value: fmtDateTime(r.expectedReturnDate),
+      value: fmtDateTime(r.expectedReturnDate, language),
     });
   } else {
     info.push({
       icon: ICONS.calendar,
       label: r.type === "transfer" ? "วันที่ต้องการโอนย้าย" : "วันที่ต้องการใช้",
-      value: fmtDateTime(r.borrowDate),
+      value: fmtDateTime(r.borrowDate, language),
     });
   }
 
-  const steps = buildTimeline(r);
+  const steps = buildTimeline(r, language, translateText);
 
   return (
     <div
@@ -1705,16 +1725,16 @@ function DetailModal({
         className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 text-slate-900 shadow-xl"
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 className={`text-xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>รายละเอียดคำขอ</h2>
+          <h2 className={`text-xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>{translateText("รายละเอียดคำขอ")}</h2>
           <div className="flex items-center gap-2">
             <span
               className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS[s].className}`}
             >
-              {STATUS[s].label}
+              {translateText(STATUS[s].label)}
             </span>
             <button
               onClick={onClose}
-              aria-label="ปิด"
+              aria-label={translateText("ปิด")}
               className={`rounded-md px-2 py-1 text-xl leading-none text-slate-800 ${
                 isDark ? "hover:bg-slate-700" : "hover:bg-slate-100"
               }`}
@@ -1730,7 +1750,7 @@ function DetailModal({
           {info.map((row) => (
             <div key={row.label} className="flex items-start gap-3 text-sm">
               {row.icon}
-              <span className="w-40 shrink-0 text-slate-800">{row.label}</span>
+              <span className="w-40 shrink-0 text-slate-800">{translateText(row.label)}</span>
               <span className="font-medium text-slate-900">{row.value}</span>
             </div>
           ))}
@@ -1738,24 +1758,24 @@ function DetailModal({
 
         {r.type === "return" && r.attachmentDataUrl && (
           <div className="mt-5">
-            <h3 className="text-sm font-bold text-slate-900">รูปภาพประกอบการรับคืน</h3>
-            <img src={r.attachmentDataUrl} alt="รูปภาพประกอบการรับคืน" className="mt-2 max-h-72 rounded-lg border border-slate-300 object-contain" />
+            <h3 className="text-sm font-bold text-slate-900">{translateText("รูปภาพประกอบการรับคืน")}</h3>
+            <img src={r.attachmentDataUrl} alt={translateText("รูปภาพประกอบการรับคืน")} className="mt-2 max-h-72 rounded-lg border border-slate-300 object-contain" />
           </div>
         )}
 
         <div className="mt-5">
-          <h3 className="text-sm font-bold text-slate-900">รายละเอียด</h3>
+          <h3 className="text-sm font-bold text-slate-900">{translateText("รายละเอียด")}</h3>
           <p className="mt-1 text-sm text-slate-900">{r.purpose || "-"}</p>
         </div>
 
         {note && (
           <div className="mt-4 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm">
-            <span className="font-bold">หมายเหตุจากผู้ดูแล:</span> {note}
+            <span className="font-bold">{translateText("หมายเหตุจากผู้ดูแล:")}</span> {note}
           </div>
         )}
 
         <div className="mt-6">
-          <h3 className="text-sm font-bold text-slate-900">สถานะการดำเนินการ</h3>
+          <h3 className="text-sm font-bold text-slate-900">{translateText("สถานะการดำเนินการ")}</h3>
           <ol className="relative ml-2 mt-4 flex flex-col gap-5 border-l-2 border-slate-300 pl-5">
             {steps.map((st, i) => (
               <li
@@ -1770,11 +1790,11 @@ function DetailModal({
                   }`}
                 />
                 <span className="w-44 text-slate-800">{st.time}</span>
-                <span className="flex-1 font-medium text-slate-900">{st.label}</span>
+                <span className="flex-1 font-medium text-slate-900">{translateText(st.label)}</span>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-bold ${TONE[st.tone]}`}
                 >
-                  {st.badge}
+                  {translateText(st.badge)}
                 </span>
               </li>
             ))}
@@ -1786,7 +1806,8 @@ function DetailModal({
             onClick={onClose}
             className="rounded-lg bg-blue-950 px-8 py-2.5 text-sm font-bold text-white"
           >
-            ปิด
+
+            {translateText("ปิด")}
           </button>
         </div>
       </div>

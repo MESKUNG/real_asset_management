@@ -10,6 +10,7 @@ import {
   type IDetectedBarcode,
   type IScannerError,
 } from "@yudiel/react-qr-scanner";
+import { useTranslate } from "@/lib/language";
 
 // ตัวถอดรหัส (zxing_reader.wasm) เก็บไว้ในโฟลเดอร์ public/zxing ของโปรเจกต์
 // ปกติไลบรารีจะโหลดไฟล์นี้จากอินเทอร์เน็ต ถ้าเน็ตหลุดจะสแกนไม่ได้ จึงให้โหลดจากเว็บเราเองแทน
@@ -61,6 +62,7 @@ export default function CameraView({ onScan, paused }: {
   onScan: (code: string, format: string) => void;
   paused: boolean;
 }) {
+  const translateText = useTranslate();
   const devices = useDevices();
   const [deviceId, setDeviceId] = useState(readSavedCamera);
   const [error, setError] = useState<string | null>(null);
@@ -88,13 +90,14 @@ export default function CameraView({ onScan, paused }: {
     <div className="space-y-3">
       {devices.length > 1 && (
         <label className="block text-base font-medium text-slate-700">
-          เลือกกล้อง
+
+          {translateText("เลือกกล้อง")}
           <select
             value={selected}
             onChange={(e) => chooseCamera(e.target.value)}
             className="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">กล้องหลัง (ค่าเริ่มต้น)</option>
+            <option value="">{translateText("กล้องหลัง (ค่าเริ่มต้น)")}</option>
             {devices.map((d, i) => (
               <option key={d.deviceId} value={d.deviceId}>
                 {d.label || `กล้อง ${i + 1}`}
@@ -107,13 +110,14 @@ export default function CameraView({ onScan, paused }: {
       <div className="overflow-hidden rounded-3xl bg-slate-900">
         {error ? (
           <div className="flex aspect-square flex-col items-center justify-center gap-3 p-6 text-center text-base text-white">
-            <p>{error}</p>
+            <p>{translateText(error)}</p>
             <button
               type="button"
               onClick={() => setError(null)}
               className="min-h-11 rounded-xl bg-white px-4 text-base font-semibold text-slate-900"
             >
-              ลองเปิดกล้องอีกครั้ง
+
+              {translateText("ลองเปิดกล้องอีกครั้ง")}
             </button>
           </div>
         ) : (

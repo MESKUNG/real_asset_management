@@ -1,5 +1,5 @@
 "use client";
-import { useTranslate } from "@/lib/language";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -35,9 +35,10 @@ import { inventorySessions } from "@/data/inventorySessions";
 import { repairRequests } from "@/data/repairRequests";
 
 const palette = { available: "#168765", repair: "#b26b05", other: "#5746ed" };
-const fmt = (n: number) => new Intl.NumberFormat("th-TH").format(n);
-const dateFmt = (date: string) =>
-  new Intl.DateTimeFormat("th-TH", {
+const fmt = (n: number, language: "th" | "en") =>
+  new Intl.NumberFormat(language === "en" ? "en-US" : "th-TH").format(n);
+const dateFmt = (date: string, language: "th" | "en") =>
+  new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -164,6 +165,7 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 export default function Page() {
+  const language = useLanguage();
   const translateText = useTranslate();
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [search, setSearch] = useState("");
@@ -245,14 +247,14 @@ export default function Page() {
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           <Metric
             label={translateText("Asset ทั้งองค์กร")}
-            value={fmt(total)}
-            note={`${assets.length ? "ข้อมูลตัวอย่าง" : "ไม่มีข้อมูล"} · ${latestAssetUpdate ? dateFmt(latestAssetUpdate.slice(0, 10)) : "—"}`}
+            value={fmt(total, language)}
+            note={`${assets.length ? translateText("ข้อมูลตัวอย่าง") : translateText("ไม่มีข้อมูล")} · ${latestAssetUpdate ? dateFmt(latestAssetUpdate.slice(0, 10), language) : "—"}`}
             color="text-indigo-600"
             icon={<Boxes />}
           />
           <Metric
             label={translateText("จำนวนสาขา")}
-            value={fmt(branches.length)}
+            value={fmt(branches.length, language)}
             note={`${branches.filter((branch) => branch.status === "active").length} สาขาเปิดใช้งาน`}
             color="text-emerald-600"
             icon={<CircleCheck />}
@@ -260,13 +262,13 @@ export default function Page() {
           <Metric
             label={translateText("Asset พร้อมใช้งาน")}
             value={`${readyPct}%`}
-            note={`พร้อมใช้งาน ${fmt(ready)} รายการ`}
+            note={`${translateText("พร้อมใช้งาน")} ${fmt(ready, language)} ${translateText("รายการ")}`}
             color="text-amber-600"
             icon={<Wrench />}
           />
           <Metric
             label={translateText("คำขอรออนุมัติ")}
-            value={fmt(pending.length)}
+            value={fmt(pending.length, language)}
             note={translateText("คำขอเบิก/โอนที่ยังรอดำเนินการ")}
             color="text-cyan-600"
             icon={<CircleCheck />}
@@ -410,15 +412,15 @@ export default function Page() {
                   <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <dt className="text-xs text-slate-400">{translateText("ทั้งหมด")}</dt>
-                      <dd>{fmt(row.total)}</dd>
+                      <dd>{fmt(row.total, language)}</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-slate-400">{translateText("พร้อมใช้")}</dt>
-                      <dd className="text-emerald-700">{fmt(row.available)}</dd>
+                      <dd className="text-emerald-700">{fmt(row.available, language)}</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-slate-400">{translateText("ชำรุด/ซ่อม")}</dt>
-                      <dd className="text-amber-700">{fmt(row.repair)}</dd>
+                      <dd className="text-amber-700">{fmt(row.repair, language)}</dd>
                     </div>
                   </dl>
                   <Link
@@ -457,12 +459,12 @@ export default function Page() {
                   {filteredRows.map((row) => (
                     <tr key={row.id} className="border-t border-slate-200">
                       <td className="px-4 py-3.5 font-medium">{row.branch}</td>
-                      <td className="px-4 py-3.5">{fmt(row.total)}</td>
+                      <td className="px-4 py-3.5">{fmt(row.total, language)}</td>
                       <td className="px-4 py-3.5 text-emerald-700">
-                        {fmt(row.available)}
+                        {fmt(row.available, language)}
                       </td>
                       <td className="px-4 py-3.5 text-amber-700">
-                        {fmt(row.repair)}
+                        {fmt(row.repair, language)}
                       </td>
                       <td className="px-4 py-3.5">
                         <span
@@ -495,9 +497,9 @@ export default function Page() {
               </table>
             </div>
             <p className="mt-4 text-xs text-slate-500">
-              {translateText("พร้อมใช้งาน")} {fmt(ready)}{" "}
-              {translateText("· ชำรุด/ซ่อม")} {fmt(inRepair)}{" "}
-              {translateText("· สถานะอื่น")} {fmt(other)}{" "}
+              {translateText("พร้อมใช้งาน")} {fmt(ready, language)}{" "}
+              {translateText("· ชำรุด/ซ่อม")} {fmt(inRepair, language)}{" "}
+              {translateText("· สถานะอื่น")} {fmt(other, language)}{" "}
               {translateText("รายการ")}
             </p>
           </Card>
@@ -547,7 +549,7 @@ export default function Page() {
                     </div>
                     <div>
                       <dt className="text-xs text-slate-400">{translateText("วันที่")}</dt>
-                      <dd className="text-slate-600">{dateFmt(request.createdAt)}</dd>
+                      <dd className="text-slate-600">{dateFmt(request.createdAt, language)}</dd>
                     </div>
                   </div>
                 </dl>
@@ -600,7 +602,7 @@ export default function Page() {
                       User {request.borrowerId}
                     </td>
                     <td className="px-4 py-4 text-slate-500">
-                      {dateFmt(request.createdAt)}
+                      {dateFmt(request.createdAt, language)}
                     </td>
                     <td className="px-4 py-4">
                       <StatusPill status={statusText(request.status)} />
@@ -659,7 +661,7 @@ export default function Page() {
                 ].map(([label, value, color]) => (
                   <div key={String(label)}>
                     <strong className={`block text-2xl font-bold sm:text-3xl ${color}`}>
-                      {fmt(Number(value))}
+                      {fmt(Number(value), language)}
                     </strong>
                     <span className="text-sm text-slate-500">{label}</span>
                   </div>
@@ -723,7 +725,7 @@ export default function Page() {
                           <StatusPill status={translateText("บันทึกแล้ว")} />
                         </div>
                         <p className="mt-2 text-sm text-slate-500">
-                          {dateFmt(history.performedAt)}
+                          {dateFmt(history.performedAt, language)}
                         </p>
                       </div>
                     );
@@ -783,7 +785,7 @@ export default function Page() {
                       {label}
                     </span>
                     <strong className={`mt-1 block text-xl ${color}`}>
-                      {fmt(Number(value))}
+                      {fmt(Number(value), language)}
                     </strong>
                   </div>
                 ))}

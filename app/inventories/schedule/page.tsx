@@ -16,6 +16,7 @@ import {
   useInventoryStore,
 } from "@/lib/inventory";
 import { EmptyState, Loading, PageHeader, RoleGate, Toast, buttonStyle, useToast } from "../_components/ui";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 const activeBranches = branches.filter((b) => b.status === "active");
 
@@ -28,6 +29,8 @@ export default function SchedulePage() {
 }
 
 function ScheduleForm() {
+  const translateText = useTranslate();
+  const language = useLanguage();
   const { credential } = useCredential();
   const { sessions, ready } = useInventoryStore();
   const toast = useToast();
@@ -69,7 +72,7 @@ function ScheduleForm() {
     ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000) + 1
     : 0;
   const monthText = startDate
-    ? new Date(`${startDate}T00:00:00`).toLocaleDateString("th-TH", { month: "long", year: "numeric" })
+    ? new Date(`${startDate}T00:00:00`).toLocaleDateString(language === "en" ? "en-US" : "th-TH", { month: "long", year: "numeric" })
     : "";
   const autoName = `ตรวจนับทรัพย์สินประจำเดือน${monthText} - ${branchName}`;
 
@@ -87,14 +90,18 @@ function ScheduleForm() {
     setName("");
     toast.show(
       startDate <= today
-        ? `ประกาศรอบ ${session.id} แล้ว ผู้ใช้เริ่มตรวจนับได้ทันที`
-        : `ประกาศรอบ ${session.id} แล้ว จะเริ่มให้ตรวจนับอัตโนมัติ ${formatDateRange(startDate, endDate)}`,
+        ? `${translateText("ประกาศรอบ")} ${session.id} ${translateText("แล้ว ผู้ใช้เริ่มตรวจนับได้ทันที")}`
+        : `${translateText("ประกาศรอบ")} ${session.id} · ${formatDateRange(startDate, endDate, language)}`,
     );
   };
 
   const handleDelete = (id: string) => {
     if (!window.confirm(`ลบรอบ ${id} ใช่ไหม? ลบแล้วกู้คืนไม่ได้`)) return;
-    toast.show(deleteSession(id) ? `ลบรอบ ${id} แล้ว` : "ลบได้เฉพาะรอบที่ยังไม่เริ่ม");
+    toast.show(
+      deleteSession(id)
+        ? `${translateText("ลบรอบ")} ${id} ${translateText("แล้ว")}`
+        : translateText("ลบได้เฉพาะรอบที่ยังไม่เริ่ม"),
+    );
   };
 
   const planned = sessions
@@ -111,10 +118,11 @@ function ScheduleForm() {
 
       <main className="mx-auto grid max-w-6xl gap-6 px-4 pt-5 lg:grid-cols-5 lg:px-8">
         <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-3">
-          <h2 className="text-lg font-bold text-slate-900">สร้างรอบใหม่</h2>
+          <h2 className="text-lg font-bold text-slate-900">{translateText("สร้างรอบใหม่")}</h2>
 
           <label className="block text-base font-medium text-slate-700">
-            สาขาที่ตรวจนับ
+
+            {translateText("สาขาที่ตรวจนับ")}
             <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={fieldStyle}>
               {activeBranches.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -122,12 +130,13 @@ function ScheduleForm() {
                 </option>
               ))}
             </select>
-            <span className="mt-1 block text-sm text-slate-500">ทรัพย์สินในสาขานี้ {assetCount} รายการ</span>
+            <span className="mt-1 block text-sm text-slate-500">{translateText("ทรัพย์สินในสาขานี้")} {assetCount}  {translateText("รายการ")}</span>
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-base font-medium text-slate-700">
-              วันที่เริ่ม
+
+              {translateText("วันที่เริ่ม")}
               <input
                 type="date"
                 value={startDate}
@@ -140,7 +149,8 @@ function ScheduleForm() {
               />
             </label>
             <label className="block text-base font-medium text-slate-700">
-              วันที่สิ้นสุด
+
+              {translateText("วันที่สิ้นสุด")}
               <input
                 type="date"
                 value={endDate}
@@ -152,7 +162,8 @@ function ScheduleForm() {
           </div>
 
           <label className="block text-base font-medium text-slate-700">
-            ผู้รับผิดชอบ
+
+            {translateText("ผู้รับผิดชอบ")}
             <select
               value={selectedAssignee}
               onChange={(e) => setAssigneeId(Number(e.target.value))}
@@ -160,14 +171,15 @@ function ScheduleForm() {
             >
               {staffIds.map((id) => (
                 <option key={id} value={id}>
-                  {getStaffName(id)} (รหัส {id})
+                  {getStaffName(id)}  {translateText("(รหัส")} {id})
                 </option>
               ))}
             </select>
           </label>
 
           <label className="block text-base font-medium text-slate-700">
-            ชื่อรอบ (เว้นว่างได้ ระบบตั้งให้)
+
+            {translateText("ชื่อรอบ (เว้นว่างได้ ระบบตั้งให้)")}
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder={autoName} className={fieldStyle} />
           </label>
 
@@ -179,21 +191,22 @@ function ScheduleForm() {
               <>{error}</>
             ) : (
               <>
-                ตรวจนับ <strong>{branchName}</strong> {formatDateRange(startDate, endDate)} ({days} วัน) ·
-                ผู้รับผิดชอบ <strong>{getStaffName(selectedAssignee)}</strong>
+
+                {translateText("ตรวจนับ")} <strong>{branchName}</strong> {formatDateRange(startDate, endDate, language)} ({days}  {translateText("วัน) · ผู้รับผิดชอบ")} <strong>{getStaffName(selectedAssignee)}</strong>
               </>
             )}
           </div>
 
           <button type="submit" disabled={!!error} className={`${buttonStyle.primary} min-h-12 w-full text-lg`}>
-            ยืนยันสร้างรอบ
+
+            {translateText("ยืนยันสร้างรอบ")}
           </button>
         </form>
 
         <section className="lg:col-span-2">
-          <h2 className="mb-3 text-lg font-bold text-slate-900">รอบที่รอเริ่ม ({planned.length})</h2>
+          <h2 className="mb-3 text-lg font-bold text-slate-900">{translateText("รอบที่รอเริ่ม (")}{planned.length})</h2>
           {planned.length === 0 ? (
-            <EmptyState text="ยังไม่มีรอบที่วางแผนไว้" />
+            <EmptyState text={translateText("ยังไม่มีรอบที่วางแผนไว้")} />
           ) : (
             <ul className="space-y-3">
               {planned.map((s) => (
@@ -201,17 +214,19 @@ function ScheduleForm() {
                   <p className="text-sm text-slate-500">{s.id}</p>
                   <p className="text-base font-semibold text-slate-900">{s.name}</p>
                   <p className="text-sm text-slate-600">
-                    {formatDateRange(s.startDate, s.endDate)} · {getStaffName(s.assigneeId)}
+                    {formatDateRange(s.startDate, s.endDate, language)} · {getStaffName(s.assigneeId)}
                   </p>
                   <button type="button" onClick={() => handleDelete(s.id)} className={`${buttonStyle.danger} mt-3`}>
-                    ลบรอบนี้
+
+                    {translateText("ลบรอบนี้")}
                   </button>
                 </li>
               ))}
             </ul>
           )}
           <Link href="/inventories" className={`${buttonStyle.secondary} mt-4 w-full`}>
-            ไปหน้าติดตามการนับ ›
+
+            {translateText("ไปหน้าติดตามการนับ ›")}
           </Link>
         </section>
       </main>

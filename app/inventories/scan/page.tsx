@@ -1,5 +1,5 @@
 "use client";
-import { useTranslate } from "@/lib/language";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 
 // หน้าสแกนตรวจนับ: ใช้ตัวสแกนกลางของกลุ่ม (components/scanner) อ่านได้ทั้ง QR Code และ Barcode
@@ -46,6 +46,7 @@ export default function ScanPage() {
 
 function ScanContent() {
   const translateText = useTranslate();
+  const language = useLanguage();
   const sessionId = useSearchParams().get("session");
   const { credential } = useCredential();
   const { sessions, checks, ready } = useInventoryStore();
@@ -83,7 +84,11 @@ function ScanContent() {
     if (result.type === "ready") {
       const saved = saveCheck({ sessionId: session.id, asset: result.asset, result: "found", checker: credential, note: "สแกน QR" });
       setLastCheckId(saved?.id ?? null);
-      toast.show(saved ? `บันทึก ${result.asset.id}: ปกติ` : "บันทึกไม่สำเร็จ");
+      toast.show(
+        saved
+          ? `${translateText("บันทึกผล")} ${result.asset.id}: ${translateText("ปกติ")}`
+          : translateText("บันทึกไม่สำเร็จ"),
+      );
       return;
     }
     setOutcome(result);
@@ -94,12 +99,20 @@ function ScanContent() {
 
   const handleChangeLast = (result: "found" | "damaged" | "missing") => {
     if (!lastCheck || !credential) return;
-    toast.show(updateCheck(lastCheck.id, result, credential) ? `เปลี่ยน ${lastCheck.assetId} เป็น ${RESULT_LABEL[result]}` : "เปลี่ยนไม่สำเร็จ");
+    toast.show(
+      updateCheck(lastCheck.id, result, credential)
+        ? `${translateText("เปลี่ยน")} ${lastCheck.assetId} ${translateText("เป็น")} ${translateText(RESULT_LABEL[result])}`
+        : translateText("เปลี่ยนไม่สำเร็จ"),
+    );
   };
 
   const handleUndoLast = () => {
     if (!lastCheck) return;
-    toast.show(removeCheck(lastCheck.id) ? `ยกเลิกผล ${lastCheck.assetId} แล้ว` : "ยกเลิกไม่สำเร็จ");
+    toast.show(
+      removeCheck(lastCheck.id)
+        ? `${translateText("ยกเลิกผลตรวจ")} ${lastCheck.assetId}`
+        : translateText("ยกเลิกไม่สำเร็จ"),
+    );
     setLastCheckId(null);
   };
 
@@ -115,7 +128,11 @@ function ScanContent() {
           ? "พบทรัพย์สินที่จำหน่ายแล้วแต่ยังอยู่ในสาขา"
           : `พบทรัพย์สินของ${getBranchName(outcome.asset.branchId)} ที่${getBranchName(session.branchId)}`,
     });
-    toast.show(saved ? `บันทึก ${outcome.asset.id} ว่าสูญหาย (ไม่ตรงทะเบียน) แล้ว` : "บันทึกไม่สำเร็จ");
+    toast.show(
+      saved
+        ? `${translateText("บันทึกผล")} ${outcome.asset.id}: ${translateText("สูญหาย")} (${translateText("ไม่ตรงทะเบียน")})`
+        : translateText("บันทึกไม่สำเร็จ"),
+    );
     setOutcome(null);
   };
 
@@ -165,7 +182,7 @@ function ScanContent() {
                 <p className="text-sm font-semibold text-emerald-800">{translateText("สแกนล่าสุด")}</p>
                 <p className="text-base font-bold text-slate-900">{lastAsset.name}</p>
                 <p className="text-sm text-slate-600">
-                  {lastAsset.id} · {formatThaiDateTime(lastCheck.checkedAt)}
+                  {lastAsset.id} · {formatThaiDateTime(lastCheck.checkedAt, language)}
                 </p>
                 <label className="mt-3 flex items-center gap-3 text-base text-slate-700">
                   <span className="shrink-0">{translateText("สภาพทรัพย์สิน")}</span>
@@ -197,7 +214,7 @@ function ScanContent() {
         <MessageSheet
           tone="warn"
           title={translateText("สแกนซ้ำ")}
-          body={`${outcome.asset.name} (${outcome.asset.id}) ${translateText("ตรวจไปแล้วเมื่อ")} ${formatThaiDateTime(outcome.check.checkedAt)} ${translateText("โดย")} ${getCheckerName(outcome.check)}`}
+          body={`${outcome.asset.name} (${outcome.asset.id}) ${translateText("ตรวจไปแล้วเมื่อ")} ${formatThaiDateTime(outcome.check.checkedAt, language)} ${translateText("โดย")} ${getCheckerName(outcome.check)}`}
           primaryLabel={translateText("สแกนชิ้นต่อไป")}
           onPrimary={closeSheet}
         />

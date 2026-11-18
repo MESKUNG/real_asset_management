@@ -22,6 +22,7 @@ import {
   ImageIcon,
   X,
 } from "lucide-react";
+import { useTranslate } from "@/lib/language";
 
 type RoleKey = "user" | "admin" | "president" | "superadmin";
 
@@ -125,6 +126,7 @@ function compressImageToDataUrl(file: File, maxSize = 800): Promise<string> {
 }
 
 function EditAssetForm() {
+  const translateText = useTranslate();
   const router = useRouter();
   const searchParams = useSearchParams();
   const assetId = searchParams.get("id") || "";
@@ -220,17 +222,19 @@ function EditAssetForm() {
           <ShieldAlert size={28} />
         </div>
         <h2 className="text-lg font-bold text-slate-900 mb-1">
-          ไม่มีสิทธิ์เข้าถึงหน้านี้
+
+          {translateText("ไม่มีสิทธิ์เข้าถึงหน้านี้")}
         </h2>
         <p className="text-sm text-slate-500 mb-5">
-          เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถแก้ไขข้อมูลทรัพย์สินได้
+
+          {translateText("เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถแก้ไขข้อมูลทรัพย์สินได้")}
         </p>
         <Link
           href="/assets"
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition"
         >
           <ArrowLeft size={16} />
-          <span>กลับหน้ารายการทรัพย์สิน</span>
+          <span>{translateText("กลับหน้ารายการทรัพย์สิน")}</span>
         </Link>
       </div>
     );
@@ -240,14 +244,15 @@ function EditAssetForm() {
     return (
       <div className="min-h-screen bg-[#F8FAFC] p-8 flex flex-col items-center justify-center text-slate-600">
         <p className="text-lg font-semibold mb-3">
-          ไม่พบข้อมูลทรัพย์สินที่ต้องการแก้ไข ({assetId || "ไม่ได้ระบุรหัส"})
+
+          {translateText("ไม่พบข้อมูลทรัพย์สินที่ต้องการแก้ไข (")}{assetId || "ไม่ได้ระบุรหัส"})
         </p>
         <Link
           href="/assets"
           className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-xl"
         >
           <ArrowLeft size={16} />
-          <span>กลับหน้ารายการทรัพย์สิน</span>
+          <span>{translateText("กลับหน้ารายการทรัพย์สิน")}</span>
         </Link>
       </div>
     );
@@ -320,7 +325,7 @@ function EditAssetForm() {
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 text-slate-800">
       <form onSubmit={handleSubmit} className="max-w-6xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">แก้ไขทรัพย์สิน</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{translateText("แก้ไขทรัพย์สิน")}</h1>
           <p className="text-xs text-slate-400 mt-1">
             {targetAsset.id} · {targetAsset.name}
           </p>
@@ -329,13 +334,15 @@ function EditAssetForm() {
         {/* Card 1: ข้อมูลทั่วไป + รูปภาพทรัพย์สิน */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
-            ข้อมูลทั่วไป
+
+            {translateText("ข้อมูลทั่วไป")}
           </h2>
 
           {/* ส่วนอัปโหลดรูปภาพ */}
           <div className="mb-6">
             <label className="block text-xs font-semibold text-slate-700 mb-2">
-              รูปภาพทรัพย์สิน
+
+              {translateText("รูปภาพทรัพย์สิน")}
             </label>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
@@ -363,7 +370,7 @@ function EditAssetForm() {
                 ) : (
                   <div className="flex flex-col items-center text-slate-400">
                     <ImageIcon size={26} />
-                    <span className="text-[11px] mt-1">ไม่มีรูปภาพ</span>
+                    <span className="text-[11px] mt-1">{translateText("ไม่มีรูปภาพ")}</span>
                   </div>
                 )}
               </div>
@@ -400,12 +407,14 @@ function EditAssetForm() {
                       onClick={() => setAssetImage("")}
                       className="px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                     >
-                      ลบรูป
+
+                      {translateText("ลบรูป")}
                     </button>
                   )}
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  รองรับไฟล์ JPG, PNG, WEBP (ระบบจะปรับขนาดให้อัตโนมัติเพื่อความรวดเร็ว)
+
+                  {translateText("รองรับไฟล์ JPG, PNG, WEBP (ระบบจะปรับขนาดให้อัตโนมัติเพื่อความรวดเร็ว)")}
                 </p>
               </div>
             </div>
@@ -414,7 +423,8 @@ function EditAssetForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                รหัสทรัพย์สิน <span className="text-rose-500">*</span>
+
+                {translateText("รหัสทรัพย์สิน")} <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -423,13 +433,15 @@ function EditAssetForm() {
                 className="w-full px-4 py-2.5 text-sm bg-slate-200/70 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed"
               />
               <p className="text-[11px] text-slate-400 mt-1.5">
-                รหัสทรัพย์สินไม่สามารถเปลี่ยนแปลงได้
+
+                {translateText("รหัสทรัพย์สินไม่สามารถเปลี่ยนแปลงได้")}
               </p>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ชื่อทรัพย์สิน <span className="text-rose-500">*</span>
+
+                {translateText("ชื่อทรัพย์สิน")} <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -444,7 +456,8 @@ function EditAssetForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                หมวดหมู่ <span className="text-rose-500">*</span>
+
+                {translateText("หมวดหมู่")} <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <LayoutGrid
@@ -468,7 +481,8 @@ function EditAssetForm() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                สถานะ <span className="text-rose-500">*</span>
+
+                {translateText("สถานะ")} <span className="text-rose-500">*</span>
               </label>
               <button
                 type="button"
@@ -484,7 +498,7 @@ function EditAssetForm() {
                 >
                   {isAvailable && <Check size={14} strokeWidth={3} />}
                 </span>
-                <span>พร้อมใช้งาน</span>
+                <span>{translateText("พร้อมใช้งาน")}</span>
               </button>
             </div>
           </div>
@@ -492,7 +506,8 @@ function EditAssetForm() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ยี่ห้อ
+
+                {translateText("ยี่ห้อ")}
               </label>
               <input
                 type="text"
@@ -504,7 +519,8 @@ function EditAssetForm() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                รุ่น
+
+                {translateText("รุ่น")}
               </label>
               <input
                 type="text"
@@ -530,13 +546,15 @@ function EditAssetForm() {
 
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
-            สาขาและตำแหน่งจัดเก็บ
+
+            {translateText("สาขาและตำแหน่งจัดเก็บ")}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                สาขา <span className="text-rose-500">*</span>
+
+                {translateText("สาขา")} <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Building2
@@ -560,7 +578,8 @@ function EditAssetForm() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ผู้รับผิดชอบ
+
+                {translateText("ผู้รับผิดชอบ")}
               </label>
               <div className="relative">
                 <User
@@ -572,7 +591,7 @@ function EditAssetForm() {
                   onChange={(e) => setResponsiblePersonId(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">ยังไม่มอบหมาย</option>
+                  <option value="">{translateText("ยังไม่มอบหมาย")}</option>
                   <option value="1">กานต์ พิพัฒน์ (STF-001)</option>
                   <option value="2">นภา สุขใจ (STF-002)</option>
                   <option value="3">วิชัย ทองดี (STF-003)</option>
@@ -585,13 +604,15 @@ function EditAssetForm() {
 
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
-            การรับประกัน / และค่าเสื่อมราคา
+
+            {translateText("การรับประกัน / และค่าเสื่อมราคา")}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                มูลค่าที่ซื้อ (บาท)
+
+                {translateText("มูลค่าที่ซื้อ (บาท)")}
               </label>
               <input
                 type="number"
@@ -605,7 +626,8 @@ function EditAssetForm() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                วันที่ซื้อ
+
+                {translateText("วันที่ซื้อ")}
               </label>
               <input
                 type="date"
@@ -617,7 +639,8 @@ function EditAssetForm() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                สิ้นสุดการรับประกัน
+
+                {translateText("สิ้นสุดการรับประกัน")}
               </label>
               <input
                 type="date"
@@ -631,13 +654,15 @@ function EditAssetForm() {
 
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
-            ผู้จำหน่าย
+
+            {translateText("ผู้จำหน่าย")}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ผู้จำหน่าย
+
+                {translateText("ผู้จำหน่าย")}
               </label>
               <input
                 type="text"
@@ -649,7 +674,8 @@ function EditAssetForm() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ที่อยู่
+
+                {translateText("ที่อยู่")}
               </label>
               <input
                 type="text"
@@ -664,7 +690,8 @@ function EditAssetForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                เบอร์ติดต่อ
+
+                {translateText("เบอร์ติดต่อ")}
               </label>
               <input
                 type="tel"
@@ -677,7 +704,8 @@ function EditAssetForm() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                อีเมล
+
+                {translateText("อีเมล")}
               </label>
               <input
                 type="email"
@@ -697,7 +725,8 @@ function EditAssetForm() {
 
           <div className="mb-5">
             <label className="block text-xs font-semibold text-slate-700 mb-2">
-              รหัส QR / Barcode
+
+              {translateText("รหัส QR / Barcode")}
             </label>
             <input
               type="text"
@@ -789,13 +818,15 @@ function EditAssetForm() {
             href={`/assets/${targetAsset.id}`}
             className="w-full py-3 px-6 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl text-center transition"
           >
-            ยกเลิก
+
+            {translateText("ยกเลิก")}
           </Link>
           <button
             type="submit"
             className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-xs transition cursor-pointer"
           >
-            บันทึกการเปลี่ยนแปลง
+
+            {translateText("บันทึกการเปลี่ยนแปลง")}
           </button>
         </div>
       </form>
@@ -804,8 +835,9 @@ function EditAssetForm() {
 }
 
 export default function EditAssetPage() {
+  const translateText = useTranslate();
   return (
-    <Suspense fallback={<div className="p-8 text-sm text-slate-500">กำลังโหลดข้อมูล...</div>}>
+    <Suspense fallback={<div className="p-8 text-sm text-slate-500">{translateText("กำลังโหลดข้อมูล...")}</div>}>
       <EditAssetForm />
     </Suspense>
   );

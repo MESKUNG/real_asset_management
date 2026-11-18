@@ -1,5 +1,5 @@
 "use client";
-import { useTranslate } from "@/lib/language";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 ///////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////
@@ -30,16 +30,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {       //�
   return typeof value === "object" && value !== null && !Array.isArray(value);     //ตรวจสอบว่าเป็น object และไม่ใช่ null และไม่ใช่ Array
 }
 
-function formatDate(value: string) {       //แปลงวันที่เป็นภาษาไทย
-  return new Intl.DateTimeFormat("th-TH", {           //เป็น web api ที่ใช้ในการแปลงวันที่เป็นภาษาไทย โดยกำหนด locale เป็น "th-TH"
-    day: "numeric",  
+function formatDate(value: string, language: "th" | "en") {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
+    day: "numeric",
     month: "short",       //เป็นตัวย่อ ม.ค.
     year: "numeric",
   }).format(new Date(value));      //แปลง String ให้เป็น Date Object
 }
 
-function formatDateTime(value: string) {        //แปลงวันที่และเวลาเป็นภาษาไทย
-  return new Intl.DateTimeFormat("th-TH", {
+function formatDateTime(value: string, language: "th" | "en") {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -47,7 +47,7 @@ function formatDateTime(value: string) {        //แปลงวันที่
   }).format(new Date(value));
 }
 
-function getActivityColor(action: string, newValue: string | null) {          //กําหนดสีตามความเปลี่ยนแปลงของทรัพย์สิน 
+function getActivityColor(action: string, newValue: string | null) {          //กําหนดสีตามความเปลี่ยนแปลงของทรัพย์สิน
     if (action === "disposed" || newValue === "disposed") return "text-slate-600";
     if (action === "transferred") return "text-indigo-600";           //หากกิจกรรมเป็นการย้ายทรัพย์สิน จะคืนค่า Class ของ Tailwind CSS เป็นสี Indigo
     if (action === "assigned") return "text-blue-600";               //หากกิจกรรมเป็นการมอบหมายทรัพย์สิน จะคืนค่าเป็นสีน้ำเงิน
@@ -70,12 +70,13 @@ function getActivityColor(action: string, newValue: string | null) {          //
 
 
 export default function Page() {
+  const language = useLanguage();
   const translateText = useTranslate();
   const [branchId, setBranchId] = useState<string | null>(null);        //ใช้เก็บรหัสสาขาของผู้ใช้งานที่เข้าสู่ระบบ ค่าเริม่ต้นเป้น null
   const [branchResolved, setBranchResolved] = useState(false);          //ใช้ตรวจสอบว่าระบบอ่านข้อมูลสาขาของผู้ใช้งานเสร็จแล้วหรือยัง
 
   useEffect(() => {            //สำหรับอ่านข้อมูลสาขาจาก localStorage
-    const loadBranch = () => {                   //รวบรวมคำสั่งทั้งหมดที่เกี่ยวข้องกับการอ่านข้อมูลสาขาไว้ด้วยกัน               
+    const loadBranch = () => {                   //รวบรวมคำสั่งทั้งหมดที่เกี่ยวข้องกับการอ่านข้อมูลสาขาไว้ด้วยกัน
       const credentialString = localStorage.getItem("credential");       //อ่านข้อมูลจาก localStorage
       if (!credentialString) {              //ถ้าไม่มีข้อมูล
         setBranchId(null);            //branchId เป็น null
@@ -105,7 +106,7 @@ export default function Page() {
     window.addEventListener("credentialchange", loadBranch);     //เพิ่ม Event Listener ให้กับ Browser เพื่อรอฟัง Event ที่ชื่อ "credentialchange"  เมื่อมีการส่ง Event ชื่อนี้ ก็จะเรียก Function loadBranch() อีกครั้ง
     window.addEventListener("storage", loadBranch);         //การตรวจจับ Event มาตรฐานของ Browser ที่ชื่อ "storage" Event นี้จะเกิดขึ้นเมื่อข้อมูลใน Web Storage ถูกเปลี่ยนแปลงจากหน้าเว็บหรือแท็บอื่นที่อยู่ใน Origin เดียวกัน
     return () => {                       //Cleanup Function ลบ Event Listener ที่เคยเพิ่มไว้เมื่อ Component ถูกถอดออกจากหน้าเว็บ หรือเมื่อ Effect ถูกทำความสะอาดก่อนทำงานใหม่ กัน memoryleak
-      window.removeEventListener("credentialchange", loadBranch); 
+      window.removeEventListener("credentialchange", loadBranch);
       window.removeEventListener("storage", loadBranch);
     };
   }, []);     //dependenc array ทำตอนโหลดหน้าครั้งแรก
@@ -123,22 +124,20 @@ export default function Page() {
   const todayDate = new Date();                //จะสร้าง Date Object โดยอ้างอิงวันที่และเวลาปัจจุบันของเครื่อง
   const today = `${todayDate.getFullYear()}-${String(          //เก็บค่า today โดย getFullYear เก็บคศ  getMonth เก็บเดือน(+1 เพราะ index เริ่ม 0)
     todayDate.getMonth() + 1,
-  ).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;     //padStartใช้เติมตัวอักษรด้านหน้าจนกว่าจะมีความยาวครบ 2 ตัวอักษร โดยการเติม "0"      
+  ).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;     //padStartใช้เติมตัวอักษรด้านหน้าจนกว่าจะมีความยาวครบ 2 ตัวอักษร โดยการเติม "0"
 
-  const pieData = (Object.keys(statusDetails) as AssetStatus[]).map(  //ดึงชื่อ Key ทั้งหมดจาก Object ออกมาเป็น Array จาก Object statusDetails 
+  const pieData = (Object.keys(statusDetails) as AssetStatus[]).map(  //ดึงชื่อ Key ทั้งหมดจาก Object ออกมาเป็น Array จาก Object statusDetails
     (status) => ({                               //นำมาสร้าง array method เป็น obj ใหม่ที่ประกอบด้วย name value color
-      name: statusDetails[status].name,          //ดึงชื่อ name ภาษาไทยมาจาก statusdetail 
-      value: scopedAssets.filter((asset) => asset.status === status).length,     //กรองทรัพย์สิน ที่มีสถานะตรงกับเงื่อนไข จากนั้นนับจำนวนผ่าน .length  
+      name: translateText(statusDetails[status].name),
+      value: scopedAssets.filter((asset) => asset.status === status).length,     //กรองทรัพย์สิน ที่มีสถานะตรงกับเงื่อนไข จากนั้นนับจำนวนผ่าน .length
       color: statusDetails[status].color,    //ดึงสีประจำสถานะ จาก status detail
     }),
   );
   const availableAssets = scopedAssets.filter(   //เอา scopeAsset จากข้างบน มาfilter นับจำนวนทรัพย์สินที่มีสถานะ avaliable
-    (asset) => asset.status === "available",    
-  ).length;        
-  const damagedAssets =                  //นับจำนวน
-    pieData.find((item) => item.name === "ชำรุด")?.value ?? 0;      //นับจำนวนทรัพย์สินที่ชำรุด จาก pieData.name ด้านบน
-  const repairAssets =
-    pieData.find((item) => item.name === "กำลังซ่อม")?.value ?? 0;     //นับจำนวนทรัพย์สินที่กำลังซ่อมจาก pieData.name ด้านบน
+    (asset) => asset.status === "available",
+  ).length;
+  const damagedAssets = scopedAssets.filter((asset) => asset.status === "damaged").length;
+  const repairAssets = scopedAssets.filter((asset) => asset.status === "repair").length;
   const maintenanceAssets = damagedAssets + repairAssets;        //รวมจำนวนทรัพย์สินที่ชำรุด กำลังซ่อม เป็น ซ่อมหรือชำรุด เพื่อเอาไปใส่ card ด้านบน
 
   const activeRepairs = repairRequests.filter(      //เอา Data repairRequest มา filter
@@ -147,9 +146,9 @@ export default function Page() {
       (request.status === "pending" || request.status === "in_progress"),       //สถานะจะเป็น กำลังซ่อม หรือ รอดำเนินการก็ได้
   ).length;                                                   //แล้วนับจำนวน
 
-  const activeBorrowRequests = borrowRequests.filter(              //นับจำนวนคำขอยืมทุกอย่างที่อยู่ในกระบวนการ          
+  const activeBorrowRequests = borrowRequests.filter(              //นับจำนวนคำขอยืมทุกอย่างที่อยู่ในกระบวนการ
     (request) =>
-      (!branchId || request.branchId === branchId) &&             //หากผู้ใช้ไม่มีม brancheID ก็แสดงทุกสาขา แต่ถ้ามี ต้อง request.branchId เหมือนกับ branch.Id 
+      (!branchId || request.branchId === branchId) &&             //หากผู้ใช้ไม่มีม brancheID ก็แสดงทุกสาขา แต่ถ้ามี ต้อง request.branchId เหมือนกับ branch.Id
       ["pending", "revision", "approved", "overdue"].includes(request.status),             //นับคำขอที่ยังต้องดำเนินการ รวมรายการที่ส่งกลับให้แก้ไข
   ).length;
 
@@ -166,9 +165,9 @@ export default function Page() {
     .sort((a, b) => a.warrantyEndDate.localeCompare(b.warrantyEndDate))[0];     //เรียงลำดับวันหมดประกัน จากใกล้สุดไปไกลสุด      แต่เอาตัวแรก [0]
 
   const scopedAssetIds = new Set(scopedAssets.map((asset) => asset.id));                //สร้าง Set ที่เก็บ ID ของ Asset ที่จะแสดง    map เฉพาะ asset id
-  
-   //ดึงประวัติการเปลี่ยนแปลงทรัพย์สินล่าสุด 
-  const recentActivities = assetHistories                
+
+   //ดึงประวัติการเปลี่ยนแปลงทรัพย์สินล่าสุด
+  const recentActivities = assetHistories
     .filter((history) => {              //กรองข้อมูลจากdata assethistories
       if (!branchId) return false;
       if (history.action === "transferred") {       //ถ้า action เป้นย้าย
@@ -207,7 +206,7 @@ export default function Page() {
         <div>
           <h1 className="text-xl font-bold">{translateText("สรุปสถานะทรัพย์สิน")}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            
+
             {translateText("สาขาที่ผูกกับบัญชี:")}{" "}
             <span className="font-medium text-red-600">{branchLabel}</span>
           </p>
@@ -230,14 +229,14 @@ export default function Page() {
               {hasScope ? availableAssets : "—"}
             </div>
             <div className="text-sm text-green-600">
-              
+
               {translateText("พร้อมสำหรับการมอบหมาย")}
             </div>
           </div>
           <div className="flex flex-col gap-3 rounded-xl border border-gray-300 bg-white p-4">
             <div className="flex justify-between">
               <div className="text-base text-gray-500 sm:text-lg">
-                
+
                 {translateText("ชำรุด/อยู่ระหว่างซ่อมบำรุง")}
               </div>
               <Wrench className="text-red-600" />
@@ -246,7 +245,7 @@ export default function Page() {
               {hasScope ? maintenanceAssets : "—"}
             </div>
             <div className="text-sm text-red-600">
-              
+
               {translateText("ชำรุด")} {hasScope ? damagedAssets : "—"}  {translateText("| กำลังซ่อม")}{" "}
               {hasScope ? repairAssets : "—"}
             </div>
@@ -262,7 +261,7 @@ export default function Page() {
             <span className="text-right text-sm text-red-600">
               {hasScope
                 ? nextInventory
-                  ? formatDate(nextInventory.startDate)
+                  ? formatDate(nextInventory.startDate, language)
                   : "ไม่มีรอบตรวจนับที่กำหนด"
                 : scopeUnavailableLabel}
             </span>
@@ -286,8 +285,8 @@ export default function Page() {
                 <>
                   {nearestWarrantyAsset.name}
                   <br />
-                  
-                  {translateText("หมดประกัน")} {formatDate(nearestWarrantyAsset.warrantyEndDate)}
+
+                  {translateText("หมดประกัน")} {formatDate(nearestWarrantyAsset.warrantyEndDate, language)}
                 </>
               ) : hasScope ? (
                 "ไม่มีข้อมูลวันหมดประกัน"
@@ -339,7 +338,7 @@ export default function Page() {
                       dominantBaseline="middle"
                       className="fill-gray-500 text-xs"
                     >
-                      
+
                       {translateText("จำนวนทรัพย์สินทั้งหมด")}
                     </text>
                   </PieChart>
@@ -377,7 +376,7 @@ export default function Page() {
           <div className="rounded-xl border border-gray-200 bg-white p-4 xl:col-span-2">
             <h3 className="font-semibold">{translateText("รายการล่าสุด")}</h3>
             <p className="mt-1 text-xs text-gray-500">
-              
+
               {translateText("กิจกรรมล่าสุดของ")} {scopeLabel}
             </p>
             <ul className="mt-2 divide-y divide-gray-200">
@@ -397,7 +396,7 @@ export default function Page() {
                       )}`}
                     >
                       {activity.description} ·{" "}
-                      {formatDateTime(activity.performedAt)}
+                      {formatDateTime(activity.performedAt, language)}
                     </div>
                   </li>
                 ))

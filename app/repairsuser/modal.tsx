@@ -83,7 +83,7 @@ export default function CreateRepairModal({
             id="create-repair-title"
             className={`text-lg font-semibold ${primaryTextClass}`}
           >
-            
+
             {translateText("สร้างคำร้องแจ้งซ่อม")}
           </h2>
           <button
@@ -221,12 +221,11 @@ export default function CreateRepairModal({
               readOnly
             />
             <span className={`mt-1.5 flex h-10 items-center rounded-md border px-3 text-sm font-normal ${isDark ? "border-slate-600 bg-slate-800 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-              {translateText("              สาขาเชียงใหม่")}
-            </span>
+              {translateText("สาขาเชียงใหม่")}</span>
           </label>
           {/* ต้องกรอกอาการก่อนส่งคำร้อง */}
           <label className={`block text-sm font-medium ${secondaryTextClass}`}>
-            
+
             {translateText("อาการที่พบ")}
             <textarea
               name="issue"
@@ -238,7 +237,7 @@ export default function CreateRepairModal({
           </label>
           {/* เลือกระดับความเร่งด่วนของงานซ่อม */}
           <label className={`block text-sm font-medium ${secondaryTextClass}`}>
-            
+
             {translateText("ระดับความเร่งด่วน")}
             <select
               name="priority"
@@ -258,7 +257,7 @@ export default function CreateRepairModal({
               onClick={onClose}
               className={`rounded-md border px-4 py-2 text-sm transition ${isDark ? "border-slate-600 text-slate-200 hover:bg-slate-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
             >
-              
+
               {translateText("ยกเลิก")}
             </button>
             <button
@@ -266,7 +265,7 @@ export default function CreateRepairModal({
               className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
               <Plus className="size-4" />
-              
+
               {translateText("ส่งคำร้อง")}
             </button>
           </div>

@@ -35,15 +35,6 @@ function isCompletedRequest(
   return request.status === "completed" && request.completedAt !== null;
 }
 
-// จัดวันที่ให้อ่านง่ายก่อนนำไปแสดงบนหน้า
-function formatThaiDate(date: string) {
-  // เปลี่ยนวันที่ให้แสดงเป็นรูปแบบภาษาไทย
-  return new Date(date).toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
   // จำคำค้นหา หน้าที่กำลังดู และรายการที่เลือกเปิดรายละเอียด
 function RepairHistoryAdminPageContent() {
   const router = useRouter();
@@ -117,11 +108,11 @@ function RepairHistoryAdminPageContent() {
       <div className="mx-auto max-w-[1440px]">
         <header className="mb-6">
           <h1 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
-            
+
             {translateText("ประวัติซ่อม")}
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            
+
             {translateText("ประวัติการซ่อมครุภัณฑ์ที่ดำเนินการเสร็จสิ้นแล้ว")}
           </p>
         </header>
@@ -164,12 +155,12 @@ function RepairHistoryAdminPageContent() {
                         {request.id}
                       </p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        
+
                         {translateText("เสร็จสิ้น")} {formatLocalizedDate(request.completedAt, language)}
                       </p>
                     </div>
                     <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
-                      
+
                       {translateText("เสร็จสิ้น")}
                     </span>
                   </div>
@@ -191,7 +182,7 @@ function RepairHistoryAdminPageContent() {
                     onClick={() => setManuallySelectedRequest(request)}
                     className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                   >
-                    
+
                     {translateText("ดูรายละเอียด")}
                   </button>
                 </article>
@@ -199,7 +190,7 @@ function RepairHistoryAdminPageContent() {
             })}
             {visibleRequests.length === 0 && (
               <p className="px-4 py-10 text-center text-sm text-slate-500">
-                
+
                 {translateText("ไม่พบประวัติซ่อมที่ตรงกับการค้นหา")}
               </p>
             )}
@@ -255,7 +246,7 @@ function RepairHistoryAdminPageContent() {
                       </td>
                       <td className="px-4 py-4">
                         <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
-                          
+
                           {translateText("เสร็จสิ้น")}
                         </span>
                       </td>
@@ -265,7 +256,7 @@ function RepairHistoryAdminPageContent() {
                           onClick={() => setManuallySelectedRequest(request)}
                           className="whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         >
-                          
+
                           {translateText("ดูรายละเอียด")}
                         </button>
                       </td>
@@ -278,7 +269,7 @@ function RepairHistoryAdminPageContent() {
                       colSpan={6}
                       className="px-4 py-12 text-center text-sm text-slate-500"
                     >
-                      
+
                       {translateText("ไม่พบประวัติซ่อมที่ตรงกับการค้นหา")}
                     </td>
                   </tr>
@@ -290,7 +281,7 @@ function RepairHistoryAdminPageContent() {
           {/* ปุ่มเปลี่ยนหน้า; จำนวนรายการต่อหน้าปรับได้ที่ pageSize ด้านบน */}
           <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
             <p className="text-[11px] text-slate-500">
-              
+
               {translateText("แสดง")}{" "}
               {filteredRequests.length === 0
                 ? 0
@@ -357,7 +348,7 @@ function RepairHistoryAdminPageContent() {
                   id="repair-history-dialog-title"
                   className="text-lg font-semibold text-slate-900"
                 >
-                  
+
                   {translateText("รายละเอียดการซ่อม")}
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">

@@ -5,10 +5,12 @@ import { QRCodeSVG } from "qrcode.react";
 import Image from "next/image";
 import Barcode from "react-barcode";
 import { assets } from "@/data/asset";
+import { useTranslate } from "@/lib/language";
 
 type Asset = (typeof assets)[number];
 
 function AssetQRCode({ asset }: { asset: Asset }) {
+  const translateText = useTranslate();
 
   const qrId = `qr-${asset.id}`;
   const barcodeId = `barcode-${asset.id}`;
@@ -131,7 +133,8 @@ function AssetQRCode({ asset }: { asset: Asset }) {
           }
           className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
         >
-          ดาวน์โหลด QR Code (PNG)
+
+          {translateText("ดาวน์โหลด QR Code (PNG)")}
         </button>
 
       </div>
@@ -168,7 +171,8 @@ function AssetQRCode({ asset }: { asset: Asset }) {
           }
           className="w-full rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 transition"
         >
-          ดาวน์โหลด Barcode (PNG)
+
+          {translateText("ดาวน์โหลด Barcode (PNG)")}
         </button>
 
       </div>
@@ -179,12 +183,14 @@ function AssetQRCode({ asset }: { asset: Asset }) {
 
 // หน้าหลัก
 export default function QRCodePage() {
+  const translateText = useTranslate();
 
   return (
     <main className="min-h-screen bg-gray-100 p-8">
 
       <h1 className="text-2xl font-bold mb-6 text-gray-800">
-        QR Code และ Barcode ครุภัณฑ์
+
+        {translateText("QR Code และ Barcode ครุภัณฑ์")}
       </h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -11,6 +11,7 @@ import {
   subscribeAssets,
 } from "@/lib/assetStorage";
 import { Trash2, ShieldAlert, ArrowLeft } from "lucide-react";
+import { useTranslate } from "@/lib/language";
 
 type RoleKey = "user" | "admin" | "president" | "superadmin";
 
@@ -60,6 +61,7 @@ function getClientCredential(): CredentialData {
 }
 
 function DeleteAssetForm() {
+  const translateText = useTranslate();
   const router = useRouter();
   const searchParams = useSearchParams();
   const assetId = searchParams.get("id") || "";
@@ -110,17 +112,19 @@ function DeleteAssetForm() {
           <ShieldAlert size={28} />
         </div>
         <h2 className="text-lg font-bold text-slate-900 mb-1">
-          ไม่มีสิทธิ์เข้าถึงหน้านี้
+
+          {translateText("ไม่มีสิทธิ์เข้าถึงหน้านี้")}
         </h2>
         <p className="text-sm text-slate-500 mb-5">
-          เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถลบรายการทรัพย์สินได้
+
+          {translateText("เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถลบรายการทรัพย์สินได้")}
         </p>
         <Link
           href="/assets"
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition"
         >
           <ArrowLeft size={16} />
-          <span>กลับหน้ารายการทรัพย์สิน</span>
+          <span>{translateText("กลับหน้ารายการทรัพย์สิน")}</span>
         </Link>
       </div>
     );
@@ -130,14 +134,15 @@ function DeleteAssetForm() {
     return (
       <div className="min-h-screen bg-[#F8FAFC] p-8 flex flex-col items-center justify-center text-slate-600">
         <p className="text-lg font-semibold mb-3">
-          ไม่พบข้อมูลทรัพย์สินที่ต้องการลบ ({assetId || "ไม่ได้ระบุรหัส"})
+
+          {translateText("ไม่พบข้อมูลทรัพย์สินที่ต้องการลบ (")}{assetId || "ไม่ได้ระบุรหัส"})
         </p>
         <Link
           href="/assets"
           className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-xl"
         >
           <ArrowLeft size={16} />
-          <span>กลับหน้ารายการทรัพย์สิน</span>
+          <span>{translateText("กลับหน้ารายการทรัพย์สิน")}</span>
         </Link>
       </div>
     );
@@ -173,10 +178,11 @@ function DeleteAssetForm() {
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 text-slate-800">
       <div className="max-w-5xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">ลบทรัพย์สิน</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{translateText("ลบทรัพย์สิน")}</h1>
           <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1">
             <Link href="/assets" className="hover:text-indigo-600 transition">
-              ทรัพย์สินทั้งหมด
+
+              {translateText("ทรัพย์สินทั้งหมด")}
             </Link>
             <span>/</span>
             <Link
@@ -186,7 +192,7 @@ function DeleteAssetForm() {
               {targetAsset.id}
             </Link>
             <span>/</span>
-            <span className="text-slate-500 font-medium">ยืนยันการลบ</span>
+            <span className="text-slate-500 font-medium">{translateText("ยืนยันการลบ")}</span>
           </div>
         </div>
 
@@ -200,10 +206,12 @@ function DeleteAssetForm() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                ยืนยันการลบทรัพย์สิน?
+
+                {translateText("ยืนยันการลบทรัพย์สิน?")}
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                การดำเนินการนี้ไม่สามารถย้อนกลับได้
+
+                {translateText("การดำเนินการนี้ไม่สามารถย้อนกลับได้")}
               </p>
             </div>
           </div>
@@ -225,7 +233,8 @@ function DeleteAssetForm() {
 
           <div className="mb-6">
             <label className="block text-xs font-semibold text-slate-700 mb-2">
-              พิมพ์รหัสทรัพย์สินเพื่อยืนยัน <span className="text-rose-500">*</span>
+
+              {translateText("พิมพ์รหัสทรัพย์สินเพื่อยืนยัน")} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -241,7 +250,8 @@ function DeleteAssetForm() {
               href={`/assets/${targetAsset.id}`}
               className="w-full py-3 px-6 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl text-center transition"
             >
-              ยกเลิก
+
+              {translateText("ยกเลิก")}
             </Link>
             <button
               type="submit"
@@ -252,7 +262,8 @@ function DeleteAssetForm() {
                   : "bg-rose-50 text-rose-400 cursor-not-allowed"
               }`}
             >
-              ยืนยันการลบ
+
+              {translateText("ยืนยันการลบ")}
             </button>
           </div>
         </form>
@@ -262,9 +273,10 @@ function DeleteAssetForm() {
 }
 
 export default function DeleteAssetPage() {
+  const translateText = useTranslate();
   return (
     <Suspense
-      fallback={<div className="p-8 text-sm text-slate-500">กำลังโหลดข้อมูล...</div>}
+      fallback={<div className="p-8 text-sm text-slate-500">{translateText("กำลังโหลดข้อมูล...")}</div>}
     >
       <DeleteAssetForm />
     </Suspense>

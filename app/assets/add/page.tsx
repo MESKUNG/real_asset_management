@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   Check,
 } from "lucide-react";
+import { useTranslate } from "@/lib/language";
 
 type RoleKey = "user" | "admin" | "president" | "superadmin";
 
@@ -74,6 +75,7 @@ function getClientCredential(): CredentialData {
 }
 
 export default function AddAssetPage() {
+  const translateText = useTranslate();
   const router = useRouter();
 
   const allAssets = useSyncExternalStore(
@@ -151,17 +153,19 @@ export default function AddAssetPage() {
           <ShieldAlert size={28} />
         </div>
         <h2 className="text-lg font-bold text-slate-900 mb-1">
-          ไม่มีสิทธิ์เข้าถึงหน้านี้
+
+          {translateText("ไม่มีสิทธิ์เข้าถึงหน้านี้")}
         </h2>
         <p className="text-sm text-slate-500 mb-5">
-          เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถเพิ่มรายการทรัพย์สินได้
+
+          {translateText("เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถเพิ่มรายการทรัพย์สินได้")}
         </p>
         <Link
           href="/assets"
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition"
         >
           <ArrowLeft size={16} />
-          <span>กลับหน้ารายการทรัพย์สิน</span>
+          <span>{translateText("กลับหน้ารายการทรัพย์สิน")}</span>
         </Link>
       </div>
     );
@@ -215,19 +219,21 @@ export default function AddAssetPage() {
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 text-slate-800">
       <form onSubmit={handleSubmit} className="max-w-6xl mx-auto space-y-6">
         {/* Page Title */}
-        <h1 className="text-2xl font-bold text-slate-900">เพิ่มทรัพย์สิน</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{translateText("เพิ่มทรัพย์สิน")}</h1>
 
         {/* Card 1: ข้อมูลทั่วไป */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
-            ข้อมูลทั่วไป
+
+            {translateText("ข้อมูลทั่วไป")}
           </h2>
 
           {/* แถว 1: รหัสทรัพย์สิน & ชื่อทรัพย์สิน */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                รหัสทรัพย์สิน
+
+                {translateText("รหัสทรัพย์สิน")}
               </label>
               <input
                 type="text"
@@ -239,7 +245,8 @@ export default function AddAssetPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ชื่อทรัพย์สิน <span className="text-rose-500">*</span>
+
+                {translateText("ชื่อทรัพย์สิน")} <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -256,7 +263,8 @@ export default function AddAssetPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                หมวดหมู่ <span className="text-rose-500">*</span>
+
+                {translateText("หมวดหมู่")} <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <LayoutGrid
@@ -280,7 +288,8 @@ export default function AddAssetPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                สถานะ <span className="text-rose-500">*</span>
+
+                {translateText("สถานะ")} <span className="text-rose-500">*</span>
               </label>
               <button
                 type="button"
@@ -296,7 +305,7 @@ export default function AddAssetPage() {
                 >
                   {isAvailable && <Check size={14} strokeWidth={3} />}
                 </span>
-                <span>พร้อมใช้งาน</span>
+                <span>{translateText("พร้อมใช้งาน")}</span>
               </button>
             </div>
           </div>
@@ -305,7 +314,8 @@ export default function AddAssetPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ยี่ห้อ
+
+                {translateText("ยี่ห้อ")}
               </label>
               <input
                 type="text"
@@ -318,7 +328,8 @@ export default function AddAssetPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                รุ่น
+
+                {translateText("รุ่น")}
               </label>
               <input
                 type="text"
@@ -347,13 +358,15 @@ export default function AddAssetPage() {
         {/* Card 2: สาขาและตำแหน่งจัดเก็บ */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
-            สาขาและตำแหน่งจัดเก็บ
+
+            {translateText("สาขาและตำแหน่งจัดเก็บ")}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                สาขา <span className="text-rose-500">*</span>
+
+                {translateText("สาขา")} <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <Building2
@@ -377,7 +390,8 @@ export default function AddAssetPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ผู้รับผิดชอบ
+
+                {translateText("ผู้รับผิดชอบ")}
               </label>
               <div className="relative">
                 <User
@@ -389,7 +403,7 @@ export default function AddAssetPage() {
                   onChange={(e) => setResponsiblePersonId(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">ยังไม่มอบหมาย</option>
+                  <option value="">{translateText("ยังไม่มอบหมาย")}</option>
                   <option value="1">กานต์ พิพัฒน์ (STF-001)</option>
                   <option value="2">นภา สุขใจ (STF-002)</option>
                   <option value="3">วิชัย ทองดี (STF-003)</option>
@@ -403,13 +417,15 @@ export default function AddAssetPage() {
         {/* Card 3: การรับประกัน / และค่าเสื่อมราคา */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
-            การรับประกัน / และค่าเสื่อมราคา
+
+            {translateText("การรับประกัน / และค่าเสื่อมราคา")}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                มูลค่าที่ซื้อ (บาท)
+
+                {translateText("มูลค่าที่ซื้อ (บาท)")}
               </label>
               <input
                 type="number"
@@ -424,7 +440,8 @@ export default function AddAssetPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                วันที่ซื้อ
+
+                {translateText("วันที่ซื้อ")}
               </label>
               <input
                 type="date"
@@ -436,7 +453,8 @@ export default function AddAssetPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                สิ้นสุดการรับประกัน
+
+                {translateText("สิ้นสุดการรับประกัน")}
               </label>
               <input
                 type="date"
@@ -451,13 +469,15 @@ export default function AddAssetPage() {
         {/* Card 4: ผู้จำหน่าย */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
-            ผู้จำหน่าย
+
+            {translateText("ผู้จำหน่าย")}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ผู้จำหน่าย
+
+                {translateText("ผู้จำหน่าย")}
               </label>
               <input
                 type="text"
@@ -470,7 +490,8 @@ export default function AddAssetPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                ที่อยู่
+
+                {translateText("ที่อยู่")}
               </label>
               <input
                 type="text"
@@ -485,7 +506,8 @@ export default function AddAssetPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                เบอร์ติดต่อ
+
+                {translateText("เบอร์ติดต่อ")}
               </label>
               <input
                 type="tel"
@@ -498,7 +520,8 @@ export default function AddAssetPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                อีเมล
+
+                {translateText("อีเมล")}
               </label>
               <input
                 type="email"
@@ -517,13 +540,15 @@ export default function AddAssetPage() {
             href="/assets"
             className="w-full py-3 px-6 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl text-center transition"
           >
-            ยกเลิก
+
+            {translateText("ยกเลิก")}
           </Link>
           <button
             type="submit"
             className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-xs transition cursor-pointer"
           >
-            บันทึกทรัพย์สิน
+
+            {translateText("บันทึกทรัพย์สิน")}
           </button>
         </div>
       </form>

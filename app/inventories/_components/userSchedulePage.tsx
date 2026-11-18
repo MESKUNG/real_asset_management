@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslate } from "@/lib/language";
+import { useLanguage, useTranslate } from "@/lib/language";
 import type { StoredCheck, StoredSession } from "@/lib/inventory";
 import {
   daysFromToday,
@@ -18,6 +18,7 @@ const byStartDate = (a: StoredSession, b: StoredSession) => a.startDate.localeCo
 
 export default function UserSchedulePage() {
   const translateText = useTranslate();
+  const language = useLanguage();
   const { credential } = useCredential();
   const { sessions, checks, ready } = useInventoryStore();
   if (!ready) return <Loading />;
@@ -55,6 +56,7 @@ export default function UserSchedulePage() {
                   session={session}
                   checks={checks}
                   translateText={translateText}
+                  language={language}
                 />
               ))}
             </div>
@@ -82,7 +84,7 @@ export default function UserSchedulePage() {
                       <p className="text-base font-semibold text-slate-900">{session.name}</p>
                       <p className="text-sm text-slate-500">
                         {session.id} · {getBranchName(session.branchId)} ·{" "}
-                        {formatDateRange(session.startDate, session.endDate)}
+                        {formatDateRange(session.startDate, session.endDate, language)}
                       </p>
                     </div>
                   </div>
@@ -106,7 +108,7 @@ export default function UserSchedulePage() {
                   <div className="min-w-0">
                     <p className="truncate text-base text-slate-800">{session.name}</p>
                     <p className="text-sm text-slate-500">
-                      {formatDateRange(session.startDate, session.endDate)}
+                      {formatDateRange(session.startDate, session.endDate, language)}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -134,10 +136,12 @@ function ActiveCard({
   session,
   checks,
   translateText,
+  language,
 }: {
   session: StoredSession;
   checks: StoredCheck[];
   translateText: (text: string) => string;
+  language: "th" | "en";
 }) {
   const progress = getSessionProgress(session, checks);
   const started = progress.checked > 0;
@@ -158,7 +162,7 @@ function ActiveCard({
         </div>
         <div>
           <dt className="text-sm text-slate-500">{translateText("ช่วงวันที่")}</dt>
-          <dd className="font-semibold">{formatDateRange(session.startDate, session.endDate)}</dd>
+          <dd className="font-semibold">{formatDateRange(session.startDate, session.endDate, language)}</dd>
         </div>
         {session.assigneeId && (
           <div className="col-span-2">

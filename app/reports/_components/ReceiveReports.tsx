@@ -45,11 +45,11 @@ import {
   getMovementRows,
   getPeriods,
   getRegisterRows,
+  localizedPeriodLabel,
   markReportRead,
   movementSheet,
   registerSheet,
   reportSheet,
-  todayText,
   useReportStore,
   type ApprovalRow,
   type MovementRow,
@@ -59,6 +59,7 @@ import { Toast, useToast } from "@/app/inventories/_components/ui";
 import { Badge, Card, DetailDialog, DetailList, SelectField, reportButton } from "./parts";
 import { ReportBody } from "./ReportBody";
 import type { Asset } from "@/data/asset";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 type ReportKind = "movement" | "register" | "approval";
 
@@ -97,6 +98,9 @@ const PAGE_STEP = 10;
 type Filters = { kind: ReportKind; branchId: string; periodKey: string; status: string };
 
 export default function ReceiveReports({ role }: { role: "admin" | "president" }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
+  const numberLocale = language === "en" ? "en-US" : "th-TH";
   const toast = useToast();
   const [periods] = useState(() => getPeriods());
   const defaults: Filters = { kind: "movement", branchId: "all", periodKey: periods[0].key, status: "all" };
@@ -153,12 +157,14 @@ export default function ReceiveReports({ role }: { role: "admin" | "president" }
       : applied.kind === "register"
         ? Object.entries(countBy(registerRows, (a) => ASSET_STATUS_LABEL[a.status]))
         : Object.entries(countBy(approvalRows, (r) => APPROVAL_STATUS_LABEL[r.approval.status]));
-  const summaryText = summary.map(([label, n]) => `${label} ${n}`).join(" · ");
+  const summaryText = summary
+    .map(([label, n]) => `${translateText(label)} ${n}`)
+    .join(" · ");
 
   const scopeText =
     applied.kind === "register"
-      ? `ข้อมูล ณ วันที่ ${todayText()} · ${applied.branchId === "all" ? "ทุกสาขา" : getBranchName(applied.branchId)}`
-      : `${period.label} · ${applied.branchId === "all" ? "ทุกสาขา" : getBranchName(applied.branchId)}`;
+      ? `${translateText("ข้อมูล ณ วันที่")} ${formatThaiDate(toDateValue(new Date()), true, language)} · ${applied.branchId === "all" ? translateText("ทุกสาขา") : getBranchName(applied.branchId)}`
+      : `${localizedPeriodLabel(period, language)} · ${applied.branchId === "all" ? translateText("ทุกสาขา") : getBranchName(applied.branchId)}`;
 
   const mainSheet = (): ExcelSheet =>
     applied.kind === "movement"
@@ -192,14 +198,14 @@ export default function ReceiveReports({ role }: { role: "admin" | "president" }
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-indigo-700">
-              {role === "admin" ? "Admin" : "President · ผู้บริหารสูงสุด"}
+              {role === "admin" ? "Admin" : `President · ${translateText("ผู้บริหารสูงสุด")}`}
             </p>
-            <h1 className="text-2xl font-bold text-slate-900">{info.title}</h1>
-            <p className="mt-1 text-base text-slate-500">เรียกดูข้อมูลและเตรียมไฟล์ Excel เพื่อวิเคราะห์ต่อ</p>
+            <h1 className="text-2xl font-bold text-slate-900">{translateText(info.title)}</h1>
+            <p className="mt-1 text-base text-slate-500">{translateText("เรียกดูข้อมูลและเตรียมไฟล์ Excel เพื่อวิเคราะห์ต่อ")}</p>
           </div>
           {role === "admin" && (
             <Link href="/reports/send" className={reportButton.primary}>
-              <Send size={18} /> จัดทำรายงานเสนอ President
+              <Send size={18} />  {translateText("จัดทำรายงานเสนอ President")}
             </Link>
           )}
         </div>
@@ -208,7 +214,8 @@ export default function ReceiveReports({ role }: { role: "admin" | "president" }
 
         <section aria-labelledby="kind-title">
           <h2 id="kind-title" className="mb-2 text-base font-semibold text-slate-700">
-            เลือกประเภทรายงาน
+
+            {translateText("เลือกประเภทรายงาน")}
           </h2>
           <div className="grid gap-3 md:grid-cols-3" role="tablist">
             {(Object.keys(KIND_INFO) as ReportKind[]).map((kind) => {
@@ -229,9 +236,9 @@ export default function ReceiveReports({ role }: { role: "admin" | "president" }
                   <span className={active ? "text-indigo-700" : "text-slate-500"}>{KIND_INFO[kind].icon}</span>
                   <span className="min-w-0">
                     <span className={`block text-base font-semibold ${active ? "text-indigo-800" : "text-slate-900"}`}>
-                      {KIND_INFO[kind].name} {active && "✓"}
+                      {translateText(KIND_INFO[kind].name)} {active && "✓"}
                     </span>
-                    <span className="block text-sm text-slate-500">{KIND_INFO[kind].desc}</span>
+                    <span className="block text-sm text-slate-500">{translateText(KIND_INFO[kind].desc)}</span>
                   </span>
                 </button>
               );
@@ -257,18 +264,18 @@ export default function ReceiveReports({ role }: { role: "admin" | "president" }
             />
             {draft.kind === "register" ? (
               <label className="block min-w-0">
-                <span className="mb-1 block text-sm font-medium text-slate-600">ข้อมูล ณ วันที่</span>
+                <span className="mb-1 block text-sm font-medium text-slate-600">{translateText("ข้อมูล ณ วันที่")}</span>
                 <span className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-base text-slate-700">
-                  <Calendar size={18} className="text-slate-400" /> {todayText()}
+                  <Calendar size={18} className="text-slate-400" /> {formatThaiDate(toDateValue(new Date()), true, language)}
                 </span>
               </label>
             ) : (
               <SelectField
-                label="ช่วงวันที่"
+                label={translateText("ช่วงวันที่")}
                 value={draft.periodKey}
                 onChange={(v) => setDraft({ ...draft, periodKey: v })}
                 icon={<Calendar size={18} />}
-                options={periods.map((p) => ({ value: p.key, label: p.label }))}
+                options={periods.map((p) => ({ value: p.key, label: localizedPeriodLabel(p, language) }))}
               />
             )}
             <SelectField
@@ -279,19 +286,21 @@ export default function ReceiveReports({ role }: { role: "admin" | "president" }
               options={[{ value: "all", label: "ทุกสถานะ" }, ...STATUS_OPTIONS[draft.kind]]}
             />
             <button type="button" onClick={applyFilters} className={`${reportButton.primary} min-h-12 sm:col-span-2 lg:col-span-1`}>
-              ดูรายงาน
+
+              {translateText("ดูรายงาน")}
             </button>
           </div>
-          <p className="mt-3 text-sm text-slate-500">ขอบเขตที่ใช้อยู่: {scopeText}</p>
+          <p className="mt-3 text-sm text-slate-500">{translateText("ขอบเขตที่ใช้อยู่:")} {scopeText}</p>
         </Card>
 
-        <Card title={`ตัวอย่าง${info.name}`}>
+        <Card title={`${translateText("ตัวอย่าง")}${translateText(info.name)}`}>
           <p className="-mt-2 mb-3 text-sm text-slate-500">
-            แสดง {Math.min(limit, total)} จาก {total.toLocaleString("th-TH")} {unit}
+
+            {translateText("แสดง")} {Math.min(limit, total)}  {translateText("จาก")} {total.toLocaleString(numberLocale)} {translateText(unit)}
             {summaryText && ` · ${summaryText}`}
           </p>
           {total === 0 ? (
-            <p className="py-8 text-center text-base text-slate-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>
+            <p className="py-8 text-center text-base text-slate-500">{translateText("ไม่พบข้อมูลตามเงื่อนไขที่เลือก")}</p>
           ) : applied.kind === "movement" ? (
             <MovementTable rows={movementRows.slice(0, limit)} onOpen={(row) => setDetail({ kind: "movement", row })} />
           ) : applied.kind === "register" ? (
@@ -301,7 +310,8 @@ export default function ReceiveReports({ role }: { role: "admin" | "president" }
           )}
           {total > limit && (
             <button type="button" onClick={() => setLimit((n) => n + PAGE_STEP)} className={`${reportButton.secondary} mt-3 w-full`}>
-              แสดงเพิ่ม ({(total - limit).toLocaleString("th-TH")} {unit})
+
+              {translateText("แสดงเพิ่ม (")}{(total - limit).toLocaleString(numberLocale)} {translateText(unit)})
             </button>
           )}
         </Card>
@@ -313,22 +323,23 @@ export default function ReceiveReports({ role }: { role: "admin" | "president" }
               <div className="min-w-0">
                 <p className="break-all text-base font-semibold text-slate-900">{fileName}.xlsx</p>
                 <p className="text-sm text-slate-500">
-                  ข้อมูลตามเงื่อนไข · {total.toLocaleString("th-TH")} {unit}
+
+                  {translateText("ข้อมูลตามเงื่อนไข ·")} {total.toLocaleString(numberLocale)} {translateText(unit)}
                 </p>
-                <p className="mt-2 text-sm text-slate-600">ชีต &quot;{mainSheet().name}&quot; · ข้อมูลทุกแถวตามเงื่อนไข</p>
-                <p className="text-sm text-slate-600">ชีต &quot;สรุป&quot; · ขอบเขตรายงานและจำนวนแยกตามสถานะ</p>
+                <p className="mt-2 text-sm text-slate-600">{translateText("ชีต \"")}{mainSheet().name}{translateText("\" · ข้อมูลทุกแถวตามเงื่อนไข")}</p>
+                <p className="text-sm text-slate-600">{translateText("ชีต \"สรุป\" · ขอบเขตรายงานและจำนวนแยกตามสถานะ")}</p>
               </div>
             </div>
             <div className="lg:w-80">
               <button type="button" onClick={handleDownload} className={`${reportButton.primary} min-h-12 w-full`}>
-                <Download size={18} /> ดาวน์โหลด Excel (.xlsx)
+                <Download size={18} />  {translateText("ดาวน์โหลด Excel (.xlsx)")}
               </button>
-              <p className="mt-2 text-sm text-slate-500">ไฟล์สร้างจากเงื่อนไขที่กด &quot;ดูรายงาน&quot; ล่าสุด</p>
+              <p className="mt-2 text-sm text-slate-500">{translateText("ไฟล์สร้างจากเงื่อนไขที่กด \"ดูรายงาน\" ล่าสุด")}</p>
             </div>
           </div>
         </Card>
 
-        <p className="text-sm text-slate-500">ข้อมูลอัปเดตล่าสุด ณ {todayText()} · คำนวณจากข้อมูลกลางของระบบ</p>
+        <p className="text-sm text-slate-500">{translateText("ข้อมูลอัปเดตล่าสุด ณ")} {formatThaiDate(toDateValue(new Date()), true, language)}  {translateText("· คำนวณจากข้อมูลกลางของระบบ")}</p>
       </main>
 
       {detail?.kind === "movement" && <MovementDetail row={detail.row} onClose={() => setDetail(null)} />}
@@ -346,6 +357,7 @@ const openButton =
   "inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100";
 
 function TableShell({ head, children }: { head: string[]; children: ReactNode }) {
+  const translateText = useTranslate();
   return (
     <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
       <table className="w-full text-left">
@@ -353,7 +365,7 @@ function TableShell({ head, children }: { head: string[]; children: ReactNode })
           <tr>
             {head.map((h) => (
               <th key={h} className={th}>
-                {h}
+                {translateText(h)}
               </th>
             ))}
           </tr>
@@ -382,6 +394,8 @@ function MobileCard({ title, badge, lines, action }: { title: string; badge: Rea
 }
 
 function MovementTable({ rows, onOpen }: { rows: MovementRow[]; onOpen: (row: MovementRow) => void }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   return (
     <>
       <TableShell head={["เลขที่คำขอ / สถานะ", "ต้นทาง → ปลายทาง", "รายการทรัพย์สิน", "ผู้ขอ / สาขา", "วันที่ยื่น", "หลักฐาน"]}>
@@ -390,24 +404,25 @@ function MovementTable({ rows, onOpen }: { rows: MovementRow[]; onOpen: (row: Mo
             <td className={td}>
               <p className="font-semibold text-indigo-700">{row.request.id}</p>
               <div className="mt-1">
-                <Badge tone={BORROW_TONE[row.request.status]}>{BORROW_STATUS_LABEL[row.request.status]}</Badge>
+                <Badge tone={BORROW_TONE[row.request.status]}>{translateText(BORROW_STATUS_LABEL[row.request.status])}</Badge>
               </div>
             </td>
             <td className={td}>
               <p className="font-semibold">
                 {row.from} → {row.to}
               </p>
-              <p className="text-sm text-slate-500">{BORROW_TYPE_LABEL[row.request.type]}</p>
+              <p className="text-sm text-slate-500">{translateText(BORROW_TYPE_LABEL[row.request.type])}</p>
             </td>
             <td className={td}>{assetLabel(row.request.assetId)}</td>
             <td className={td}>
               <p>{getStaffName(row.request.borrowerId)}</p>
               <p className="text-sm text-slate-500">{getBranchName(row.request.branchId)}</p>
             </td>
-            <td className={`${td} whitespace-nowrap`}>{formatThaiDate(row.request.createdAt)}</td>
+            <td className={`${td} whitespace-nowrap`}>{formatThaiDate(row.request.createdAt, true, language)}</td>
             <td className={td}>
               <button type="button" onClick={() => onOpen(row)} className={openButton}>
-                ดูหลักฐาน
+
+                {translateText("ดูหลักฐาน")}
               </button>
             </td>
           </tr>
@@ -418,15 +433,16 @@ function MovementTable({ rows, onOpen }: { rows: MovementRow[]; onOpen: (row: Mo
           <MobileCard
             key={row.request.id}
             title={row.request.id}
-            badge={<Badge tone={BORROW_TONE[row.request.status]}>{BORROW_STATUS_LABEL[row.request.status]}</Badge>}
+            badge={<Badge tone={BORROW_TONE[row.request.status]}>{translateText(BORROW_STATUS_LABEL[row.request.status])}</Badge>}
             lines={[
-              `${BORROW_TYPE_LABEL[row.request.type]}: ${row.from} → ${row.to}`,
+              `${translateText(BORROW_TYPE_LABEL[row.request.type])}: ${row.from} → ${row.to}`,
               assetLabel(row.request.assetId),
-              `${getStaffName(row.request.borrowerId)} · ${formatThaiDate(row.request.createdAt)}`,
+              `${getStaffName(row.request.borrowerId)} · ${formatThaiDate(row.request.createdAt, true, language)}`,
             ]}
             action={
               <button type="button" onClick={() => onOpen(row)} className={openButton}>
-                ดูหลักฐาน
+
+                {translateText("ดูหลักฐาน")}
               </button>
             }
           />
@@ -437,6 +453,8 @@ function MovementTable({ rows, onOpen }: { rows: MovementRow[]; onOpen: (row: Mo
 }
 
 function RegisterTable({ rows, onOpen }: { rows: Asset[]; onOpen: (asset: Asset) => void }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   return (
     <>
       <TableShell head={["รหัสทรัพย์สิน / สถานะ", "ชื่อทรัพย์สิน", "สาขา / หมวดหมู่", "ผู้ดูแล", "วันที่อัปเดต", "รายละเอียด"]}>
@@ -445,7 +463,7 @@ function RegisterTable({ rows, onOpen }: { rows: Asset[]; onOpen: (asset: Asset)
             <td className={td}>
               <p className="font-semibold text-indigo-700">{a.id}</p>
               <div className="mt-1">
-                <Badge tone={ASSET_TONE[a.status]}>{ASSET_STATUS_LABEL[a.status]}</Badge>
+                <Badge tone={ASSET_TONE[a.status]}>{translateText(ASSET_STATUS_LABEL[a.status])}</Badge>
               </div>
             </td>
             <td className={td}>
@@ -459,10 +477,11 @@ function RegisterTable({ rows, onOpen }: { rows: Asset[]; onOpen: (asset: Asset)
               <p className="text-sm text-slate-500">{getCategoryName(a.category)}</p>
             </td>
             <td className={td}>{getStaffName(a.responsiblePersonId)}</td>
-            <td className={`${td} whitespace-nowrap`}>{formatThaiDate(a.updatedAt)}</td>
+            <td className={`${td} whitespace-nowrap`}>{formatThaiDate(a.updatedAt, true, language)}</td>
             <td className={td}>
               <button type="button" onClick={() => onOpen(a)} className={openButton}>
-                ดูรายละเอียด
+
+                {translateText("ดูรายละเอียด")}
               </button>
             </td>
           </tr>
@@ -473,11 +492,12 @@ function RegisterTable({ rows, onOpen }: { rows: Asset[]; onOpen: (asset: Asset)
           <MobileCard
             key={a.id}
             title={`${a.id} · ${a.name}`}
-            badge={<Badge tone={ASSET_TONE[a.status]}>{ASSET_STATUS_LABEL[a.status]}</Badge>}
-            lines={[`${getBranchName(a.branchId)} · ${getCategoryName(a.category)}`, `ผู้ดูแล ${getStaffName(a.responsiblePersonId)}`]}
+            badge={<Badge tone={ASSET_TONE[a.status]}>{translateText(ASSET_STATUS_LABEL[a.status])}</Badge>}
+            lines={[`${getBranchName(a.branchId)} · ${getCategoryName(a.category)}`, `${translateText("ผู้ดูแล")} ${getStaffName(a.responsiblePersonId)}`]}
             action={
               <button type="button" onClick={() => onOpen(a)} className={openButton}>
-                ดูรายละเอียด
+
+                {translateText("ดูรายละเอียด")}
               </button>
             }
           />
@@ -488,6 +508,8 @@ function RegisterTable({ rows, onOpen }: { rows: Asset[]; onOpen: (asset: Asset)
 }
 
 function ApprovalTable({ rows, onOpen }: { rows: ApprovalRow[]; onOpen: (row: ApprovalRow) => void }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   return (
     <>
       <TableShell head={["เลขที่คำขอ / ผลพิจารณา", "ต้นทาง → ปลายทาง", "ผู้พิจารณา / วันที่พิจารณา", "ระยะเวลาพิจารณา", "เหตุผล", "รายละเอียด"]}>
@@ -496,23 +518,24 @@ function ApprovalTable({ rows, onOpen }: { rows: ApprovalRow[]; onOpen: (row: Ap
             <td className={td}>
               <p className="font-semibold text-indigo-700">{row.approval.requestId}</p>
               <div className="mt-1">
-                <Badge tone={APPROVAL_TONE[row.approval.status]}>{APPROVAL_STATUS_LABEL[row.approval.status]}</Badge>
+                <Badge tone={APPROVAL_TONE[row.approval.status]}>{translateText(APPROVAL_STATUS_LABEL[row.approval.status])}</Badge>
               </div>
             </td>
             <td className={td}>
               {row.from} → {row.to}
             </td>
             <td className={td}>
-              <p>{row.approval.approverId ? getStaffName(row.approval.approverId) : "รอผู้พิจารณา"}</p>
+              <p>{row.approval.approverId ? getStaffName(row.approval.approverId) : translateText("รอผู้พิจารณา")}</p>
               <p className="text-sm text-slate-500">
-                {row.approval.approvedAt ? formatThaiDateTime(row.approval.approvedAt) : "-"}
+                {row.approval.approvedAt ? formatThaiDateTime(row.approval.approvedAt, language) : "-"}
               </p>
             </td>
             <td className={td}>{durationText(row.approval.requestedAt, row.approval.approvedAt)}</td>
             <td className={`${td} text-slate-600`}>{row.approval.comment || "-"}</td>
             <td className={td}>
               <button type="button" onClick={() => onOpen(row)} className={openButton}>
-                ดูรายละเอียด
+
+                {translateText("ดูรายละเอียด")}
               </button>
             </td>
           </tr>
@@ -523,15 +546,16 @@ function ApprovalTable({ rows, onOpen }: { rows: ApprovalRow[]; onOpen: (row: Ap
           <MobileCard
             key={row.approval.id}
             title={row.approval.requestId}
-            badge={<Badge tone={APPROVAL_TONE[row.approval.status]}>{APPROVAL_STATUS_LABEL[row.approval.status]}</Badge>}
+            badge={<Badge tone={APPROVAL_TONE[row.approval.status]}>{translateText(APPROVAL_STATUS_LABEL[row.approval.status])}</Badge>}
             lines={[
               `${row.from} → ${row.to}`,
-              `ผู้พิจารณา ${row.approval.approverId ? getStaffName(row.approval.approverId) : "-"} · ${durationText(row.approval.requestedAt, row.approval.approvedAt)}`,
+              `${translateText("ผู้พิจารณา")} ${row.approval.approverId ? getStaffName(row.approval.approverId) : "-"} · ${durationText(row.approval.requestedAt, row.approval.approvedAt)}`,
               row.approval.comment || "ไม่มีเหตุผลระบุ",
             ]}
             action={
               <button type="button" onClick={() => onOpen(row)} className={openButton}>
-                ดูรายละเอียด
+
+                {translateText("ดูรายละเอียด")}
               </button>
             }
           />
@@ -544,22 +568,24 @@ function ApprovalTable({ rows, onOpen }: { rows: ApprovalRow[]; onOpen: (row: Ap
 /* ---------------- หน้าต่างรายละเอียด ---------------- */
 
 function MovementDetail({ row, onClose }: { row: MovementRow; onClose: () => void }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const r = row.request;
   const approval = approvals.find((a) => a.requestId === r.id);
   return (
-    <DetailDialog title={`หลักฐานคำขอ ${r.id}`} onClose={onClose}>
+    <DetailDialog title={`${translateText("หลักฐานคำขอ")} ${r.id}`} onClose={onClose}>
       <DetailList
         rows={[
-          ["ประเภท", BORROW_TYPE_LABEL[r.type]],
+          ["ประเภท", translateText(BORROW_TYPE_LABEL[r.type])],
           ["สถานะ", <Badge key="s" tone={BORROW_TONE[r.status]}>{BORROW_STATUS_LABEL[r.status]}</Badge>],
           ["ต้นทาง → ปลายทาง", `${row.from} → ${row.to}`],
           ["ทรัพย์สิน", assetLabel(r.assetId)],
           ["ผู้ขอ", getStaffName(r.borrowerId)],
-          ["วันที่ยื่น", formatThaiDateTime(r.createdAt)],
-          ["วันที่ต้องการ", r.borrowDate ? formatThaiDate(r.borrowDate) : "-"],
+          ["วันที่ยื่น", formatThaiDateTime(r.createdAt, language)],
+          ["วันที่ต้องการ", r.borrowDate ? formatThaiDate(r.borrowDate, true, language) : "-"],
           ["วัตถุประสงค์", r.purpose],
           ["หมายเหตุ", r.note],
-          ["ผลพิจารณา", approval ? `${APPROVAL_STATUS_LABEL[approval.status]} · ${approval.comment || "ไม่มีความเห็น"}` : "ยังไม่มีบันทึกการพิจารณา"],
+          ["ผลพิจารณา", approval ? `${translateText(APPROVAL_STATUS_LABEL[approval.status])} · ${approval.comment || translateText("ไม่มีความเห็น")}` : translateText("ยังไม่มีบันทึกการพิจารณา")],
           ["ผู้พิจารณา", approval?.approverId ? getStaffName(approval.approverId) : "-"],
         ]}
       />
@@ -568,6 +594,8 @@ function MovementDetail({ row, onClose }: { row: MovementRow; onClose: () => voi
 }
 
 function RegisterDetail({ asset: a, onClose }: { asset: Asset; onClose: () => void }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const history = assetHistories
     .filter((h) => h.assetId === a.id)
     .sort((x, y) => y.performedAt.localeCompare(x.performedAt))
@@ -583,19 +611,19 @@ function RegisterDetail({ asset: a, onClose }: { asset: Asset; onClose: () => vo
           ["สาขา", getBranchName(a.branchId)],
           ["ผู้ดูแล", getStaffName(a.responsiblePersonId)],
           ["ราคาซื้อ", formatBaht(a.purchasePrice)],
-          ["วันที่ซื้อ / หมดประกัน", `${formatThaiDate(a.purchaseDate)} / ${formatThaiDate(a.warrantyEndDate)}`],
+          ["วันที่ซื้อ / หมดประกัน", `${formatThaiDate(a.purchaseDate, true, language)} / ${formatThaiDate(a.warrantyEndDate, true, language)}`],
         ]}
       />
-      <h3 className="mb-2 mt-5 text-base font-bold text-slate-900">ประวัติล่าสุด</h3>
+      <h3 className="mb-2 mt-5 text-base font-bold text-slate-900">{translateText("ประวัติล่าสุด")}</h3>
       {history.length === 0 ? (
-        <p className="text-base text-slate-500">ยังไม่มีประวัติ</p>
+        <p className="text-base text-slate-500">{translateText("ยังไม่มีประวัติ")}</p>
       ) : (
         <ul className="space-y-2">
           {history.map((h) => (
             <li key={h.id} className="rounded-xl bg-slate-100 px-3 py-2">
               <p className="text-base text-slate-900">{h.description}</p>
               <p className="text-sm text-slate-500">
-                {formatThaiDateTime(h.performedAt)} · {getStaffName(h.performedBy)}
+                {formatThaiDateTime(h.performedAt, language)} · {getStaffName(h.performedBy)}
               </p>
             </li>
           ))}
@@ -606,20 +634,22 @@ function RegisterDetail({ asset: a, onClose }: { asset: Asset; onClose: () => vo
 }
 
 function ApprovalDetail({ row, onClose }: { row: ApprovalRow; onClose: () => void }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const a = row.approval;
   return (
-    <DetailDialog title={`การพิจารณาคำขอ ${a.requestId}`} onClose={onClose}>
+    <DetailDialog title={`${translateText("การพิจารณาคำขอ")} ${a.requestId}`} onClose={onClose}>
       <DetailList
         rows={[
           ["เลขที่อนุมัติ", a.id],
           ["ผลพิจารณา", <Badge key="s" tone={APPROVAL_TONE[a.status]}>{APPROVAL_STATUS_LABEL[a.status]}</Badge>],
-          ["ประเภทคำขอ", row.request ? BORROW_TYPE_LABEL[row.request.type] : "-"],
+          ["ประเภทคำขอ", row.request ? translateText(BORROW_TYPE_LABEL[row.request.type]) : "-"],
           ["ต้นทาง → ปลายทาง", `${row.from} → ${row.to}`],
           ["ทรัพย์สิน", row.request ? assetLabel(row.request.assetId) : "-"],
           ["ผู้ขอ", getStaffName(a.requesterId)],
           ["ผู้พิจารณา", a.approverId ? getStaffName(a.approverId) : "รอผู้พิจารณา"],
-          ["วันที่ยื่น", formatThaiDateTime(a.requestedAt)],
-          ["วันที่พิจารณา", a.approvedAt ? formatThaiDateTime(a.approvedAt) : "-"],
+          ["วันที่ยื่น", formatThaiDateTime(a.requestedAt, language)],
+          ["วันที่พิจารณา", a.approvedAt ? formatThaiDateTime(a.approvedAt, language) : "-"],
           ["ระยะเวลาพิจารณา", durationText(a.requestedAt, a.approvedAt)],
           ["เหตุผล", a.comment],
         ]}
@@ -631,6 +661,8 @@ function ApprovalDetail({ row, onClose }: { row: ApprovalRow; onClose: () => voi
 /* ---------------- กล่องรายงานจาก Admin (President) ---------------- */
 
 function PresidentInbox({ onToast }: { onToast: (text: string) => void }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const { reports } = useReportStore();
   const [openId, setOpenId] = useState<string | null>(null);
   const sent = reports
@@ -652,11 +684,11 @@ function PresidentInbox({ onToast }: { onToast: (text: string) => void }) {
   return (
     <Card
       title="รายงานจาก Admin"
-      badge={unread > 0 ? <Badge tone="wait">ยังไม่อ่าน {unread}</Badge> : <Badge tone="plain">{sent.length} ฉบับ</Badge>}
+      badge={unread > 0 ? <Badge tone="wait">{translateText("ยังไม่อ่าน")} {unread}</Badge> : <Badge tone="plain">{sent.length}  {translateText("ฉบับ")}</Badge>}
     >
       {sent.length === 0 ? (
         <div className="flex items-center gap-3 rounded-xl bg-slate-100 px-4 py-4 text-base text-slate-600">
-          <Inbox size={22} className="shrink-0" /> ยังไม่มีรายงานที่ Admin ส่งมา
+          <Inbox size={22} className="shrink-0" />  {translateText("ยังไม่มีรายงานที่ Admin ส่งมา")}
         </div>
       ) : (
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
@@ -664,15 +696,16 @@ function PresidentInbox({ onToast }: { onToast: (text: string) => void }) {
             <li key={r.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="text-base font-semibold text-slate-900">
-                  {!r.readAt && <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-amber-500" aria-label="ยังไม่อ่าน" />}
+                  {!r.readAt && <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-amber-500" aria-label={translateText("ยังไม่อ่าน")} />}
                   {r.title}
                 </p>
                 <p className="text-sm text-slate-500">
-                  {r.id} · {PURPOSE_LABEL[r.purpose]} · จาก {r.createdByName} · ส่งเมื่อ {r.sentAt ? formatThaiDateTime(r.sentAt) : "-"}
+                  {r.id} · {translateText(PURPOSE_LABEL[r.purpose])}  {translateText("· จาก")} {r.createdByName}  {translateText("· ส่งเมื่อ")} {r.sentAt ? formatThaiDateTime(r.sentAt, language) : "-"}
                 </p>
               </div>
               <button type="button" onClick={() => open(r)} className={reportButton.secondary}>
-                เปิดอ่าน
+
+                {translateText("เปิดอ่าน")}
               </button>
             </li>
           ))}
@@ -685,10 +718,11 @@ function PresidentInbox({ onToast }: { onToast: (text: string) => void }) {
           footer={
             <>
               <button type="button" onClick={() => setOpenId(null)} className={reportButton.secondary}>
-                ปิด
+
+                {translateText("ปิด")}
               </button>
               <button type="button" onClick={() => download(opened)} className={reportButton.primary}>
-                <Download size={18} /> ดาวน์โหลด Excel
+                <Download size={18} />  {translateText("ดาวน์โหลด Excel")}
               </button>
             </>
           }

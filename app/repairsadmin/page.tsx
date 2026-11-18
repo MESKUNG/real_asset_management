@@ -79,26 +79,6 @@ const allowedFileTypes = new Set([
 ]);
 const maxFileSize = 10 * 1024 * 1024;
 
-// จัดรูปแบบวันและเวลาให้คนอ่านเข้าใจง่าย
-function formatThaiDate(date: string) {
-  // แปลงวันที่ให้เป็นรูปแบบภาษาไทย
-  return new Date(date).toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatThaiDateTime(date: string) {
-  // แสดงวันและเวลาในหน้ารายละเอียด
-  return new Date(date).toLocaleString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 // จำรายการ ตัวกรอง หน้าที่กำลังดู ข้อมูลที่กำลังแก้ และข้อความแจ้งผล
 function RepairsAdminPageContent() {
   const router = useRouter();

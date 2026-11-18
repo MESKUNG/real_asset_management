@@ -32,6 +32,7 @@ import {
   getInventoryRows,
   getMovementRows,
   getPeriods,
+  localizedPeriodLabel,
   getRegisterRows,
   getRepairRows,
   inventorySheet,
@@ -41,7 +42,6 @@ import {
   repairCost,
   repairSheet,
   sessionResultSheet,
-  type Period,
   type Tone,
 } from "@/lib/reports";
 import { Toast, useToast } from "@/app/inventories/_components/ui";
@@ -70,23 +70,6 @@ const ASSET_COLUMNS = [
   "อัปเดตล่าสุด",
 ];
 const DEFAULT_COLUMNS = ["รหัส", "ชื่อทรัพย์สิน", "หมวดหมู่", "สาขา", "สถานะ", "ราคาซื้อ (บาท)"];
-
-function localizedPeriodLabel(period: Period, language: AppLanguage) {
-  if (language === "th") return period.label;
-  if (period.key === "all") return "All time";
-  if (period.key.startsWith("year-")) return `All year ${period.key.slice(5)}`;
-
-  const from = new Date(`${period.from.slice(0, 7)}-01T00:00:00`);
-  const to = new Date(`${period.to.slice(0, 7)}-01T00:00:00`);
-  const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "short" });
-  if (period.key === "last3") {
-    return `${monthFormatter.format(from)}–${monthFormatter.format(to)} ${to.getFullYear()}`;
-  }
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    year: "numeric",
-  }).format(from);
-}
 
 function localizedCount(count: number, thaiUnit: string, englishUnit: string, language: AppLanguage) {
   if (language === "th") return `${count} ${thaiUnit}`;

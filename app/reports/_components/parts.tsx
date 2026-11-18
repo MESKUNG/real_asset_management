@@ -32,6 +32,7 @@ export function Card({ title, badge, actions, children, className = "" }: {
 
 export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
   const isDark = useTheme() === "dark";
+  const translateText = useTranslate();
   const darkToneStyle: Record<Tone, string> = {
     good: "bg-emerald-950/60 text-emerald-300",
     wait: "bg-amber-950/60 text-amber-300",
@@ -44,7 +45,7 @@ export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${isDark ? darkToneStyle[tone] : TONE_STYLE[tone]}`}
     >
       <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
-      {children}
+      {typeof children === "string" ? translateText(children) : children}
     </span>
   );
 }
@@ -92,9 +93,10 @@ export function SelectField({ label, value, onChange, options, icon }: {
   icon?: ReactNode;
 }) {
   const isDark = useTheme() === "dark";
+  const translateText = useTranslate();
   return (
     <label className="block min-w-0">
-      <span className={`mb-1 block text-sm font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}>{label}</span>
+      <span className={`mb-1 block text-sm font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}>{translateText(label)}</span>
       <span className="relative block">
         {icon && <span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-slate-400" : "text-slate-400"}`}>{icon}</span>}
         <select
@@ -105,7 +107,7 @@ export function SelectField({ label, value, onChange, options, icon }: {
         >
           {options.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {translateText(o.label)}
             </option>
           ))}
         </select>
@@ -163,11 +165,12 @@ export function DetailDialog({ title, onClose, children, footer }: {
 // รายการ "หัวข้อ: ค่า" ในหน้าต่างรายละเอียด
 export function DetailList({ rows }: { rows: [string, ReactNode][] }) {
   const isDark = useTheme() === "dark";
+  const translateText = useTranslate();
   return (
     <dl className={`divide-y rounded-xl border ${isDark ? "divide-slate-700 border-slate-700" : "divide-slate-100 border-slate-200"}`}>
       {rows.map(([label, value]) => (
         <div key={label} className="grid gap-1 px-4 py-3 sm:grid-cols-3">
-          <dt className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>{label}</dt>
+          <dt className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>{translateText(label)}</dt>
           <dd className={`text-base sm:col-span-2 ${isDark ? "text-slate-100" : "text-slate-900"}`}>{value || "-"}</dd>
         </div>
       ))}

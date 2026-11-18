@@ -304,20 +304,24 @@ function parseDate(value: string): Date {
   return new Date(value.length === 10 ? `${value}T00:00:00` : value);
 }
 
-export function formatThaiDate(value: string, withYear = true): string {
+export function formatThaiDate(
+  value: string,
+  withYear = true,
+  language: "th" | "en" = "th",
+): string {
   const d = parseDate(value);
   if (isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("th-TH", {
+  return d.toLocaleDateString(language === "en" ? "en-US" : "th-TH", {
     day: "numeric",
     month: "short",
     ...(withYear ? { year: "numeric" } : {}),
   });
 }
 
-export function formatThaiDateTime(value: string): string {
+export function formatThaiDateTime(value: string, language: "th" | "en" = "th"): string {
   const d = parseDate(value);
   if (isNaN(d.getTime())) return "-";
-  return d.toLocaleString("th-TH", {
+  return d.toLocaleString(language === "en" ? "en-US" : "th-TH", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -325,8 +329,12 @@ export function formatThaiDateTime(value: string): string {
   });
 }
 
-export function formatDateRange(start: string, end: string): string {
-  return `${formatThaiDate(start, false)} – ${formatThaiDate(end)}`;
+export function formatDateRange(
+  start: string,
+  end: string,
+  language: "th" | "en" = "th",
+): string {
+  return `${formatThaiDate(start, false, language)} – ${formatThaiDate(end, true, language)}`;
 }
 
 // จำนวนวันจากวันนี้ถึงวันที่กำหนด (ติดลบ = เลยมาแล้ว)

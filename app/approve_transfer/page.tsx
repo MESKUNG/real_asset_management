@@ -16,8 +16,11 @@ import {
   type Request,
 } from "@/components/borrow/borrowShared";
 import { publishUserActionNotification } from "@/lib/userActionNotifications";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 export default function Page() {
+  const translateText = useTranslate();
+  const language = useLanguage();
   const requests = useRequests();
   const [query, setQuery] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -85,7 +88,7 @@ export default function Page() {
 
   const stat = (label: string, value: number) => (
     <div className="rounded-xl border border-slate-300 bg-white p-4">
-      <div className="text-sm font-semibold text-slate-900">{label}</div>
+      <div className="text-sm font-semibold text-slate-900">{translateText(label)}</div>
       <div className="mt-1 text-3xl font-bold text-blue-950">{value}</div>
     </div>
   );
@@ -94,16 +97,18 @@ export default function Page() {
     <div className="flex flex-col gap-5 p-6 text-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-blue-950">อนุมัติโยกย้าย</h1>
+          <h1 className="text-2xl font-bold text-blue-950">{translateText("อนุมัติโยกย้าย")}</h1>
           <p className="text-sm text-slate-700">
-            คำขอโอนย้ายทรัพย์สินระหว่างสาขาที่รอการอนุมัติ
+
+            {translateText("คำขอโอนย้ายทรัพย์สินระหว่างสาขาที่รอการอนุมัติ")}
           </p>
         </div>
         <Link
           href="/transfer_history"
           className="rounded-lg border border-slate-400 px-4 py-2.5 text-sm font-bold text-slate-900 hover:bg-indigo-100"
         >
-          ดูประวัติการโอนย้าย
+
+          {translateText("ดูประวัติการโอนย้าย")}
         </Link>
       </header>
 
@@ -124,20 +129,21 @@ export default function Page() {
         <table className="w-full min-w-[960px] text-left text-sm text-slate-900">
           <thead className="bg-slate-100">
             <tr>
-              <th className="p-3 font-bold">รหัส</th>
-              <th className="p-3 font-bold">ทรัพย์สิน</th>
-              <th className="p-3 font-bold">โอนย้ายจาก → ไปยัง</th>
-              <th className="p-3 font-bold">ผู้ขอ</th>
-              <th className="p-3 font-bold">วันที่ต้องการโอนย้าย</th>
-              <th className="p-3 font-bold">เหตุผล</th>
-              <th className="p-3 font-bold">ดำเนินการ</th>
+              <th className="p-3 font-bold">{translateText("รหัส")}</th>
+              <th className="p-3 font-bold">{translateText("ทรัพย์สิน")}</th>
+              <th className="p-3 font-bold">{translateText("โอนย้ายจาก → ไปยัง")}</th>
+              <th className="p-3 font-bold">{translateText("ผู้ขอ")}</th>
+              <th className="p-3 font-bold">{translateText("วันที่ต้องการโอนย้าย")}</th>
+              <th className="p-3 font-bold">{translateText("เหตุผล")}</th>
+              <th className="p-3 font-bold">{translateText("ดำเนินการ")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-slate-700">
-                  ไม่มีคำขอโอนย้ายที่รออนุมัติ
+
+                  {translateText("ไม่มีคำขอโอนย้ายที่รออนุมัติ")}
                 </td>
               </tr>
             )}
@@ -162,8 +168,8 @@ export default function Page() {
                 <td className="p-3 font-medium">
                   {branchName(r.branchId)} → {branchName(r.toBranchId)}
                 </td>
-                <td className="p-3">พนักงาน #{r.borrowerId}</td>
-                <td className="p-3">{fmtDate(r.borrowDate)}</td>
+                <td className="p-3">{translateText("พนักงาน #")}{r.borrowerId}</td>
+                <td className="p-3">{fmtDate(r.borrowDate, language)}</td>
                 <td className="max-w-64 p-3 text-slate-800">{r.purpose}</td>
                 <td className="p-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-2">
@@ -171,13 +177,15 @@ export default function Page() {
                       onClick={() => update(r.id, { status: "approved" })}
                       className="rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white"
                     >
-                      อนุมัติ
+
+                      {translateText("อนุมัติ")}
                     </button>
                     <button
                       onClick={() => setRejectId(r.id)}
                       className="rounded-md bg-red-700 px-3 py-1.5 text-xs font-bold text-white"
                     >
-                      ไม่อนุมัติ
+
+                      {translateText("ไม่อนุมัติ")}
                     </button>
                   </div>
                 </td>
@@ -194,7 +202,7 @@ export default function Page() {
           title="ไม่อนุมัติการโอนย้าย"
           description="ระบุเหตุผลที่ไม่อนุมัติ ผู้ขอจะเห็นเหตุผลนี้ในหมายเหตุของคำขอ"
           placeholder="เช่น ทรัพย์สินยังจำเป็นต้องใช้งานในสาขาเดิม"
-          confirmLabel="ไม่อนุมัติ"
+          confirmLabel={translateText("ไม่อนุมัติ")}
           confirmClassName="bg-red-700"
           onConfirm={confirmReject}
           onClose={() => setRejectId(null)}

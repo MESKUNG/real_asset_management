@@ -26,6 +26,7 @@ import {
   getInventoryRows,
   getMovementRows,
   getPeriods,
+  localizedPeriodLabel,
   getRepairRows,
   inventorySheet,
   issueCount,
@@ -46,6 +47,7 @@ import {
 import { Loading, Toast, useToast } from "@/app/inventories/_components/ui";
 import { Badge, Card, DetailDialog, Kpi, SelectField, Stat, reportButton } from "./parts";
 import { ReportBody } from "./ReportBody";
+import { useLanguage, useTranslate } from "@/lib/language";
 
 // ทรัพย์สินที่ยังใช้งาน (ไม่นับของที่จำหน่ายแล้ว) ใช้เป็นฐานของรายงาน Asset
 const activeAssets = assets.filter((a) => a.status !== "disposed");
@@ -106,23 +108,37 @@ function buildFigures(period: Period, sessions: StoredSession[], checks: StoredC
 
 type Figures = ReturnType<typeof buildFigures>;
 
-function autoSummary(f: Figures, period: Period) {
+function autoSummary(
+  f: Figures,
+  periodLabel: string,
+  language: "th" | "en",
+) {
+  if (language === "en") {
+    return (
+      `Active assets: ${activeAssets.length.toLocaleString("en-US")} items, value ${formatBaht(f.assetValue)}\n` +
+      `During ${periodLabel}: ${f.movements.length} borrow/return/transfer requests (${f.pendingMovements} pending), ` +
+      `${f.inventory.length} inventory cycles with ${f.issues} issues, and ${formatBaht(f.repairTotal)} in repair costs across ${f.repairs.length} jobs`
+    );
+  }
   return (
     `ทรัพย์สินที่ใช้งานอยู่ ${activeAssets.length.toLocaleString("th-TH")} รายการ มูลค่า ${formatBaht(f.assetValue)}\n` +
-    `ช่วง ${period.label} มีการเบิก/คืน/โอนย้าย ${f.movements.length} รายการ (รออนุมัติ ${f.pendingMovements}) ` +
+    `ช่วง ${periodLabel} มีการเบิก/คืน/โอนย้าย ${f.movements.length} รายการ (รออนุมัติ ${f.pendingMovements}) ` +
     `ตรวจนับ ${f.inventory.length} รอบ พบปัญหา ${f.issues} รายการ และค่าใช้จ่ายซ่อม ${formatBaht(f.repairTotal)} จาก ${f.repairs.length} งาน`
   );
 }
 
-function autoIssues(f: Figures) {
+function autoIssues(
+  f: Figures,
+  translateText: (text: string) => string,
+) {
   return [
     {
-      title: `เฝ้าระวัง · ผลตรวจนับพบปัญหา ${f.issues} รายการ`,
-      detail: `ชำรุด ${f.damaged} · สูญหาย ${f.lost} รายการ\nข้อเสนอ: ให้สาขาติดตามรายการที่สูญหาย และส่งของชำรุดเข้ากระบวนการซ่อม`,
+      title: `${translateText("เฝ้าระวัง · ผลตรวจนับพบปัญหา")} ${f.issues} ${translateText("รายการ")}`,
+      detail: `${translateText("ชำรุด")} ${f.damaged} · ${translateText("สูญหาย")} ${f.lost} ${translateText("รายการ")}\n${translateText("ข้อเสนอ: ให้สาขาติดตามรายการที่สูญหาย และส่งของชำรุดเข้ากระบวนการซ่อม")}`,
     },
     {
-      title: `ติดตามค่าใช้จ่ายซ่อม ${formatBaht(f.repairTotal)}`,
-      detail: `งานซ่อมทั้งหมด ${f.repairs.length} งาน ยังไม่เสร็จ ${f.openRepairs} งาน\nข้อเสนอ: สรุปสาเหตุและแผนป้องกันการซ่อมซ้ำ ก่อนเสนอวงเงินเพิ่มเติม`,
+      title: `${translateText("ติดตามค่าใช้จ่ายซ่อม")} ${formatBaht(f.repairTotal)}`,
+      detail: `${translateText("งานซ่อมทั้งหมด")} ${f.repairs.length} ${translateText("งาน ยังไม่เสร็จ")} ${f.openRepairs} ${translateText("งาน")}\n${translateText("ข้อเสนอ: สรุปสาเหตุและแผนป้องกันการซ่อมซ้ำ ก่อนเสนอวงเงินเพิ่มเติม")}`,
     },
   ];
 }
@@ -137,11 +153,18 @@ function Composer({ credential, sessions, checks, draft, sent }: {
   draft: SentReport | undefined;
   sent: SentReport[];
 }) {
+  const language = useLanguage();
+  const translateText = useTranslate();
   const toast = useToast();
   const [periods] = useState(() => getPeriods());
-  const draftPeriod = periods.find((p) => p.label === draft?.periodLabel);
+  const draftPeriod = periods.find(
+    (p) =>
+      p.label === draft?.periodLabel ||
+      localizedPeriodLabel(p, "en") === draft?.periodLabel,
+  );
   const [periodKey, setPeriodKey] = useState(draftPeriod?.key ?? periods[0].key);
   const period = periods.find((p) => p.key === periodKey) ?? periods[0];
+  const periodLabel = localizedPeriodLabel(period, language);
   const figures = buildFigures(period, sessions, checks);
 
   // null = ยังไม่ได้แก้เอง ให้ใช้ข้อความอัตโนมัติ (เปลี่ยนช่วงเวลาแล้วข้อความเปลี่ยนตาม)
@@ -149,26 +172,27 @@ function Composer({ credential, sessions, checks, draft, sent }: {
   const [issues, setIssues] = useState<{ title: string; detail: string }[] | null>(draft?.issues ?? null);
   const [title, setTitle] = useState<string | null>(draft?.title ?? null);
   const [purpose, setPurpose] = useState<ReportPurpose>(draft?.purpose ?? "inform");
-  const [message, setMessage] = useState(draft?.message ?? DEFAULT_MESSAGE);
+  const [message, setMessage] = useState<string | null>(draft?.message ?? null);
   const [showPreview, setShowPreview] = useState(false);
 
-  const summaryText = summary ?? autoSummary(figures, period);
-  const issueList = issues ?? autoIssues(figures);
-  const titleText = title ?? `สรุปทรัพย์สิน ${period.label}`;
+  const summaryText = summary ?? autoSummary(figures, periodLabel, language);
+  const issueList = issues ?? autoIssues(figures, translateText);
+  const titleText = title ?? `${translateText("สรุปทรัพย์สิน")} ${periodLabel}`;
+  const messageText = message ?? translateText(DEFAULT_MESSAGE);
 
   const sections = [
     { label: "ทรัพย์สิน · Asset", value: `${activeAssets.length} รายการ · ${formatBaht(figures.assetValue)}` },
-    { label: "เคลื่อนไหว · Movement", value: `${figures.movements.length} รายการ · ${period.label}` },
+    { label: "เคลื่อนไหว · Movement", value: `${figures.movements.length} รายการ · ${periodLabel}` },
     { label: "ตรวจนับ · Inventory", value: `${figures.inventory.length} รอบ · พบปัญหา ${figures.issues} รายการ` },
     { label: "ซ่อมบำรุง · Repair", value: `${figures.repairs.length} งาน · ${formatBaht(figures.repairTotal)}` },
   ];
 
   const input: ReportInput = {
     title: titleText.trim(),
-    periodLabel: period.label,
+    periodLabel,
     purpose,
     summary: summaryText.trim(),
-    message: message.trim(),
+    message: messageText.trim(),
     sections,
     issues: issueList.filter((i) => i.title.trim() || i.detail.trim()),
     createdBy: credential.id,
@@ -233,25 +257,27 @@ function Composer({ credential, sessions, checks, draft, sent }: {
       <main className="mx-auto max-w-7xl space-y-5 px-4 pt-5 lg:px-8 lg:pt-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">จัดทำรายงานเสนอ President</h1>
-            <p className="mt-1 text-base text-slate-500">รวบรวมข้อมูล สรุปประเด็น และตรวจทานก่อนส่ง</p>
+            <h1 className="text-2xl font-bold text-slate-900">{translateText("จัดทำรายงานเสนอ President")}</h1>
+            <p className="mt-1 text-base text-slate-500">{translateText("รวบรวมข้อมูล สรุปประเด็น และตรวจทานก่อนส่ง")}</p>
           </div>
           <Link href="/reports" className={reportButton.secondary}>
-            ‹ กลับหน้ารับรายงาน
+
+            {translateText("‹ กลับหน้ารับรายงาน")}
           </Link>
         </div>
 
         <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:grid-cols-[16rem_20rem_1fr] lg:items-end">
-          <h2 className="text-lg font-bold text-slate-900 lg:pb-3">1. กำหนดขอบเขตรายงาน</h2>
+          <h2 className="text-lg font-bold text-slate-900 lg:pb-3">{translateText("1. กำหนดขอบเขตรายงาน")}</h2>
           <SelectField
-            label="ช่วงเวลา"
+            label={translateText("ช่วงเวลา")}
             value={periodKey}
             onChange={setPeriodKey}
-            options={periods.map((p) => ({ value: p.key, label: p.label }))}
+            options={periods.map((p) => ({ value: p.key, label: localizedPeriodLabel(p, language) }))}
           />
           <p className="text-sm text-slate-500 lg:pb-3">
-            Movement, ตรวจนับ และงานซ่อม: {formatThaiDate(period.from === "0000-01-01" ? "2024-01-01" : period.from)} –{" "}
-            {formatThaiDate(period.to === "9999-12-31" ? toDateValue(new Date()) : period.to)} · ทรัพย์สิน: ณ วันนี้
+
+            {translateText("Movement, ตรวจนับ และงานซ่อม:")} {formatThaiDate(period.from === "0000-01-01" ? "2024-01-01" : period.from, true, language)} –{" "}
+            {formatThaiDate(period.to === "9999-12-31" ? toDateValue(new Date()) : period.to, true, language)}  {translateText("· ทรัพย์สิน: ณ วันนี้")}
           </p>
         </div>
 
@@ -259,7 +285,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
           title="2. สรุปสำหรับผู้บริหาร"
           actions={
             <button type="button" onClick={resetAuto} className={reportButton.secondary}>
-              <RotateCcw size={18} /> เติมข้อความจากตัวเลขใหม่
+              <RotateCcw size={18} />  {translateText("เติมข้อความจากตัวเลขใหม่")}
             </button>
           }
         >
@@ -267,32 +293,33 @@ function Composer({ credential, sessions, checks, draft, sent }: {
             value={summaryText}
             onChange={(e) => setSummary(e.target.value)}
             rows={3}
-            aria-label="สรุปสำหรับผู้บริหาร"
+            aria-label={translateText("สรุปสำหรับผู้บริหาร")}
             className={fieldStyle}
           />
           <p className="mt-2 text-sm text-slate-500">
-            สรุปตามขอบเขตที่เลือก ไม่ใช่ยอดรวมทั้งองค์กร · แก้ไขแล้วกด &quot;บันทึกฉบับร่าง&quot; เพื่อเก็บไว้
+
+            {translateText("สรุปตามขอบเขตที่เลือก ไม่ใช่ยอดรวมทั้งองค์กร · แก้ไขแล้วกด \"บันทึกฉบับร่าง\" เพื่อเก็บไว้")}
           </p>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-3">
           <Kpi
-            label="มูลค่าทรัพย์สิน"
+            label={translateText("มูลค่าทรัพย์สิน")}
             value={formatBaht(figures.assetValue)}
             note={`${activeAssets.length} รายการที่ใช้งานอยู่`}
             icon={<Boxes size={24} />}
           />
           <Kpi
-            label="พบปัญหาจากการตรวจนับ"
+            label={translateText("พบปัญหาจากการตรวจนับ")}
             value={`${figures.issues} รายการ`}
             note={`ชำรุด ${figures.damaged} · สูญหาย ${figures.lost} · ${figures.inventory.length} รอบ`}
             icon={<CircleCheck size={24} />}
             tone="green"
           />
           <Kpi
-            label="ค่าใช้จ่ายซ่อม"
+            label={translateText("ค่าใช้จ่ายซ่อม")}
             value={formatBaht(figures.repairTotal)}
-            note={`รวม ${figures.repairs.length} งานซ่อม · ${period.label}`}
+            note={`รวม ${figures.repairs.length} งานซ่อม · ${periodLabel}`}
             icon={<Wrench size={24} />}
             tone="amber"
           />
@@ -304,7 +331,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
               <div className="grid gap-3 sm:grid-cols-2">
                 <SubReport
                   title="ทรัพย์สิน · Asset"
-                  badge={<Badge tone="good">{activeAssets.length} รายการ</Badge>}
+                  badge={<Badge tone="good">{activeAssets.length}  {translateText("รายการ")}</Badge>}
                   stats={[
                     ["รายการ", `${activeAssets.length} รายการ`],
                     ["มูลค่ารวม", formatBaht(figures.assetValue)],
@@ -312,7 +339,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                 />
                 <SubReport
                   title="เคลื่อนไหว · Movement"
-                  badge={<Badge tone="info">{figures.movements.length} รายการ</Badge>}
+                  badge={<Badge tone="info">{figures.movements.length}  {translateText("รายการ")}</Badge>}
                   stats={[
                     ["การเคลื่อนไหว", `${figures.movements.length} รายการ`],
                     ["รออนุมัติ", `${figures.pendingMovements} รายการ`],
@@ -320,7 +347,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                 />
                 <SubReport
                   title="ตรวจนับ · Inventory"
-                  badge={<Badge tone={figures.issues > 0 ? "wait" : "good"}>พบปัญหา {figures.issues}</Badge>}
+                  badge={<Badge tone={figures.issues > 0 ? "wait" : "good"}>{translateText("พบปัญหา")} {figures.issues}</Badge>}
                   stats={[
                     ["รอบตรวจนับ", `${figures.inventory.length} รอบ (ปิดแล้ว ${figures.completedRounds})`],
                     ["ชำรุด / สูญหาย", `${figures.damaged} / ${figures.lost} รายการ`],
@@ -328,14 +355,14 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                 />
                 <SubReport
                   title="ซ่อมบำรุง · Repair"
-                  badge={<Badge tone="wait">{figures.repairs.length} งาน</Badge>}
+                  badge={<Badge tone="wait">{figures.repairs.length}  {translateText("งาน")}</Badge>}
                   stats={[
                     ["งานซ่อม", `${figures.repairs.length} งาน (ค้าง ${figures.openRepairs})`],
                     ["ค่าใช้จ่ายรวม", formatBaht(figures.repairTotal)],
                   ]}
                 />
               </div>
-              <p className="mt-3 text-sm text-slate-500">ตัวเลขคำนวณจากข้อมูลกลางของระบบ แก้ไขไม่ได้ เพื่อให้รายงานตรงกับข้อมูลจริง</p>
+              <p className="mt-3 text-sm text-slate-500">{translateText("ตัวเลขคำนวณจากข้อมูลกลางของระบบ แก้ไขไม่ได้ เพื่อให้รายงานตรงกับข้อมูลจริง")}</p>
             </Card>
 
             <Card title="4. ประเด็นและข้อเสนอ">
@@ -343,11 +370,13 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                 {issueList.map((issue, i) => (
                   <div key={i} className={`rounded-2xl p-4 ${i === 0 ? "bg-amber-50" : "border border-slate-200"}`}>
                     <label className="block text-sm font-semibold text-slate-700">
-                      หัวข้อประเด็น
+
+                      {translateText("หัวข้อประเด็น")}
                       <input value={issue.title} onChange={(e) => updateIssue(i, "title", e.target.value)} className={fieldStyle} />
                     </label>
                     <label className="mt-3 block text-sm font-semibold text-slate-700">
-                      รายละเอียดและข้อเสนอ
+
+                      {translateText("รายละเอียดและข้อเสนอ")}
                       <textarea
                         value={issue.detail}
                         onChange={(e) => updateIssue(i, "detail", e.target.value)}
@@ -358,38 +387,48 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-sm text-slate-500">ข้อเสนอข้างต้นยังไม่ใช่คำขออนุมัติงบประมาณ ถ้าต้องการให้อนุมัติ เลือก &quot;ขออนุมัติ&quot; ในข้อ 5</p>
+              <p className="mt-3 text-sm text-slate-500">{translateText("ข้อเสนอข้างต้นยังไม่ใช่คำขออนุมัติงบประมาณ ถ้าต้องการให้อนุมัติ เลือก \"ขออนุมัติ\" ในข้อ 5")}</p>
             </Card>
 
             <div className="grid gap-5 md:grid-cols-2">
-              <Card title="ข้อมูลประกอบ · Excel" badge={<Badge tone="good">พร้อมใช้งาน</Badge>}>
+              <Card title="ข้อมูลประกอบ · Excel" badge={<Badge tone="good">{translateText("พร้อมใช้งาน")}</Badge>}>
                 <div className="grid grid-cols-2 gap-3">
-                  <Stat label="ชีต" value="5 ชีต" />
-                  <Stat label="รูปแบบ" value=".xlsx" />
+                  <Stat
+                    label={translateText("ชีต")}
+                    value={`5 ${translateText("ชีต")}`}
+                  />
+                  <Stat label={translateText("รูปแบบ")} value=".xlsx" />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-3 [&>*]:flex-1 [&>*]:basis-40">
                   <button type="button" onClick={handleExport} className={reportButton.secondary}>
-                    <Download size={18} /> ส่งออก Excel
+                    <Download size={18} />  {translateText("ส่งออก Excel")}
                   </button>
                   <Link href="/reports" className={reportButton.primary}>
-                    <FileSpreadsheet size={18} /> ดูข้อมูลละเอียด
+                    <FileSpreadsheet size={18} />  {translateText("ดูข้อมูลละเอียด")}
                   </Link>
                 </div>
               </Card>
 
-              <Card title="ประวัติตรวจนับ" badge={<Badge tone={latestRound ? "good" : "plain"}>{latestRound ? "พร้อมใช้งาน" : "ไม่มีข้อมูล"}</Badge>}>
+              <Card title={translateText("ประวัติตรวจนับ")} badge={<Badge tone={latestRound ? "good" : "plain"}>{latestRound ? "พร้อมใช้งาน" : "ไม่มีข้อมูล"}</Badge>}>
                 <div className="grid grid-cols-2 gap-3">
-                  <Stat label="รอบล่าสุด" value={latestRound ? `${latestRound.id} · ${formatThaiDate(latestRound.startDate)}` : "-"} />
-                  <Stat label="สถานะ" value={latestRound ? SESSION_STATUS_LABEL[latestRound.status] : "-"} />
+                  <Stat label={translateText("รอบล่าสุด")} value={latestRound ? `${latestRound.id} · ${formatThaiDate(latestRound.startDate, true, language)}` : "-"} />
+                  <Stat
+                    label={translateText("สถานะ")}
+                    value={
+                      latestRound
+                        ? translateText(SESSION_STATUS_LABEL[latestRound.status])
+                        : "-"
+                    }
+                  />
                 </div>
                 {latestRound && <p className="mt-2 text-sm text-slate-500">{getBranchName(latestRound.branchId)}</p>}
                 <div className="mt-3 flex flex-wrap gap-3 [&>*]:flex-1 [&>*]:basis-40">
                   <button type="button" onClick={handleExportRound} disabled={!latestRound} className={`${reportButton.secondary} disabled:opacity-50`}>
-                    <Download size={18} /> ส่งออก Excel
+                    <Download size={18} />  {translateText("ส่งออก Excel")}
                   </button>
                   {latestRound && (
                     <Link href={`/inventories/audit?session=${latestRound.id}`} className={reportButton.primary}>
-                      <Plus size={18} /> ดูรายละเอียด
+                      <Plus size={18} />  {translateText("ดูรายละเอียด")}
                     </Link>
                   )}
                 </div>
@@ -399,22 +438,24 @@ function Composer({ credential, sessions, checks, draft, sent }: {
 
           <div className="space-y-5">
             <Card title="5. เตรียมส่งให้ President">
-              <p className="-mt-2 mb-3 text-sm text-slate-500">ระบุรายละเอียดและตรวจทานรายงานก่อนส่ง</p>
+              <p className="-mt-2 mb-3 text-sm text-slate-500">{translateText("ระบุรายละเอียดและตรวจทานรายงานก่อนส่ง")}</p>
               <label className="block text-base font-semibold text-slate-800">
-                ชื่อรายงาน *
+
+                {translateText("ชื่อรายงาน *")}
                 <input value={titleText} onChange={(e) => setTitle(e.target.value)} className={fieldStyle} />
               </label>
 
               <div className="mt-3 space-y-1 rounded-xl bg-slate-100 px-4 py-3 text-base">
                 <p>
-                  ผู้จัดทำ: {credential.username} · Admin
+
+                  {translateText("ผู้จัดทำ:")} {credential.username} · Admin
                 </p>
-                <p className="font-semibold">ผู้รับ: President</p>
-                <p>รอบรายงาน: {period.label}</p>
+                <p className="font-semibold">{translateText("ผู้รับ: President")}</p>
+                <p>{translateText("รอบรายงาน:")} {periodLabel}</p>
               </div>
 
               <fieldset className="mt-4">
-                <legend className="text-base font-semibold text-slate-800">วัตถุประสงค์ *</legend>
+                <legend className="text-base font-semibold text-slate-800">{translateText("วัตถุประสงค์ *")}</legend>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(Object.keys(PURPOSE_LABEL) as ReportPurpose[]).map((p) => (
                     <label
@@ -430,22 +471,23 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                         onChange={() => setPurpose(p)}
                         className="h-4 w-4 accent-indigo-600"
                       />
-                      {PURPOSE_LABEL[p]}
+                      {translateText(PURPOSE_LABEL[p])}
                     </label>
                   ))}
                 </div>
-                <p className="mt-1 text-sm text-slate-500">กรณีขออนุมัติ: ระบุเรื่อง วงเงิน เหตุผล และกำหนดการในข้อความ</p>
+                <p className="mt-1 text-sm text-slate-500">{translateText("กรณีขออนุมัติ: ระบุเรื่อง วงเงิน เหตุผล และกำหนดการในข้อความ")}</p>
               </fieldset>
 
               <label className="mt-4 block text-base font-semibold text-slate-800">
-                ข้อความถึง President *
-                <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} className={fieldStyle} />
+
+                {translateText("ข้อความถึง President *")}
+                <textarea value={messageText} onChange={(e) => setMessage(e.target.value)} rows={4} className={fieldStyle} />
               </label>
 
               <div className="mt-3 rounded-xl bg-slate-100 px-4 py-3">
-                <p className="text-base font-semibold text-slate-800">เอกสารประกอบการส่ง</p>
-                <p className="text-sm text-slate-600">สรุปผู้บริหาร + รายงาน 4 ประเภท + ประเด็นและข้อเสนอ</p>
-                <p className="text-sm text-slate-600">President ดาวน์โหลดเป็น Excel ได้จากหน้ารายงาน</p>
+                <p className="text-base font-semibold text-slate-800">{translateText("เอกสารประกอบการส่ง")}</p>
+                <p className="text-sm text-slate-600">{translateText("สรุปผู้บริหาร + รายงาน 4 ประเภท + ประเด็นและข้อเสนอ")}</p>
+                <p className="text-sm text-slate-600">{translateText("President ดาวน์โหลดเป็น Excel ได้จากหน้ารายงาน")}</p>
               </div>
 
               {error && (
@@ -456,31 +498,32 @@ function Composer({ credential, sessions, checks, draft, sent }: {
 
               <div className="mt-4 space-y-2">
                 <button type="button" onClick={() => setShowPreview(true)} className={`${reportButton.secondary} w-full`}>
-                  <Eye size={18} /> ดูตัวอย่างรายงาน
+                  <Eye size={18} />  {translateText("ดูตัวอย่างรายงาน")}
                 </button>
-                <p className="text-sm text-slate-500">โปรดตรวจช่วงเวลา ตัวเลข และประเด็นเสนอให้ครบถ้วน</p>
+                <p className="text-sm text-slate-500">{translateText("โปรดตรวจช่วงเวลา ตัวเลข และประเด็นเสนอให้ครบถ้วน")}</p>
                 <button type="button" onClick={handleSend} disabled={!!error} className={`${reportButton.primary} min-h-12 w-full`}>
-                  <Send size={18} /> ส่งรายงานให้ President
+                  <Send size={18} />  {translateText("ส่งรายงานให้ President")}
                 </button>
                 <button type="button" onClick={handleDraft} className={`${reportButton.secondary} w-full`}>
-                  บันทึกฉบับร่าง
+
+                  {translateText("บันทึกฉบับร่าง")}
                 </button>
                 <p className="text-sm text-slate-500">
-                  {draft ? `มีฉบับร่างที่บันทึกเมื่อ ${formatThaiDateTime(draft.updatedAt)}` : "รายงานจะถูกส่งเมื่อกดยืนยันการส่งเท่านั้น"}
+                  {draft ? `${translateText("มีฉบับร่างที่บันทึกเมื่อ")} ${formatThaiDateTime(draft.updatedAt, language)}` : translateText("รายงานจะถูกส่งเมื่อกดยืนยันการส่งเท่านั้น")}
                 </p>
               </div>
             </Card>
 
-            <Card title="กิจกรรมอ้างอิงล่าสุด" badge={<Badge tone="wait">{activities.length} กิจกรรม</Badge>}>
+            <Card title="กิจกรรมอ้างอิงล่าสุด" badge={<Badge tone="wait">{activities.length}  {translateText("กิจกรรม")}</Badge>}>
               {activities.length === 0 ? (
-                <p className="text-base text-slate-500">ไม่มีกิจกรรมในช่วงเวลานี้</p>
+                <p className="text-base text-slate-500">{translateText("ไม่มีกิจกรรมในช่วงเวลานี้")}</p>
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {activities.map((a) => (
                     <li key={a.id} className="py-3 first:pt-0">
-                      <p className="text-sm text-slate-500">{formatThaiDateTime(a.at)}</p>
+                      <p className="text-sm text-slate-500">{formatThaiDateTime(a.at, language)}</p>
                       <p className="text-base font-semibold text-slate-900">{a.text}</p>
-                      <p className="text-sm text-slate-600">ผู้ดำเนินการ · {a.who}</p>
+                      <p className="text-sm text-slate-600">{translateText("ผู้ดำเนินการ ·")} {a.who}</p>
                       <p className="text-sm font-medium text-indigo-700">{a.ref}</p>
                     </li>
                   ))}
@@ -488,9 +531,9 @@ function Composer({ credential, sessions, checks, draft, sent }: {
               )}
             </Card>
 
-            <Card title="รายงานที่ส่งแล้ว" badge={<Badge tone="plain">{sent.length} ฉบับ</Badge>}>
+            <Card title="รายงานที่ส่งแล้ว" badge={<Badge tone="plain">{sent.length}  {translateText("ฉบับ")}</Badge>}>
               {sent.length === 0 ? (
-                <p className="text-base text-slate-500">ยังไม่เคยส่งรายงาน</p>
+                <p className="text-base text-slate-500">{translateText("ยังไม่เคยส่งรายงาน")}</p>
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {sent.slice(0, 5).map((r) => (
@@ -498,7 +541,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                       <div className="min-w-0">
                         <p className="text-base font-semibold text-slate-900">{r.title}</p>
                         <p className="text-sm text-slate-500">
-                          {r.id} · ส่ง {r.sentAt ? formatThaiDateTime(r.sentAt) : "-"}
+                          {r.id}  {translateText("· ส่ง")} {r.sentAt ? formatThaiDateTime(r.sentAt, language) : "-"}
                         </p>
                       </div>
                       <Badge tone={r.readAt ? "good" : "wait"}>{r.readAt ? "President อ่านแล้ว" : "ยังไม่อ่าน"}</Badge>
@@ -518,7 +561,8 @@ function Composer({ credential, sessions, checks, draft, sent }: {
           footer={
             <>
               <button type="button" onClick={() => setShowPreview(false)} className={reportButton.secondary}>
-                กลับไปแก้ไข
+
+                {translateText("กลับไปแก้ไข")}
               </button>
               <button
                 type="button"
@@ -529,7 +573,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                 }}
                 className={reportButton.primary}
               >
-                <Send size={18} /> ส่งรายงาน
+                <Send size={18} />  {translateText("ส่งรายงาน")}
               </button>
             </>
           }
