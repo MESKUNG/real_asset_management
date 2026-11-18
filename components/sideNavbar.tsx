@@ -60,8 +60,8 @@ const menus: Record<RoleKey, MenuEntry[]> = {
       name: "รายงาน",
       path: "/reports",
       items: [
-        { name: "รับรายงาน", path: "/" },
-        { name: "ส่งรายงาน", path: "/" },
+        { name: "รับรายงาน", path: "/reports" },
+        { name: "ส่งรายงาน", path: "/reports/send" },
       ],
     },
     { name: "สถานที่และแผนก", path: "/locations" },
