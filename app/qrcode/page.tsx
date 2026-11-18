@@ -2,40 +2,55 @@
 'use client';
 
 import { QRCodeSVG } from "qrcode.react";
+import Barcode from "react-barcode";
 import { assets } from "@/data/asset";
 
-// ดึง Type จากข้อมูล assets โดยตรง
 type Asset = (typeof assets)[number];
 
 function AssetQRCode({ asset }: { asset: Asset }) {
-  const qrId = `qr-${asset.id}`;
 
-  // ดาวน์โหลด QR Code เป็น PNG
-  const downloadQR = () => {
-    const svg = document.getElementById(qrId);
+  const qrId = `qr-${asset.id}`;
+  const barcodeId = `barcode-${asset.id}`;
+
+  // ดาวน์โหลด SVG เป็น PNG
+  const downloadPNG = (
+    elementId: string,
+    fileName: string,
+    width: number,
+    height: number
+  ) => {
+
+    const svg = document.getElementById(elementId);
 
     if (!svg) return;
 
     const svgData = new XMLSerializer().serializeToString(svg);
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) return;
-
-    const img = new Image();
-
-    const svgBlob = new Blob([svgData], {
+    const blob = new Blob([svgData], {
       type: "image/svg+xml;charset=utf-8",
     });
 
-    const url = URL.createObjectURL(svgBlob);
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
 
     img.onload = () => {
-      canvas.width = 600;
-      canvas.height = 600;
 
-      ctx.drawImage(img, 0, 0, 600, 600);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // พื้นหลังสีขาว
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.drawImage(img, 0, 0, width, height);
 
       URL.revokeObjectURL(url);
 
@@ -43,7 +58,7 @@ function AssetQRCode({ asset }: { asset: Asset }) {
 
       const link = document.createElement("a");
       link.href = pngUrl;
-      link.download = `${asset.id}-QR.png`;
+      link.download = fileName;
       link.click();
     };
 
@@ -55,20 +70,14 @@ function AssetQRCode({ asset }: { asset: Asset }) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border p-5 bg-white shadow-sm">
+    <div className="flex flex-col items-center gap-4 rounded-xl border p-6 bg-white shadow-sm">
+
+      {/* ชื่อครุภัณฑ์ */}
       <h3 className="font-bold text-lg text-gray-800">
         {asset.name}
       </h3>
 
-      <QRCodeSVG
-        id={qrId}
-        value={asset.qrCode || asset.id}
-        size={200}
-        level="H"
-        includeMargin
-      />
-
-      <p className="font-semibold text-gray-700">
+      <p className="font-semibold text-gray-600">
         {asset.id}
       </p>
 
@@ -76,32 +85,99 @@ function AssetQRCode({ asset }: { asset: Asset }) {
         {asset.brand} - {asset.model}
       </p>
 
-      <button
-        onClick={downloadQR}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-      >
-        ดาวน์โหลด QR Code (PNG)
-      </button>
+      {/* QR CODE */}
+      <div className="w-full border-t pt-4 flex flex-col items-center gap-3">
+
+        <h4 className="font-semibold text-gray-800">
+          QR Code
+        </h4>
+
+        <QRCodeSVG
+          id={qrId}
+          value={asset.qrCode || asset.id}
+          size={200}
+          level="H"
+          includeMargin
+        />
+
+        <button
+          onClick={() =>
+            downloadPNG(
+              qrId,
+              `${asset.id}-QR.png`,
+              600,
+              600
+            )
+          }
+          className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
+        >
+          ดาวน์โหลด QR Code (PNG)
+        </button>
+
+      </div>
+
+      {/* BARCODE */}
+      <div className="w-full border-t pt-4 flex flex-col items-center gap-3">
+
+        <h4 className="font-semibold text-gray-800">
+          Barcode (CODE128)
+        </h4>
+
+        <div className="max-w-full overflow-hidden">
+          <Barcode
+            id={barcodeId}
+            value={asset.id}
+            format="CODE128"
+            width={2}
+            height={80}
+            displayValue={true}
+            background="#ffffff"
+            lineColor="#000000"
+            margin={10}
+          />
+        </div>
+
+        <button
+          onClick={() =>
+            downloadPNG(
+              barcodeId,
+              `${asset.id}-Barcode.png`,
+              800,
+              250
+            )
+          }
+          className="w-full rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 transition"
+        >
+          ดาวน์โหลด Barcode (PNG)
+        </button>
+
+      </div>
+
     </div>
   );
 }
 
-// Component หลักของหน้า /qrcode
+// หน้าหลัก
 export default function QRCodePage() {
+
   return (
     <main className="min-h-screen bg-gray-100 p-8">
+
       <h1 className="text-2xl font-bold mb-6 text-gray-800">
-        QR Code ครุภัณฑ์
+        QR Code และ Barcode ครุภัณฑ์
       </h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
         {assets.map((asset) => (
           <AssetQRCode
             key={asset.id}
             asset={asset}
           />
         ))}
+
       </div>
+
     </main>
   );
 }

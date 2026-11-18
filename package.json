@@ -21,6 +21,7 @@
     "qrcode.react": "^4.2.0",
     "react": "19.3.0",
     "react-aria-components": "^1.22.1",
+    "react-barcode": "^1.6.1",
     "react-dom": "19.3.0",
     "react-select": "^5.10.2",
     "recharts": "^3.10.1",
