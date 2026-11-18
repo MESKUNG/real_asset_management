@@ -101,3 +101,18 @@ export function saveUserRepairRequest(request: RepairRequest) {
     throw error;
   }
 }
+
+export function upsertUserRepairRequest(request: RepairRequest) {
+  try {
+    const storedRequests = parseRequests(localStorage.getItem(storageKey));
+    const nextRequests = [
+      request,
+      ...storedRequests.filter((storedRequest) => storedRequest.id !== request.id),
+    ];
+    localStorage.setItem(storageKey, JSON.stringify(nextRequests));
+    window.dispatchEvent(new Event(changeEvent));
+  } catch (error) {
+    console.error("Could not update user repair request:", error);
+    throw error;
+  }
+}

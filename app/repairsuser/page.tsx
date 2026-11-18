@@ -27,8 +27,9 @@ import {
   Search1,
 } from "@tailgrids/icons";
 import { assets } from "@/data/asset";
-import { branches, HEAD_OFFICE_BRANCH_ID } from "@/data/branches";
+import { branches } from "@/data/branches";
 import CreateRepairModal from "./modal";
+import { getCurrentStaffId } from "@/lib/userActionNotifications";
 import {
   repairRequests as initialRepairRequests,
   type RepairRequest,
@@ -43,6 +44,7 @@ import {
 } from "@/lib/userRepairRequests";
 
 const pageSize = 5;
+const CHIANG_MAI_BRANCH_ID = "BR-002";
 
 // ข้อความและสีของแต่ละสถานะที่เห็นในหน้า
 const statusLabels: Record<RepairStatus, string> = {
@@ -93,7 +95,7 @@ function RepairsPageContent() {
     () => parseUserRepairRequestsSnapshot(storedRequestsSnapshot),
     [storedRequestsSnapshot],
   );
-  // รวมคำร้องที่สร้างเองกับข้อมูลตั้งต้น ก่อนกรองให้เหลือเฉพาะสำนักงานใหญ่
+  // รวมคำร้องที่สร้างเองกับข้อมูลตั้งต้น ก่อนกรองให้เหลือเฉพาะสาขาเชียงใหม่
   const allRequests = useMemo(
     () => [...createdRequests, ...initialRepairRequests],
     [createdRequests],
@@ -101,7 +103,7 @@ function RepairsPageContent() {
   const requests = useMemo(
     () =>
       allRequests.filter(
-        (request) => request.branchId === HEAD_OFFICE_BRANCH_ID,
+        (request) => request.branchId === CHIANG_MAI_BRANCH_ID,
       ),
     [allRequests],
   );
@@ -116,14 +118,14 @@ function RepairsPageContent() {
   const selectedRequest =
     requests.find((request) => request.id === requestId) ??
     manuallySelectedRequest;
-  const headOffice = getBranch(HEAD_OFFICE_BRANCH_ID);
+  const chiangMaiBranch = getBranch(CHIANG_MAI_BRANCH_ID);
 
   const closeDetails = () => {
     setManuallySelectedRequest(null);
     if (requestId) router.replace("/repairsuser", { scroll: false });
   };
 
-  // แสดงเฉพาะคำร้องสำนักงานใหญ่ที่ตรงกับคำค้นหา สถานะ และวันที่
+  // แสดงเฉพาะคำร้องสาขาเชียงใหม่ที่ตรงกับคำค้นหา สถานะ และวันที่
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
 
@@ -170,7 +172,7 @@ function RepairsPageContent() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const assetId = String(formData.get("assetId") ?? "");
-    const branchId = String(formData.get("branchId") ?? "");
+    const branchId = CHIANG_MAI_BRANCH_ID;
     const issue = String(formData.get("issue") ?? "").trim();
     const priority = String(formData.get("priority") ?? "medium") as
       | "low"
@@ -179,8 +181,13 @@ function RepairsPageContent() {
       | "urgent";
 
     if (!assetId || !branchId || !issue) return;
+    const reporterId = getCurrentStaffId();
+    if (reporterId === null) {
+      setSaveError("ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่");
+      return;
+    }
 
-    // ใช้ทุกสาขาตรวจเลขคำร้องซ้ำ แม้หน้านี้จะแสดงเฉพาะสำนักงานใหญ่
+    // ใช้ทุกสาขาตรวจเลขคำร้องซ้ำ แม้หน้านี้จะแสดงเฉพาะสาขาเชียงใหม่
     const nextNumber =
       Math.max(
         0,
@@ -190,7 +197,7 @@ function RepairsPageContent() {
     const newRequest: RepairRequest = {
       id: `REP-${String(nextNumber).padStart(4, "0")}`,
       assetId,
-      reporterId: 101,
+      reporterId,
       branchId,
       issue,
       priority,
@@ -255,20 +262,16 @@ function RepairsPageContent() {
           </button>
         </header>
 
-        {/* หน้าผู้ใช้แสดงข้อมูลสำนักงานใหญ่เท่านั้น */}
+        {/* หน้าผู้ใช้แสดงข้อมูลสาขาเชียงใหม่เท่านั้น */}
         <section className="mb-5 flex flex-col items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
           <div className="flex items-center gap-2 text-sm text-slate-700">
             <FileText className="size-4 text-slate-500" />
             <span>{translateText("สาขาที่ดูแล")}</span>
             <span className="font-semibold text-slate-900">
-              {translateText(headOffice?.name ?? "สำนักงานใหญ่")}
-              {headOffice?.code ? ` · ${headOffice.code}` : ""}
+              {translateText(chiangMaiBranch?.name ?? "สาขาเชียงใหม่")}
+              {chiangMaiBranch?.code ? ` · ${chiangMaiBranch.code}` : ""}
             </span>
           </div>
-          <p className="text-xs text-slate-400">
-            
-            {translateText("แสดงรายการแจ้งซ่อมของสำนักงานใหญ่เท่านั้น")}
-          </p>
         </section>
 
         {/* ช่องค้นหาและตัวเลือกกรองรายการ */}

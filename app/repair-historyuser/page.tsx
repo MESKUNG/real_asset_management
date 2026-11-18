@@ -31,8 +31,8 @@ const demoRepairHistory: RepairHistoryItem[] = [
     completedAt: "2025-10-18",
     assetId: "AST-0001",
     assetName: "MacBook Pro 14”",
-    branchName: "สำนักงานใหญ่",
-    branchCode: "BKK",
+    branchName: "สาขาเชียงใหม่",
+    branchCode: "CNX",
     issue: "เปิดไม่ติดและมีเสียงดังผิดปกติ",
     solution: "ทำความสะอาดลูกยางและทดสอบการพิมพ์แล้ว",
     status: "completed",
@@ -42,8 +42,8 @@ const demoRepairHistory: RepairHistoryItem[] = [
     completedAt: "2025-10-10",
     assetId: "AST-0002",
     assetName: "Dell Latitude 5440",
-    branchName: "สำนักงานใหญ่",
-    branchCode: "BKK",
+    branchName: "สาขาเชียงใหม่",
+    branchCode: "CNX",
     issue: "เครื่องเปิดไม่ติดและแบตเตอรี่เสื่อม",
     solution: "เปลี่ยนแบตเตอรี่และทดสอบการใช้งานแล้ว",
     status: "completed",
@@ -53,8 +53,8 @@ const demoRepairHistory: RepairHistoryItem[] = [
     completedAt: "2025-10-05",
     assetId: "AST-0006",
     assetName: "Lenovo ThinkPad E14",
-    branchName: "สำนักงานใหญ่",
-    branchCode: "BKK",
+    branchName: "สาขาเชียงใหม่",
+    branchCode: "CNX",
     issue: "ภาพบนหน้าจอกะพริบ",
     solution: "ตรวจสอบสายสัญญาณและทดสอบการแสดงผลแล้ว",
     status: "completed",
@@ -103,7 +103,8 @@ export default function RepairHistoryPage() {
           </h1>
           <p className="mt-1 text-xs text-slate-500">
             
-            {translateText("ประวัติการซ่อมครุภัณฑ์ที่เสร็จสิ้นแล้วของสำนักงานใหญ่")}
+            {translateText("ประวัติการซ่อมครุภัณฑ์ที่ดำเนินการเสร็จสิ้นแล้ว")} ·{" "}
+            {translateText("สาขาเชียงใหม่")}
           </p>
         </header>
 

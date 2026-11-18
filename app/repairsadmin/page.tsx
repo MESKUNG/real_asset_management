@@ -40,7 +40,9 @@ import {
   getUserRepairRequestsSnapshot,
   parseUserRepairRequestsSnapshot,
   subscribeToUserRepairRequests,
+  upsertUserRepairRequest,
 } from "@/lib/userRepairRequests";
+import { publishUserActionNotification } from "@/lib/userActionNotifications";
 import { vendors } from "@/data/vendor";
 
 const pageSize = 5;
@@ -249,7 +251,7 @@ function RepairsAdminPageContent() {
   };
 
   const updateRequest = () => {
-    // อัปเดต state ให้เห็นผลทันที; ข้อมูลยังไม่ถูกส่งไปบันทึกในฐานข้อมูล
+    // บันทึกสถานะล่าสุดเพื่อให้ User เห็นผลและอ่านข้อความตอบกลับได้หลังรีเฟรช
     if (!selectedRequest) return;
     setError("");
     setSuccess("");
@@ -258,6 +260,12 @@ function RepairsAdminPageContent() {
       status: activeEditStatus,
       adminNote: activeAdminNote.trim(),
     };
+    try {
+      upsertUserRepairRequest(updatedRequest);
+    } catch {
+      setError("บันทึกการอัปเดตไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return;
+    }
     setRequestOverrides((current) => ({
       ...current,
       [updatedRequest.id]: updatedRequest,
@@ -265,6 +273,32 @@ function RepairsAdminPageContent() {
     setManuallySelectedRequest(updatedRequest);
     setEditingRequestId(updatedRequest.id);
     setSuccess("อัปเดตสถานะเรียบร้อยแล้ว");
+    if (updatedRequest.reporterId > 0) {
+      const asset = assets.find((item) => item.id === updatedRequest.assetId);
+      const statusText = statusLabels[activeEditStatus];
+      const adminReply = updatedRequest.adminNote.trim();
+      try {
+        publishUserActionNotification({
+          key: `repair:${updatedRequest.id}`,
+          recipientId: updatedRequest.reporterId,
+          category:
+            activeEditStatus === "pending"
+              ? "new"
+              : activeEditStatus === "in_progress"
+                ? "updated"
+                : activeEditStatus,
+          title: statusText,
+          assetName: asset?.name ?? updatedRequest.assetId,
+          branchId: updatedRequest.branchId,
+          issue: adminReply,
+          reference: updatedRequest.id,
+          href: `/repairsuser?requestId=${encodeURIComponent(updatedRequest.id)}`,
+        });
+      } catch (notificationError) {
+        console.error("แจ้งผู้ยื่นคำร้องซ่อมไม่สำเร็จ:", notificationError);
+        setError("อัปเดตคำร้องแล้ว แต่ส่งการแจ้งเตือนไม่สำเร็จ");
+      }
+    }
   };
 
   return (

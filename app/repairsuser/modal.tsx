@@ -6,7 +6,7 @@ import { useState, type FormEventHandler } from "react";
 import { Plus } from "@tailgrids/icons";
 import { ScanQrCode } from "lucide-react";
 import { assets } from "@/data/asset";
-import { HEAD_OFFICE_BRANCH_ID } from "@/data/branches";
+const CHIANG_MAI_BRANCH_ID = "BR-002";
 
 type CreateRepairModalProps = {
   // ปุ่มปิดหน้าต่างและปุ่มส่งคำร้องถูกจัดการจากหน้า repairsuser/page.tsx
@@ -28,6 +28,7 @@ export default function CreateRepairModal({
   const normalizedAssetQuery = assetQuery.trim().toLocaleLowerCase();
   // ค้นจากชื่อ รหัส และ Serial Number แล้วจำกัดคำแนะนำไว้ 8 รายการ
   const matchingAssets = assets
+    .filter((asset) => asset.branchId === CHIANG_MAI_BRANCH_ID)
     .filter((asset) =>
       [asset.name, asset.id, asset.serialNumber].some((value) =>
         value.toLocaleLowerCase().includes(normalizedAssetQuery),
@@ -198,17 +199,17 @@ export default function CreateRepairModal({
               </p>
             )}
           </div>
-          {/* คำร้องจากหน้า User ถูกกำหนดให้เป็นสำนักงานใหญ่เท่านั้น */}
+          {/* คำร้องจากหน้า User ถูกกำหนดให้เป็นสาขาเชียงใหม่เท่านั้น */}
           <label className="block text-sm font-medium text-slate-700">
             {translateText("สาขา")}
             <input
               type="hidden"
               name="branchId"
-              value={HEAD_OFFICE_BRANCH_ID}
+              value={CHIANG_MAI_BRANCH_ID}
               readOnly
             />
             <span className="mt-1.5 flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-normal text-slate-700">
-              {translateText("สำนักงานใหญ่")}
+              {translateText("              สาขาเชียงใหม่")}
             </span>
           </label>
           {/* ต้องกรอกอาการก่อนส่งคำร้อง */}
