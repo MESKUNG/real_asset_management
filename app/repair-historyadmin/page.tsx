@@ -1,5 +1,6 @@
 "use client";
 
+// หน้าประวัติซ่อมของ Admin แสดงงานที่ซ่อมเสร็จแล้ว
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Search1 } from "@tailgrids/icons";
 import { assets } from "@/data/asset";
@@ -11,18 +12,22 @@ import {
 import { vendors } from "@/data/vendor";
 
 type CompletedRepairRequest = RepairRequest & {
+  // รายการที่ซ่อมเสร็จแล้วต้องมีวันที่เสร็จ
   completedAt: string;
 };
 
+// จำนวนรายการที่แสดงต่อหน้า เปลี่ยนเลข 5 ได้ถ้าอยากให้แสดงมากขึ้นหรือน้อยลง
 const pageSize = 5;
 
 function isCompletedRequest(
   request: RepairRequest,
 ): request is CompletedRepairRequest {
+  // บรรทัดนี้เลือกเฉพาะงานที่ซ่อมเสร็จแล้ว
   return request.status === "completed" && request.completedAt !== null;
 }
 
 function formatThaiDate(date: string) {
+  // เปลี่ยนวันที่ให้แสดงเป็นรูปแบบภาษาไทย
   return new Date(date).toLocaleDateString("th-TH", {
     day: "numeric",
     month: "short",
@@ -31,11 +36,13 @@ function formatThaiDate(date: string) {
 }
 
 export default function RepairHistoryAdminPage() {
+  // จำคำค้นหา หน้าที่กำลังดู และรายการที่เลือกเปิดรายละเอียด
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRequest, setSelectedRequest] =
     useState<CompletedRepairRequest | null>(null);
 
+  // เลือกงานที่เสร็จแล้วมาเรียง โดยให้งานล่าสุดอยู่ด้านบน
   const completedRequests = useMemo(
     () =>
       repairRequests
@@ -44,6 +51,7 @@ export default function RepairHistoryAdminPage() {
     [],
   );
 
+  // ช่องค้นหาหาได้จากเลขคำร้อง อุปกรณ์ สาขา อาการ และวิธีแก้
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
 
@@ -63,6 +71,7 @@ export default function RepairHistoryAdminPage() {
     });
   }, [completedRequests, search]);
 
+  // คำนวณจำนวนหน้า และแสดงอย่างน้อย 1 หน้าแม้ไม่มีข้อมูล
   const pageCount = Math.max(1, Math.ceil(filteredRequests.length / pageSize));
   const visibleRequests = filteredRequests.slice(
     (currentPage - 1) * pageSize,
@@ -90,6 +99,7 @@ export default function RepairHistoryAdminPage() {
           </p>
         </header>
 
+        {/* ช่องค้นหาและรายการประวัติ */}
         <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center">
             <label className="relative min-w-0 flex-1">
@@ -111,6 +121,7 @@ export default function RepairHistoryAdminPage() {
             </p>
           </div>
 
+          {/* หน้าจอมือถือแสดงรายการเป็นการ์ด */}
           <div className="divide-y divide-slate-100 md:hidden">
             {visibleRequests.map((request) => {
               const asset = assets.find((item) => item.id === request.assetId);
@@ -163,6 +174,7 @@ export default function RepairHistoryAdminPage() {
             )}
           </div>
 
+          {/* หน้าจอใหญ่แสดงรายการเป็นตาราง */}
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[760px] border-collapse text-left">
               <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
@@ -239,6 +251,7 @@ export default function RepairHistoryAdminPage() {
             </table>
           </div>
 
+          {/* ปุ่มเปลี่ยนหน้า; จำนวนรายการต่อหน้าปรับได้ที่ pageSize ด้านบน */}
           <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
             <p className="text-[11px] text-slate-500">
               แสดง{" "}
@@ -292,6 +305,7 @@ export default function RepairHistoryAdminPage() {
         </section>
       </div>
 
+      {/* กด "ดูรายละเอียด" เพื่อเปิดหน้าต่างนี้ และกด X เพื่อปิด */}
       {selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-4">
           <section

@@ -1,9 +1,11 @@
 "use client";
 
+// หน้าประวัติซ่อมของ User ตอนนี้ใช้ข้อมูลตัวอย่างที่เขียนไว้ในไฟล์นี้
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Search1 } from "@tailgrids/icons";
 
 type RepairHistoryItem = {
+  // กำหนดว่าประวัติซ่อมหนึ่งรายการมีข้อมูลอะไรบ้าง
   id: string;
   completedAt: string;
   assetId: string;
@@ -16,6 +18,7 @@ type RepairHistoryItem = {
 };
 
 const demoRepairHistory: RepairHistoryItem[] = [
+  // เพิ่มหรือแก้ข้อมูลตัวอย่างได้ในรายการด้านล่าง
   {
     id: "REP-0001",
     completedAt: "18 ต.ค. 2568",
@@ -54,11 +57,13 @@ const demoRepairHistory: RepairHistoryItem[] = [
 const pageSize = 5;
 
 export default function RepairHistoryPage() {
+  // จำคำค้นหา หน้าที่กำลังดู และรายการที่เลือกเปิดรายละเอียด
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRequest, setSelectedRequest] =
     useState<RepairHistoryItem | null>(null);
 
+  // ค้นหาได้จากเลขคำร้อง รหัสอุปกรณ์ ชื่ออุปกรณ์ หรือชื่อสาขา
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
 
@@ -72,6 +77,7 @@ export default function RepairHistoryPage() {
     );
   }, [search]);
 
+  // เลือกรายการที่จะแสดงในหน้านี้; เปลี่ยนจำนวนต่อหน้าได้ที่ pageSize ด้านบน
   const pageCount = Math.max(1, Math.ceil(filteredRequests.length / pageSize));
   const visibleRequests = filteredRequests.slice(
     (currentPage - 1) * pageSize,
@@ -90,6 +96,7 @@ export default function RepairHistoryPage() {
           </p>
         </header>
 
+        {/* กล่องค้นหา รายการ และปุ่มเปลี่ยนหน้า */}
         <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center">
             <label className="relative min-w-0 flex-1">
@@ -111,6 +118,7 @@ export default function RepairHistoryPage() {
             </p>
           </div>
 
+          {/* บนมือถือแสดงรายการเป็นการ์ด */}
           <div className="divide-y divide-slate-100 md:hidden">
             {visibleRequests.map((request) => (
               <article key={request.id} className="space-y-3 p-4">
@@ -154,6 +162,7 @@ export default function RepairHistoryPage() {
             )}
           </div>
 
+          {/* บนจอใหญ่แสดงรายการเป็นตาราง */}
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[680px] border-collapse text-left">
               <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
@@ -217,6 +226,7 @@ export default function RepairHistoryPage() {
             </table>
           </div>
 
+          {/* ปุ่มลูกศรและเลขหน้าใช้เปลี่ยนรายการที่เห็น */}
           <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
             <p className="text-[11px] text-slate-500">
               แสดง{" "}
@@ -270,6 +280,7 @@ export default function RepairHistoryPage() {
         </section>
       </div>
 
+      {/* แสดงหน้าต่างรายละเอียดเมื่อเลือกรายการ */}
       {selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-4">
           <section

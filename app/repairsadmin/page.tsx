@@ -1,5 +1,7 @@
 "use client";
 
+// หน้านี้ให้ Admin ค้นหา ตรวจสอบ และอัปเดตคำร้องแจ้งซ่อม
+// ตอนนี้การแก้ไขยังไม่บันทึกลงฐานข้อมูล ถ้ารีเฟรชหน้าจะกลับเป็นข้อมูลเดิม
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -28,6 +30,7 @@ import { vendors } from "@/data/vendor";
 
 const pageSize = 5;
 
+// ชื่อและสีที่แสดงให้แต่ละสถานะ ถ้าเพิ่มสถานะใหม่ให้เพิ่มในรายการเหล่านี้ด้วย
 const statusLabels: Record<RepairStatus, string> = {
   pending: "รอดำเนินการ",
   in_progress: "กำลังซ่อม",
@@ -49,6 +52,7 @@ const statuses: RepairStatus[] = [
   "rejected",
 ];
 const allowedFileTypes = new Set([
+  // ชนิดไฟล์ที่อนุญาตให้แนบ
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -59,6 +63,7 @@ const allowedFileTypes = new Set([
 const maxFileSize = 10 * 1024 * 1024;
 
 function formatThaiDate(date: string) {
+  // แปลงวันที่ให้เป็นรูปแบบภาษาไทย
   return new Date(date).toLocaleDateString("th-TH", {
     day: "numeric",
     month: "short",
@@ -67,6 +72,7 @@ function formatThaiDate(date: string) {
 }
 
 function formatThaiDateTime(date: string) {
+  // แสดงวันและเวลาในหน้ารายละเอียด
   return new Date(date).toLocaleString("th-TH", {
     day: "numeric",
     month: "short",
@@ -77,6 +83,7 @@ function formatThaiDateTime(date: string) {
 }
 
 export default function RepairsAdminPage() {
+  // จำรายการ ตัวกรอง หน้าที่กำลังดู ข้อมูลที่กำลังแก้ และข้อความแจ้งผล
   const [requests, setRequests] = useState(initialRequests);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -92,6 +99,7 @@ export default function RepairsAdminPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // เลือกแสดงรายการตามคำค้นหา สถานะ สาขา และวันที่
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
     return [...requests]
@@ -138,11 +146,13 @@ export default function RepairsAdminPage() {
     : undefined;
 
   const updateFilter = (update: () => void) => {
+    // เปลี่ยนตัวกรองแล้วกลับไปหน้าแรก
     update();
     setCurrentPage(1);
   };
 
   const showDetails = (request: RepairRequest) => {
+    // เปิดรายละเอียดพร้อมใส่ข้อมูลเดิมลงในช่องแก้ไข
     setSelectedRequest(request);
     setEditStatus(request.status);
     setAdminNote(request.adminNote);
@@ -152,6 +162,7 @@ export default function RepairsAdminPage() {
   };
 
   const handleFiles = (selectedFiles: File[]) => {
+    // ตรวจไฟล์ที่เลือกหรือวาง; ไม่รับไฟล์ที่ชนิดไม่ตรงหรือใหญ่กว่า 10 MB
     const invalidFile = selectedFiles.find(
       (file) => !allowedFileTypes.has(file.type) || file.size > maxFileSize,
     );
@@ -169,6 +180,7 @@ export default function RepairsAdminPage() {
   };
 
   const updateRequest = () => {
+    // เปลี่ยนสถานะและหมายเหตุในหน้าจอนี้; ตอนนี้ยังไม่ได้บันทึกลงฐานข้อมูล
     if (!selectedRequest) return;
     setError("");
     setSuccess("");
@@ -189,6 +201,7 @@ export default function RepairsAdminPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
+        {/* เลือกรายการแล้วจะแสดงหน้ารายละเอียด; ถ้ายังไม่เลือกจะแสดงรายการทั้งหมด */}
         {selectedRequest ? (
           <div className="mx-auto max-w-4xl">
             <button
@@ -291,6 +304,7 @@ export default function RepairsAdminPage() {
                 </p>
               </div>
 
+              {/* ช่องแก้สถานะ หมายเหตุ และแนบไฟล์ */}
               <div className="space-y-5 pt-4">
                 <label className="block text-xs font-medium text-slate-600">
                   สถานะ <span className="text-rose-500">*</span>
@@ -324,6 +338,7 @@ export default function RepairsAdminPage() {
                   />
                 </label>
 
+                {/* เลือกไฟล์จากเครื่องหรือลากไฟล์มาวางตรงนี้ */}
                 <div>
                   <p className="mb-2 text-xs font-medium text-slate-600">
                     ไฟล์แนบ (ถ้ามี)
@@ -367,6 +382,7 @@ export default function RepairsAdminPage() {
                     {success}
                   </p>
                 )}
+                {/* กดเพื่ออัปเดตข้อมูลที่แก้ */}
                 <button
                   type="button"
                   onClick={updateRequest}
@@ -389,6 +405,7 @@ export default function RepairsAdminPage() {
               </p>
             </header>
 
+            {/* แสดงสาขาที่กำลังดู */}
             <section className="mb-5 flex flex-col items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <div className="flex min-w-0 items-center gap-2 text-sm text-slate-700">
                 <FileText className="size-4 text-slate-500" />
@@ -404,6 +421,7 @@ export default function RepairsAdminPage() {
               </p>
             </section>
 
+            {/* ช่องค้นหาและตัวเลือกกรองรายการ */}
             <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row">
                 <label className="relative min-w-0 flex-1">
@@ -468,6 +486,7 @@ export default function RepairsAdminPage() {
                 </label>
               </div>
 
+              {/* หน้าจอมือถือแสดงรายการเป็นการ์ด */}
               <div className="divide-y divide-slate-100 md:hidden">
                 {visibleRequests.map((request) => {
                   const rowAsset = assets.find(
@@ -536,6 +555,7 @@ export default function RepairsAdminPage() {
                 )}
               </div>
 
+              {/* หน้าจอใหญ่แสดงรายการเป็นตาราง */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[850px] border-collapse text-left">
                   <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
@@ -620,6 +640,7 @@ export default function RepairsAdminPage() {
                 </table>
               </div>
 
+              {/* ปุ่มเปลี่ยนหน้า; จำนวนรายการต่อหน้าปรับได้ที่ pageSize ด้านบน */}
               <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
                 <p className="text-[11px] text-slate-500">
                   แสดง{" "}

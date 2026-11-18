@@ -1,11 +1,13 @@
 "use client";
 
+// หน้าต่างกรอกข้อมูลเพื่อส่งคำร้องแจ้งซ่อม
 import type { FormEventHandler } from "react";
 import { Plus } from "@tailgrids/icons";
 import { assets } from "@/data/asset";
 import { branches } from "@/data/branches";
 
 type CreateRepairModalProps = {
+  // ปุ่มปิดหน้าต่างและปุ่มส่งคำร้องถูกจัดการจากหน้า repairsuser/page.tsx
   onClose: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
@@ -15,6 +17,7 @@ export default function CreateRepairModal({
   onSubmit,
 }: CreateRepairModalProps) {
   return (
+    // กล่องด้านนอกคือพื้นหลัง; เปลี่ยนความกว้างของฟอร์มได้ที่ max-w-lg
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
       <section
         role="dialog"
@@ -39,7 +42,9 @@ export default function CreateRepairModal({
           </button>
         </div>
 
+        {/* ชื่อ name ตรงกับช่องที่หน้า repairsuser/page.tsx อ่านตอนกดส่ง */}
         <form onSubmit={onSubmit} className="space-y-4">
+          {/* รายชื่อทรัพย์สินมาจาก data/asset.ts */}
           <label className="block text-sm font-medium text-slate-700">
             ทรัพย์สิน
             <select
@@ -58,6 +63,7 @@ export default function CreateRepairModal({
               ))}
             </select>
           </label>
+          {/* รายชื่อสาขามาจาก data/branches.ts */}
           <label className="block text-sm font-medium text-slate-700">
             สาขา
             <select
@@ -76,6 +82,7 @@ export default function CreateRepairModal({
               ))}
             </select>
           </label>
+          {/* ต้องกรอกอาการก่อนส่งคำร้อง */}
           <label className="block text-sm font-medium text-slate-700">
             อาการที่พบ
             <textarea
@@ -86,6 +93,7 @@ export default function CreateRepairModal({
               className="mt-1.5 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm font-normal outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
           </label>
+          {/* เลือกระดับความเร่งด่วนของงานซ่อม */}
           <label className="block text-sm font-medium text-slate-700">
             ระดับความเร่งด่วน
             <select

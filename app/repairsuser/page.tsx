@@ -1,5 +1,7 @@
 "use client";
 
+// หน้านี้ให้ User ค้นหา ดูรายละเอียด และส่งคำร้องแจ้งซ่อม
+// ตอนนี้แก้รายการได้ชั่วคราว ถ้ารีเฟรชหน้ารายการที่สร้างใหม่จะหายไป
 import { useMemo, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
@@ -20,6 +22,7 @@ import {
 
 const pageSize = 5;
 
+// ข้อความและสีของแต่ละสถานะที่เห็นในหน้า
 const statusLabels: Record<RepairStatus, string> = {
   pending: "รอดำเนินการ",
   in_progress: "กำลังซ่อม",
@@ -35,6 +38,7 @@ const statusStyles: Record<RepairStatus, string> = {
 };
 
 function formatThaiDate(date: string) {
+  // แสดงวันที่เป็นรูปแบบภาษาไทย
   return new Date(date).toLocaleDateString("th-TH", {
     day: "numeric",
     month: "short",
@@ -43,14 +47,17 @@ function formatThaiDate(date: string) {
 }
 
 function getBranch(branchId: string) {
+  // หาชื่อสาขาจากรหัสสาขา
   return branches.find((branch) => branch.id === branchId);
 }
 
 function getAsset(assetId: string) {
+  // หาชื่ออุปกรณ์จากรหัสอุปกรณ์
   return assets.find((asset) => asset.id === assetId);
 }
 
 export default function RepairsPage() {
+  // จำรายการซ่อม คำค้นหา ตัวกรอง หน้าที่กำลังดู และรายการที่เลือกเปิด
   const [requests, setRequests] = useState(initialRepairRequests);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -62,6 +69,7 @@ export default function RepairsPage() {
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
+  // แสดงเฉพาะรายการที่ตรงกับคำค้นหา สถานะ สาขา และวันที่
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
 
@@ -90,6 +98,7 @@ export default function RepairsPage() {
       .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
   }, [requests, search, statusFilter, branchFilter, dateFrom]);
 
+  // เลือกรายการที่จะเห็นในหน้านี้; เปลี่ยนจำนวนต่อหน้าได้ที่ pageSize ด้านบน
   const pageCount = Math.max(1, Math.ceil(filteredRequests.length / pageSize));
   const visibleRequests = filteredRequests.slice(
     (currentPage - 1) * pageSize,
@@ -97,11 +106,13 @@ export default function RepairsPage() {
   );
 
   const updateFilter = (update: () => void) => {
+    // เมื่อเปลี่ยนตัวกรอง ให้กลับไปดูหน้าแรก
     update();
     setCurrentPage(1);
   };
 
   const handleCreateRequest = (event: FormEvent<HTMLFormElement>) => {
+    // อ่านข้อมูลที่กรอกจากหน้าต่างสร้างคำร้อง
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const assetId = String(formData.get("assetId") ?? "");
@@ -115,11 +126,13 @@ export default function RepairsPage() {
 
     if (!assetId || !branchId || !issue) return;
 
+    // สร้างเลขคำร้องถัดไปจากรายการที่มีอยู่
     const nextNumber =
       Math.max(
         0,
         ...requests.map((request) => Number(request.id.split("-")[1]) || 0),
       ) + 1;
+    // คำร้องที่เพิ่งส่งจะมีสถานะ "รอดำเนินการ"
     const newRequest: RepairRequest = {
       id: `REP-${String(nextNumber).padStart(4, "0")}`,
       assetId,
@@ -147,6 +160,7 @@ export default function RepairsPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
+        {/* หัวข้อหน้าและปุ่มเปิดหน้าต่างสร้างคำร้อง */}
         <header className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
@@ -166,6 +180,7 @@ export default function RepairsPage() {
           </button>
         </header>
 
+        {/* แสดงสาขาที่กำลังเลือกดู */}
         <section className="mb-5 flex flex-col items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
           <div className="flex items-center gap-2 text-sm text-slate-700">
             <FileText className="size-4 text-slate-500" />
@@ -181,6 +196,7 @@ export default function RepairsPage() {
           </p>
         </section>
 
+        {/* ช่องค้นหาและตัวเลือกกรองรายการ */}
         <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row">
             <label className="relative min-w-0 flex-1">
@@ -249,6 +265,7 @@ export default function RepairsPage() {
             </label>
           </div>
 
+          {/* หน้าจอมือถือแสดงรายการเป็นการ์ด */}
           <div className="divide-y divide-slate-100 md:hidden">
             {visibleRequests.map((request) => {
               const asset = getAsset(request.assetId);
@@ -311,6 +328,7 @@ export default function RepairsPage() {
             )}
           </div>
 
+          {/* หน้าจอใหญ่แสดงรายการเป็นตาราง */}
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[850px] border-collapse text-left">
               <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
@@ -392,6 +410,7 @@ export default function RepairsPage() {
             </table>
           </div>
 
+          {/* ปุ่มเปลี่ยนหน้า; จำนวนรายการต่อหน้าปรับได้ที่ pageSize */}
           <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
             <p className="text-[11px] text-slate-500">
               แสดง{" "}
@@ -445,6 +464,7 @@ export default function RepairsPage() {
         </section>
       </div>
 
+      {/* กด "ดูรายละเอียด" เพื่อเปิดหน้าต่างข้อมูลคำร้อง */}
       {selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-4">
           <section
@@ -525,6 +545,7 @@ export default function RepairsPage() {
           </section>
         </div>
       )}
+      {/* หน้าต่างนี้เปิดจากปุ่ม "สร้างคำร้องแจ้งซ่อม" ด้านบน */}
       {isCreateOpen && (
         <CreateRepairModal
           onClose={() => setIsCreateOpen(false)}

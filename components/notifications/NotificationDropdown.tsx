@@ -1,0 +1,236 @@
+"use client";
+
+// ปุ่มกระดิ่งและกล่องแจ้งเตือนด้านบนของเว็บ
+// ถ้าจะเปลี่ยนหน้าตา ให้ดู className ในส่วน return ด้านล่าง
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Bell1, CheckCircle1, Gear1, RefreshCircle1Clockwise } from "@tailgrids/icons";
+import { useRouter } from "next/navigation";
+import {
+  formatNotificationTime,
+  getNotificationsPath,
+  getReadNotificationsSnapshot,
+  getServerReadNotificationsSnapshot,
+  markNotificationsRead,
+  notifications,
+  parseReadNotifications,
+  subscribeToNotificationChanges,
+} from "./notifications";
+
+function getRole() {
+  // เช็กว่าคนที่เข้าเว็บเป็น Admin หรือ User เพื่อเปิดหน้าซ่อมให้ถูกหน้า
+  try {
+    const credential = localStorage.getItem("credential");
+    if (!credential) return null;
+
+    const parsed: unknown = JSON.parse(credential);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "role" in parsed &&
+      typeof parsed.role === "string"
+    ) {
+      return parsed.role;
+    }
+  } catch (error) {
+    console.error("อ่านข้อมูลบัญชีไม่สำเร็จ:", error);
+  }
+
+  return null;
+}
+
+function NotificationIcon({
+  category,
+}: {
+  category: (typeof notifications)[number]["category"];
+}) {
+  // เลือกรูปไอคอนตามประเภทแจ้งเตือน ถ้าเพิ่มประเภทใหม่ให้เพิ่มรูปตรงนี้ด้วย
+  const iconClass = "size-4";
+  const iconByCategory = {
+    new: <Bell1 className={iconClass} />,
+    updated: <RefreshCircle1Clockwise className={iconClass} />,
+    completed: <CheckCircle1 className={iconClass} />,
+    rejected: <Gear1 className={iconClass} />,
+  };
+
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+      {iconByCategory[category]}
+    </span>
+  );
+}
+
+export default function NotificationDropdown() {
+  const router = useRouter();
+  // จำไว้ว่ากล่องอยู่ตรงไหน และตอนนี้เปิดอยู่หรือปิดอยู่
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [error, setError] = useState("");
+  // อ่านว่ารายการไหนอ่านแล้ว เพื่ออัปเดตเลขบนกระดิ่งทันที
+  const snapshot = useSyncExternalStore(
+    subscribeToNotificationChanges,
+    getReadNotificationsSnapshot,
+    getServerReadNotificationsSnapshot,
+  );
+  const readIds = parseReadNotifications(snapshot);
+  const unreadCount = notifications.filter(
+    (notification) => !readIds.has(notification.id),
+  ).length;
+
+  // ปิดกล่องเมื่อคลิกข้างนอกหรือกดปุ่ม Esc
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !rootRef.current?.contains(event.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  // ปุ่ม "อ่านทั้งหมด" ทำให้จุดแจ้งเตือนของทุกรายการหายไป
+  const markAllAsRead = () => {
+    try {
+      markNotificationsRead(notifications.map(({ id }) => id));
+      setError("");
+    } catch {
+      setError("บันทึกสถานะไม่สำเร็จ กรุณาลองอีกครั้ง");
+    }
+  };
+
+  // กดรายการแล้วไปดูคำร้องนั้น หรือประวัติซ่อม ถ้าซ่อมเสร็จแล้ว
+  const openNotification = (notification: (typeof notifications)[number]) => {
+    try {
+      markNotificationsRead([notification.id]);
+      setError("");
+    } catch {
+      setError("บันทึกสถานะไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return;
+    }
+    setIsOpen(false);
+    router.push(getNotificationsPath(getRole(), notification.request.status));
+  };
+
+  return (
+    <div ref={rootRef} className="relative">
+      {/* กระดิ่งและตัวเลขสีแดงแสดงจำนวนรายการที่ยังไม่ได้เปิดอ่าน */}
+      <button
+        type="button"
+        aria-label={`การแจ้งเตือน${unreadCount ? ` ${unreadCount} รายการที่ยังไม่อ่าน` : ""}`}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        onClick={() => setIsOpen((open) => !open)}
+        className="relative flex size-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      >
+        <Bell1 className="size-5" />
+        {unreadCount > 0 && (
+          <span className="absolute right-1 top-1 flex min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold leading-4 text-white">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <section
+          role="dialog"
+          aria-label="การแจ้งเตือน"
+          className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl"
+        >
+          {/* กล่องนี้จะแสดงหลังจากกดกระดิ่ง */}
+          <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">การแจ้งเตือน</h2>
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
+                  {unreadCount} รายการใหม่
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={markAllAsRead}
+              disabled={unreadCount === 0}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:cursor-default disabled:text-slate-400"
+            >
+              อ่านทั้งหมด
+            </button>
+          </header>
+
+          {/* แจ้งเตือนตรงนี้ถ้าบันทึกว่าอ่านแล้วไม่สำเร็จ */}
+          {error && (
+            <p role="alert" className="bg-rose-50 px-4 py-2 text-xs text-rose-700">
+              {error}
+            </p>
+          )}
+
+          <div className="max-h-[min(26rem,70vh)] overflow-y-auto">
+            {/* รายการแจ้งเตือนแต่ละแถว */}
+            {notifications.map((notification) => {
+              const isUnread = !readIds.has(notification.id);
+
+              return (
+                <button
+                  type="button"
+                  key={notification.id}
+                  onClick={() => openNotification(notification)}
+                  className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-indigo-50 ${
+                    isUnread ? "bg-indigo-50/70" : "bg-white"
+                  }`}
+                >
+                  <NotificationIcon category={notification.category} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-semibold text-slate-800">
+                        {notification.title}
+                      </span>
+                      <span className="shrink-0 text-[10px] text-slate-400">
+                        {formatNotificationTime(notification.createdAt)}
+                      </span>
+                    </span>
+                    <span className="mt-1 block truncate text-xs text-slate-600">
+                      {notification.description}
+                    </span>
+                    <span className="mt-1 block text-[10px] text-slate-400">
+                      {notification.reference}
+                    </span>
+                  </span>
+                  {isUnread && (
+                    <span
+                      aria-label="ยังไม่อ่าน"
+                      className="mt-4 size-2 shrink-0 rounded-full bg-indigo-600"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ปุ่มนี้เปิดหน้ารวมการแจ้งเตือนทั้งหมด */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              router.push("/notifications-center");
+            }}
+            className="flex w-full items-center justify-center gap-2 border-t border-slate-100 px-4 py-3 text-xs font-semibold text-indigo-600 transition hover:bg-slate-50"
+          >
+            ดูการแจ้งเตือนทั้งหมด <span aria-hidden="true">›</span>
+          </button>
+        </section>
+      )}
+    </div>
+  );
+}

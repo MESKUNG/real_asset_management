@@ -1,5 +1,7 @@
 "use client";
 
+// หน้านี้แสดงสรุปรายงาน ตัวกรอง และกิจกรรมล่าสุด
+// ตัวเลขและกิจกรรมบางส่วนเป็นข้อมูลตัวอย่างที่เขียนไว้ในไฟล์นี้
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -14,6 +16,7 @@ import { repairRequests } from "@/data/repairRequests";
 
 type BadgeTone = "green" | "purple" | "amber";
 
+// รายการข้อมูลที่การ์ดรายงานแต่ละใบใช้
 interface ReportCardItem {
   id: string;
   title: string;
@@ -39,7 +42,7 @@ interface ActivityItem {
   statusCategory: string;
 }
 
-// ข้อมูลการ์ดรายงาน 4 ประเภท
+// ข้อมูลของการ์ดทั้ง 4 ใบ; แก้ชื่อหรือตัวเลขได้ในส่วนนี้
 const buildReportCards = (): ReportCardItem[] => {
   const itCategoryName = categories[0]?.name ?? "อุปกรณ์ไอที";
   const availableAssets = assets.filter((asset) => asset.status === "available");
@@ -105,6 +108,7 @@ const buildReportCards = (): ReportCardItem[] => {
   ];
 };
 
+// ใช้ประวัติการเปลี่ยนแปลงจริงของอุปกรณ์มาทำรายการกิจกรรมล่าสุด
 const reportActivities: ActivityItem[] = assetHistories
   .slice()
   .sort((a, b) => b.performedAt.localeCompare(a.performedAt))
@@ -135,6 +139,7 @@ const reportActivities: ActivityItem[] = assetHistories
 export default function ReportSummaryPage() {
   const router = useRouter();
 
+  // สร้างข้อมูลสำหรับการ์ดรายงาน
   const reportCards = buildReportCards();
   const latestCompletedSession = inventorySessions
     .filter((session) => session.status === "completed")
@@ -144,6 +149,7 @@ export default function ReportSummaryPage() {
     ? new Intl.DateTimeFormat("th-TH", { month: "short", year: "numeric" }).format(new Date(`${latestCompletedSession.endDate}T00:00:00`))
     : "ยังไม่มีรอบตรวจที่เสร็จแล้ว";
 
+  // จำค่าที่เลือกในช่องค้นหาและตัวกรอง
   const [locationFilter, setLocationFilter] = useState<string>("ทุกสถานที่");
   const [periodFilter, setPeriodFilter] = useState<string>("ทุกช่วงเวลา");
   const [statusFilter, setStatusFilter] = useState<string>("ทุกสถานะ");
@@ -152,6 +158,7 @@ export default function ReportSummaryPage() {
   const [columnCount, setColumnCount] = useState<number>(6);
   const [mockupNotice, setMockupNotice] = useState<string | null>(null);
 
+  // แสดงข้อความสั้น ๆ ที่มุมจอ แล้วซ่อนเอง
   const showNotice = (message: string) => {
     setMockupNotice(message);
     setTimeout(() => {
@@ -159,12 +166,13 @@ export default function ReportSummaryPage() {
     }, 2500);
   };
 
-  // จำลองการ export Excel
+  // ตอนนี้ปุ่มส่งออกแค่แสดงข้อความ ยังไม่ได้สร้างไฟล์จริง
   const handleMockExportExcel = (fileName: string) => {
     showNotice(`กำลังดาวน์โหลดไฟล์ ${fileName}.xlsx (${columnCount} คอลัมน์) สำเร็จ! (Mockup)`);
   };
 
   const handleCycleColumnCount = () => {
+    // กดปุ่มเพื่อเปลี่ยนจำนวนคอลัมน์วน 6, 8, 10
     const nextCount = columnCount === 6 ? 8 : columnCount === 8 ? 10 : 6;
     setColumnCount(nextCount);
     showNotice(`เปลี่ยนการตั้งค่าส่งออกเป็น ${nextCount} คอลัมน์เรียบร้อย`);
@@ -172,6 +180,7 @@ export default function ReportSummaryPage() {
 
   const cleanQuery = searchQuery.trim().toLowerCase();
 
+  // เลือกการ์ดที่ตรงกับตัวกรองที่เลือก
   const filteredCards = reportCards.filter((card) => {
     const matchLocation =
       locationFilter === "ทุกสถานที่" || card.branchName === locationFilter;
@@ -189,6 +198,7 @@ export default function ReportSummaryPage() {
     return matchLocation && matchPeriod && matchStatus && matchSearch;
   });
 
+  // แสดงกิจกรรมล่าสุดจากข้อมูลในระบบ
   const filteredActivities = reportActivities.filter((act) => {
     const matchLocation =
       locationFilter === "ทุกสถานที่" || act.branchName === locationFilter;
@@ -207,6 +217,7 @@ export default function ReportSummaryPage() {
 
   return (
     <div className="min-h-screen bg-[#f4f5f9] text-slate-800 font-sans pb-12">
+      {/* ข้อความแจ้งผลหลังจากกดปุ่ม */}
       {mockupNotice && (
         <div
           role="status"
@@ -217,6 +228,7 @@ export default function ReportSummaryPage() {
         </div>
       )}
 
+      {/* ชื่อหน้าและปุ่มย้อนกลับ */}
       <div className="bg-white border-b border-slate-200 px-4 lg:px-8 py-3.5 flex items-center gap-2.5">
         <button
           type="button"
@@ -230,7 +242,7 @@ export default function ReportSummaryPage() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-4 lg:pt-6 space-y-5">
-        {/* การ์ดสรุป KPI */}
+        {/* กล่องตัวเลขสรุปด้านบน */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 lg:gap-5">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
@@ -268,7 +280,7 @@ export default function ReportSummaryPage() {
           </div>
         </div>
 
-        {/* ตัวกรอง */}
+        {/* เลือกสถานที่ ช่วงเวลา สถานะ หรือพิมพ์คำค้นหา */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           <div className="relative">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
@@ -338,7 +350,7 @@ export default function ReportSummaryPage() {
           </div>
         </div>
 
-        {/* รายงานรวม 4 ประเภท */}
+        {/* การ์ดสรุปรายงานทั้ง 4 ประเภท */}
         <section className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-6 shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
             <div>
@@ -364,6 +376,7 @@ export default function ReportSummaryPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {/* แสดงการ์ดตามข้อมูลที่เลือกไว้ */}
               {filteredCards.map((card) => (
                 <div
                   key={card.id}
@@ -475,7 +488,7 @@ export default function ReportSummaryPage() {
           </div>
         </div>
 
-        {/* กิจกรรมล่าสุด */}
+        {/* กิจกรรมล่าสุด; บนมือถือแสดงเป็นรายการแทนตาราง */}
         <section className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm lg:text-base font-bold text-slate-900">กิจกรรมล่าสุด</h2>
@@ -530,6 +543,7 @@ export default function ReportSummaryPage() {
 }
 
 function ReportBadge({ text, tone }: { text: string; tone: BadgeTone }) {
+  // ป้ายสถานะแต่ละแบบใช้สีต่างกัน
   if (tone === "purple") {
     return (
       <span className="inline-flex items-center gap-1 bg-[#ede9fe] text-[#4f46e5] text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0">
@@ -555,6 +569,7 @@ function ReportBadge({ text, tone }: { text: string; tone: BadgeTone }) {
 }
 
 function CubeIcon() {
+  // รูปไอคอนของการ์ดแต่ละใบ
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />

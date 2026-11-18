@@ -11,8 +11,9 @@ import { InputGroup, InputGroupInput } from "./tailgrids/core/input-group";
 
 import { AvatarBadge } from "@/components/tailgrids/core/avatar";
 
-import { Search1, Bell1, Gear1,User2 } from "@tailgrids/icons";
+import { Search1, Gear1,User2 } from "@tailgrids/icons";
 import { Button } from "./tailgrids/core/button";
+import NotificationDropdown from "./notifications/NotificationDropdown";
 
 import { useRouter } from "next/navigation";
 
@@ -179,11 +180,12 @@ export default function TopNavbar() {
           </TextField>
 
           <div className="flex items-center gap-4 mr-4">
-            <Button>
-              <Bell1 className="size-4.5" />
-            </Button>
+            <NotificationDropdown />
 
-            <Button>
+            <Button
+              aria-label="ตั้งค่าระบบ"
+              onClick={() => router.push("/setting")}
+            >
               <Gear1 className="size-4.5" />
             </Button>
 
