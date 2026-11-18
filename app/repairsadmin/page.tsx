@@ -2,6 +2,7 @@
 import {
   formatLocalizedDate,
   useLanguage,
+  useTheme,
   useTranslate,
 } from "@/lib/language";
 
@@ -94,6 +95,7 @@ function RepairsAdminPageContent() {
   const searchParams = useSearchParams();
   const requestId = searchParams.get("requestId");
   const language = useLanguage();
+  const isDark = useTheme() === "dark";
   const translateText = useTranslate();
   const [requests, setRequests] = useState(initialRequests);
   const [search, setSearch] = useState("");
@@ -110,6 +112,7 @@ function RepairsAdminPageContent() {
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // ใช้ requestId จาก URL เปิดรายละเอียดจากแจ้งเตือน; ถ้าไม่มีจึงใช้รายการที่คลิก
   const selectedRequest =
     requests.find((request) => request.id === requestId) ??
     manuallySelectedRequest;
@@ -209,7 +212,7 @@ function RepairsAdminPageContent() {
   };
 
   const updateRequest = () => {
-    // เปลี่ยนสถานะและหมายเหตุในหน้าจอนี้; ตอนนี้ยังไม่ได้บันทึกลงฐานข้อมูล
+    // อัปเดต state ให้เห็นผลทันที; ข้อมูลยังไม่ถูกส่งไปบันทึกในฐานข้อมูล
     if (!selectedRequest) return;
     setError("");
     setSuccess("");
@@ -646,7 +649,9 @@ function RepairsAdminPageContent() {
                       return (
                         <tr
                           key={request.id}
-                          className="text-xs text-slate-700 transition hover:bg-slate-50/70"
+                          className={`text-xs text-slate-700 transition ${
+                            isDark ? "hover:bg-slate-700" : "hover:bg-slate-50/70"
+                          }`}
                         >
                           <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-slate-800">
                             {request.id}

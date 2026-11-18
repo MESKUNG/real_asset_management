@@ -9,7 +9,8 @@ export type NotificationItem = {
   // ข้อมูลที่จะแสดงในแต่ละแจ้งเตือน และคำร้องที่แจ้งเตือนนั้นเกี่ยวข้อง
   id: string;
   title: string;
-  description: string;
+  assetName: string;
+  issue: string;
   reference: string;
   createdAt: string;
   category: "new" | "updated" | "completed" | "rejected";
@@ -20,21 +21,21 @@ export const notificationsStorageKey = "asset-management-read-notifications";
 export const notificationsChangedEvent = "asset-management-notifications-change";
 
 // ตอนนี้ตัวอย่างแจ้งเตือนสร้างจากรายการซ่อมใน data/repairRequests.ts
+function getNotificationDate(request: RepairRequest) {
+  return request.completedAt ?? request.startedAt ?? request.reportedAt;
+}
+
+// ใช้วันที่ของสถานะล่าสุดจัดลำดับ และเก็บไว้แสดงไม่เกิน 20 รายการ
 const latestRequests = [...repairRequests]
   .filter((request) =>
     ["pending", "in_progress", "completed", "rejected"].includes(request.status),
   )
-  .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
+  .sort((a, b) =>
+    getNotificationDate(b).localeCompare(getNotificationDate(a)),
+  )
+  .slice(0, 20);
 
-const notificationRequests = [
-  // เลือกอย่างละหนึ่งรายการของแต่ละสถานะ เพื่อให้เห็นแจ้งเตือนหลายแบบ
-  ...latestRequests.filter((request) => request.status === "pending").slice(0, 1),
-  ...latestRequests.filter((request) => request.status === "in_progress").slice(0, 1),
-  ...latestRequests.filter((request) => request.status === "completed").slice(0, 1),
-  ...latestRequests.filter((request) => request.status === "rejected").slice(0, 1),
-];
-
-export const notifications: NotificationItem[] = notificationRequests.map(
+export const notifications: NotificationItem[] = latestRequests.map(
   (request) => {
     // หาชื่ออุปกรณ์จากรหัส เพื่อแสดงชื่อให้อ่านง่ายขึ้น
     const asset = assets.find((item) => item.id === request.assetId);
@@ -55,10 +56,10 @@ export const notifications: NotificationItem[] = notificationRequests.map(
     return {
       id: request.id,
       title: titleByCategory[category],
-      description: `${asset?.name ?? request.assetId} · ${request.issue}`,
+      assetName: asset?.name ?? request.assetId,
+      issue: request.issue,
       reference: request.id,
-      createdAt:
-        request.completedAt ?? request.startedAt ?? request.reportedAt,
+      createdAt: getNotificationDate(request),
       category,
       request,
     };
@@ -66,7 +67,7 @@ export const notifications: NotificationItem[] = notificationRequests.map(
 );
 
 export const defaultReadNotifications = JSON.stringify(
-  // ตอนเปิดครั้งแรก จะมีสองรายการแรกที่ยังไม่อ่าน
+  // ตอนเปิดครั้งแรก จำลองให้สองรายการล่าสุดยังไม่อ่าน ส่วนที่เหลืออ่านแล้ว
   notifications.slice(2).map(({ id }) => id),
 );
 
@@ -150,7 +151,10 @@ export function getNotificationsPath(
   return `${path}?requestId=${encodeURIComponent(requestId)}`;
 }
 
-export function formatNotificationTime(value: string) {
+export function formatNotificationTime(
+  value: string,
+  language: "th" | "en" = "th",
+) {
   // แสดงเวลาให้อ่านง่าย เช่น "เมื่อ 5 นาทีที่แล้ว"
   const timestamp = new Date(value).getTime();
   if (Number.isNaN(timestamp)) return "ไม่ทราบเวลา";
@@ -163,7 +167,10 @@ export function formatNotificationTime(value: string) {
     ["hour", 60 * 60],
     ["minute", 60],
   ];
-  const formatter = new Intl.RelativeTimeFormat("th", { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(
+    language === "en" ? "en" : "th",
+    { numeric: "auto" },
+  );
 
   for (const [unit, secondsPerUnit] of units) {
     if (Math.abs(elapsedSeconds) >= secondsPerUnit) {
@@ -174,5 +181,5 @@ export function formatNotificationTime(value: string) {
     }
   }
 
-  return "เมื่อสักครู่";
+  return language === "en" ? "Just now" : "เมื่อสักครู่";
 }

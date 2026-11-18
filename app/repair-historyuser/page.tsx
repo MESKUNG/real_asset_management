@@ -2,6 +2,7 @@
 import {
   formatLocalizedDate,
   useLanguage,
+  useTheme,
   useTranslate,
 } from "@/lib/language";
 
@@ -64,13 +65,14 @@ const pageSize = 5;
 
 export default function RepairHistoryPage() {
   const language = useLanguage();
+  const isDark = useTheme() === "dark";
   const translateText = useTranslate();
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRequest, setSelectedRequest] =
     useState<RepairHistoryItem | null>(null);
 
-  // ค้นหาได้จากเลขคำร้อง รหัสอุปกรณ์ ชื่ออุปกรณ์ หรือชื่อสาขา
+  // กรองประวัติตัวอย่างตามเลขคำร้อง รหัส/ชื่ออุปกรณ์ หรือชื่อสาขา
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
 
@@ -192,7 +194,9 @@ export default function RepairHistoryPage() {
                   return (
                     <tr
                       key={request.id}
-                      className="text-xs text-slate-700 transition hover:bg-slate-50/70"
+                      className={`text-xs text-slate-700 transition ${
+                        isDark ? "hover:bg-slate-700" : "hover:bg-slate-50/70"
+                      }`}
                     >
                       <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-800">
                         {formatLocalizedDate(request.completedAt, language)}

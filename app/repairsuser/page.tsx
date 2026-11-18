@@ -2,13 +2,20 @@
 import {
   formatLocalizedDate,
   useLanguage,
+  useTheme,
   useTranslate,
 } from "@/lib/language";
 
 
 // หน้านี้ให้ User ค้นหา ดูรายละเอียด และส่งคำร้องแจ้งซ่อม
-// ตอนนี้แก้รายการได้ชั่วคราว ถ้ารีเฟรชหน้ารายการที่สร้างใหม่จะหายไป
-import { Suspense, useMemo, useState, type FormEvent } from "react";
+// คำร้องที่ User สร้างจะถูกเก็บไว้ใน localStorage
+import {
+  Suspense,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -26,6 +33,13 @@ import {
   type RepairRequest,
   type RepairStatus,
 } from "@/data/repairRequests";
+import {
+  getServerUserRepairRequestsSnapshot,
+  getUserRepairRequestsSnapshot,
+  parseUserRepairRequestsSnapshot,
+  saveUserRepairRequest,
+  subscribeToUserRepairRequests,
+} from "@/lib/userRepairRequests";
 
 const pageSize = 5;
 
@@ -59,8 +73,24 @@ function RepairsPageContent() {
   const searchParams = useSearchParams();
   const requestId = searchParams.get("requestId");
   const language = useLanguage();
+  const isDark = useTheme() === "dark";
   const translateText = useTranslate();
-  const [requests, setRequests] = useState(initialRepairRequests);
+  const [saveError, setSaveError] = useState("");
+  // รับข้อมูลจาก localStorage แบบ subscribe เพื่อให้รายการอัปเดตหลังสร้างคำร้อง
+  const storedRequestsSnapshot = useSyncExternalStore(
+    subscribeToUserRepairRequests,
+    getUserRepairRequestsSnapshot,
+    getServerUserRepairRequestsSnapshot,
+  );
+  const createdRequests = useMemo(
+    () => parseUserRepairRequestsSnapshot(storedRequestsSnapshot),
+    [storedRequestsSnapshot],
+  );
+  // แสดงคำร้องที่ผู้ใช้สร้างร่วมกับข้อมูลตั้งต้นของระบบ
+  const requests = useMemo(
+    () => [...createdRequests, ...initialRepairRequests],
+    [createdRequests],
+  );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [branchFilter, setBranchFilter] = useState("all");
@@ -122,7 +152,7 @@ function RepairsPageContent() {
   };
 
   const handleCreateRequest = (event: FormEvent<HTMLFormElement>) => {
-    // อ่านข้อมูลที่กรอกจากหน้าต่างสร้างคำร้อง
+    // อ่านเฉพาะค่าจากฟอร์ม แล้วตรวจให้มีทรัพย์สิน สาขา และอาการก่อนบันทึก
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const assetId = String(formData.get("assetId") ?? "");
@@ -161,7 +191,16 @@ function RepairsPageContent() {
       adminNote: "",
     };
 
-    setRequests((current) => [newRequest, ...current]);
+    try {
+      saveUserRepairRequest(newRequest);
+      setSaveError("");
+    } catch {
+      setSaveError(
+        "บันทึกคำร้องไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บในเบราว์เซอร์แล้วลองอีกครั้ง",
+      );
+      return;
+    }
+
     setCurrentPage(1);
     setIsCreateOpen(false);
     event.currentTarget.reset();
@@ -184,7 +223,10 @@ function RepairsPageContent() {
           </div>
           <button
             type="button"
-            onClick={() => setIsCreateOpen(true)}
+            onClick={() => {
+              setSaveError("");
+              setIsCreateOpen(true);
+            }}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 sm:w-auto"
           >
             <FileText className="size-4" />
@@ -367,7 +409,9 @@ function RepairsPageContent() {
                   return (
                     <tr
                       key={request.id}
-                      className="text-xs text-slate-700 transition hover:bg-slate-50/70"
+                      className={`text-xs text-slate-700 transition ${
+                        isDark ? "hover:bg-slate-700" : "hover:bg-slate-50/70"
+                      }`}
                     >
                       <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-slate-800">
                         {request.id}
@@ -571,8 +615,12 @@ function RepairsPageContent() {
       {/* หน้าต่างนี้เปิดจากปุ่ม "สร้างคำร้องแจ้งซ่อม" ด้านบน */}
       {isCreateOpen && (
         <CreateRepairModal
-          onClose={() => setIsCreateOpen(false)}
+          onClose={() => {
+            setSaveError("");
+            setIsCreateOpen(false);
+          }}
           onSubmit={handleCreateRequest}
+          error={saveError}
         />
       )}
     </div>

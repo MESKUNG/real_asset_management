@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Bell1, CheckCircle1, Gear1, RefreshCircle1Clockwise } from "@tailgrids/icons";
 import { useRouter } from "next/navigation";
+import { useLanguage, useTranslate } from "@/lib/language";
 import {
   formatNotificationTime,
   getNotificationsPath,
@@ -61,6 +62,8 @@ function NotificationIcon({
 
 export default function NotificationDropdown() {
   const router = useRouter();
+  const language = useLanguage();
+  const translateText = useTranslate();
   // จำไว้ว่ากล่องอยู่ตรงไหน และตอนนี้เปิดอยู่หรือปิดอยู่
   const rootRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -135,7 +138,7 @@ export default function NotificationDropdown() {
       {/* กระดิ่งและตัวเลขสีแดงแสดงจำนวนรายการที่ยังไม่ได้เปิดอ่าน */}
       <button
         type="button"
-        aria-label={`การแจ้งเตือน${unreadCount ? ` ${unreadCount} รายการที่ยังไม่อ่าน` : ""}`}
+        aria-label={`${translateText("การแจ้งเตือน")}${unreadCount ? ` ${unreadCount} ${translateText("รายการที่ยังไม่อ่าน")}` : ""}`}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         onClick={() => setIsOpen((open) => !open)}
@@ -152,16 +155,18 @@ export default function NotificationDropdown() {
       {isOpen && (
         <section
           role="dialog"
-          aria-label="การแจ้งเตือน"
+          aria-label={translateText("การแจ้งเตือน")}
           className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl"
         >
           {/* กล่องนี้จะแสดงหลังจากกดกระดิ่ง */}
           <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold">การแจ้งเตือน</h2>
+              <h2 className="text-sm font-semibold">
+                {translateText("การแจ้งเตือน")}
+              </h2>
               {unreadCount > 0 && (
                 <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
-                  {unreadCount} รายการใหม่
+                  {unreadCount} {translateText("รายการใหม่")}
                 </span>
               )}
             </div>
@@ -171,20 +176,20 @@ export default function NotificationDropdown() {
               disabled={unreadCount === 0}
               className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:cursor-default disabled:text-slate-400"
             >
-              อ่านทั้งหมด
+              {translateText("อ่านทั้งหมด")}
             </button>
           </header>
 
           {/* แจ้งเตือนตรงนี้ถ้าบันทึกว่าอ่านแล้วไม่สำเร็จ */}
           {error && (
             <p role="alert" className="bg-rose-50 px-4 py-2 text-xs text-rose-700">
-              {error}
+              {translateText(error)}
             </p>
           )}
 
           <div className="max-h-[min(26rem,70vh)] overflow-y-auto">
-            {/* รายการแจ้งเตือนแต่ละแถว */}
-            {notifications.map((notification) => {
+            {/* กล่องย่อแสดงเฉพาะ 4 รายการล่าสุด; รายการที่เหลือดูได้จากหน้ารวม */}
+            {notifications.slice(0, 4).map((notification) => {
               const isUnread = !readIds.has(notification.id);
 
               return (
@@ -200,14 +205,15 @@ export default function NotificationDropdown() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-start justify-between gap-2">
                       <span className="text-xs font-semibold text-slate-800">
-                        {notification.title}
+                        {translateText(notification.title)}
                       </span>
                       <span className="shrink-0 text-[10px] text-slate-400">
-                        {formatNotificationTime(notification.createdAt)}
+                        {formatNotificationTime(notification.createdAt, language)}
                       </span>
                     </span>
                     <span className="mt-1 block truncate text-xs text-slate-600">
-                      {notification.description}
+                      {translateText(notification.assetName)} ·{" "}
+                      {translateText(notification.issue)}
                     </span>
                     <span className="mt-1 block text-[10px] text-slate-400">
                       {notification.reference}
@@ -215,7 +221,7 @@ export default function NotificationDropdown() {
                   </span>
                   {isUnread && (
                     <span
-                      aria-label="ยังไม่อ่าน"
+                      aria-label={translateText("ยังไม่อ่าน")}
                       className="mt-4 size-2 shrink-0 rounded-full bg-indigo-600"
                     />
                   )}
@@ -233,7 +239,8 @@ export default function NotificationDropdown() {
             }}
             className="flex w-full items-center justify-center gap-2 border-t border-slate-100 px-4 py-3 text-xs font-semibold text-indigo-600 transition hover:bg-slate-50"
           >
-            ดูการแจ้งเตือนทั้งหมด <span aria-hidden="true">›</span>
+            {translateText("ดูการแจ้งเตือนทั้งหมด")}{" "}
+            <span aria-hidden="true">›</span>
           </button>
         </section>
       )}

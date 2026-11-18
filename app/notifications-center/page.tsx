@@ -3,6 +3,7 @@
 // หน้านี้เปิดจากปุ่ม "ดูการแจ้งเตือนทั้งหมด" ในกล่องกระดิ่ง
 import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import { useLanguage, useTranslate } from "@/lib/language";
 import {
   formatNotificationTime,
   getNotificationsPath,
@@ -16,8 +17,10 @@ import {
 
 export default function NotificationsCenterPage() {
   const router = useRouter();
+  const language = useLanguage();
+  const translateText = useTranslate();
   const [error, setError] = useState("");
-  // ใช้ข้อมูลชุดเดียวกับกล่องกระดิ่ง สถานะอ่านแล้วจึงตรงกัน
+  // สมัครรับการเปลี่ยนสถานะอ่านแล้วชุดเดียวกับกล่องกระดิ่ง เพื่อให้สองหน้าตรงกัน
   const snapshot = useSyncExternalStore(
     subscribeToNotificationChanges,
     getReadNotificationsSnapshot,
@@ -80,10 +83,10 @@ export default function NotificationsCenterPage() {
         <header className="mb-5 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold text-slate-900">
-              การแจ้งเตือน
+              {translateText("การแจ้งเตือน")}
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              ติดตามความเคลื่อนไหวของรายการแจ้งซ่อม
+              {translateText("ติดตามความเคลื่อนไหวของรายการแจ้งซ่อม")}
             </p>
           </div>
           <button
@@ -92,7 +95,7 @@ export default function NotificationsCenterPage() {
             disabled={notifications.every(({ id }) => readIds.has(id))}
             className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-default disabled:text-slate-400"
           >
-            อ่านทั้งหมด
+            {translateText("อ่านทั้งหมด")}
           </button>
         </header>
 
@@ -102,13 +105,14 @@ export default function NotificationsCenterPage() {
             role="alert"
             className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700"
           >
-            {error}
+            {translateText(error)}
           </p>
         )}
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* แต่ละแถวคือการแจ้งเตือนหนึ่งรายการ; จุดสีน้ำเงินหมายถึงยังไม่อ่าน */}
-          {notifications.map((notification) => {
+          {/* notifications เรียงจากใหม่ไปเก่า; หน้านี้แสดงไม่เกิน 20 รายการ */}
+          {notifications.slice(0, 20).map((notification) => {
             const isUnread = !readIds.has(notification.id);
 
             return (
@@ -132,14 +136,15 @@ export default function NotificationsCenterPage() {
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-slate-800">
-                      {notification.title}
+                      {translateText(notification.title)}
                     </span>
                     <span className="text-xs text-slate-400">
-                      {formatNotificationTime(notification.createdAt)}
+                      {formatNotificationTime(notification.createdAt, language)}
                     </span>
                   </span>
                   <span className="mt-1 block text-sm text-slate-600">
-                    {notification.description}
+                    {translateText(notification.assetName)} ·{" "}
+                    {translateText(notification.issue)}
                   </span>
                   <span className="mt-1 block text-xs text-slate-400">
                     {notification.reference}
@@ -147,7 +152,7 @@ export default function NotificationsCenterPage() {
                 </span>
                 {isUnread && (
                   <span
-                    aria-label="ยังไม่อ่าน"
+                    aria-label={translateText("ยังไม่อ่าน")}
                     className="mt-2 size-2 shrink-0 rounded-full bg-indigo-600"
                   />
                 )}
