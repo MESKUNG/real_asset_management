@@ -2,6 +2,8 @@
 import { useTheme, useTranslate } from "@/lib/language";
 
 import React from 'react'
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Select, { type StylesConfig } from "react-select";
 import jsQR from "jsqr";
 
@@ -21,9 +23,10 @@ import {
 } from "@/data/borrowRequests";
 import { approvals } from "@/data/approvals";
 import { branches } from "@/data/branches";
-
-// TODO: แทนด้วย id ของผู้ใช้ที่ login จริง
-const CURRENT_USER_ID = 102;
+import {
+  getCurrentStaffId,
+  publishUserActionNotification,
+} from "@/lib/userActionNotifications";
 
 /* ---------- types ---------- */
 
@@ -201,13 +204,15 @@ function parseRequests(raw: string | null): Request[] {
   }
 }
 
-function saveRequests(list: Request[]) {
+function saveRequests(list: Request[]): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch (error) {
     console.error("Save requests failed:", error);
+    return false;
   }
   window.dispatchEvent(new Event(CHANGE_EVENT));
+  return true;
 }
 
 /* ---------- รายละเอียดคำขอ ---------- */
@@ -432,10 +437,27 @@ function exportPdf(list: Request[], subtitle: string) {
 
 /* ---------- page ---------- */
 
+// useSearchParams ที่ใช้ด้านในต้องอยู่ใต้ Suspense เพื่อให้หน้า prerender ได้
 export default function Page() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+      <BorrowPageContent />
+    </Suspense>
+  );
+}
+
+function BorrowPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestId = searchParams.get("requestId");
   const translateText = useTranslate();
   const isDark = useTheme() === "dark";
   const role = useSyncExternalStore(subscribe, getRole, () => null);
+  const currentStaffId = useSyncExternalStore(
+    subscribe,
+    getCurrentStaffId,
+    () => null,
+  );
   // สิทธิ์ตาม role
   const isAdmin = role === "admin" || role === "superadmin";
   const isPresident = role === "president";
@@ -459,7 +481,14 @@ export default function Page() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [pageState, setPageState] = useState({ key: "", page: 1 });
-  const detail = requests.find((r) => r.id === detailId) ?? null;
+  // ใช้ requestId จาก Notification ก่อน; ถ้าไม่มี ใช้รายการที่เปิดจากในหน้า
+  const detail = requests.find((r) => r.id === (requestId ?? detailId)) ?? null;
+
+  const closeDetail = () => {
+    setDetailId(null);
+    // ล้าง requestId หลังปิด เพื่อไม่ให้รายละเอียดเปิดซ้ำเมื่อกลับมาหน้านี้
+    if (requestId) router.replace("/Borrow", { scroll: false });
+  };
 
   // ตัวเลขบนปุ่มสถานะ นับตามประเภทที่เลือกอยู่
   const byType = useMemo(
@@ -509,20 +538,53 @@ export default function Page() {
     pageSize === "all" ? rows.length : Math.min(page * pageSize, rows.length);
   const goPage = (p: number) => setPageState({ key: filterKey, page: p });
 
-  function update(id: string, patch: Partial<Request>) {
+  function update(id: string, patch: Partial<Request>): boolean {
     const decidedAt = new Date().toISOString();
-    saveRequests(
-      requests.map((r) => (r.id === id ? { ...r, decidedAt, ...patch } : r)),
+    const updatedRequest = requests.find((request) => request.id === id);
+    if (!updatedRequest) return false;
+    const nextRequest = { ...updatedRequest, decidedAt, ...patch };
+    const nextRequests = requests.map((request) =>
+      request.id === id ? nextRequest : request,
     );
+    if (!saveRequests(nextRequests)) {
+      window.alert("บันทึกการดำเนินการไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return false;
+    }
+
+    if (isAdmin || isPresident) {
+      const response = nextRequest.note?.trim();
+      const statusText = STATUS[displayStatus(nextRequest)].label;
+      try {
+        publishUserActionNotification({
+          key: `borrow:${nextRequest.id}`,
+          recipientId: nextRequest.borrowerId,
+          category: nextRequest.type,
+          title: statusText,
+          assetName: assetName(nextRequest.assetId),
+          branchId: nextRequest.branchId,
+          issue: response ?? "",
+          reference: nextRequest.id,
+          href: `/Borrow?requestId=${encodeURIComponent(nextRequest.id)}`,
+        });
+      } catch (error) {
+        console.error("แจ้งผู้ยื่นคำขอไม่สำเร็จ:", error);
+        window.alert("บันทึกคำขอแล้ว แต่ส่งการแจ้งเตือนไม่สำเร็จ");
+      }
+    }
+    return true;
   }
 
   // คืนรหัสคำขอใหม่ เพื่อให้ popup แสดงหลังส่งสำเร็จ
   function addRequest(data: NewRequest): string {
+    if (currentStaffId === null) {
+      window.alert("ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่");
+      return "";
+    }
     const asset = assets.find((a) => a.id === data.assetId);
     const id = `BRQ-${String(requests.length + 1).padStart(4, "0")}`;
     const next: Request = {
       id,
-      borrowerId: CURRENT_USER_ID,
+      borrowerId: currentStaffId,
       branchId: asset?.branchId ?? "",
       ...data,
       toBranchId: data.toBranchId ?? null,
@@ -531,27 +593,31 @@ export default function Page() {
       note: "",
       createdAt: new Date().toISOString(),
     };
-    saveRequests([next, ...requests]);
+    if (!saveRequests([next, ...requests])) {
+      window.alert("บันทึกคำขอไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return "";
+    }
     return id;
   }
 
   // ผู้ขอแก้ไขคำขอที่ถูกส่งกลับ แล้วส่งใหม่ -> กลับไปรออนุมัติ
   function resubmit(id: string, data: NewRequest): string {
     const asset = assets.find((a) => a.id === data.assetId);
-    update(id, {
+    const saved = update(id, {
       ...data,
       toBranchId: data.toBranchId ?? null,
       branchId: asset?.branchId ?? "",
       status: "pending",
       note: "",
     });
-    return id;
+    return saved ? id : "";
   }
 
   // แอดมินส่งกลับแก้ไข พร้อมเหตุผล (เก็บไว้ใน note)
   function confirmSendBack(reason: string) {
-    if (sendBackId) update(sendBackId, { status: "revision", note: reason });
-    setSendBackId(null);
+    if (sendBackId && update(sendBackId, { status: "revision", note: reason })) {
+      setSendBackId(null);
+    }
   }
 
   function closeModal() {
@@ -780,7 +846,7 @@ export default function Page() {
                       canApprove={canApprove}
                       canSendBack={canSendBack}
                       canReceive={canReceive}
-                      canEdit={canCreate && r.borrowerId === CURRENT_USER_ID}
+                      canEdit={canCreate && r.borrowerId === currentStaffId}
                       onApprove={() => update(r.id, { status: "approved" })}
                       onReject={() => update(r.id, { status: "rejected" })}
                       onSendBack={() => setSendBackId(r.id)}
@@ -863,7 +929,7 @@ export default function Page() {
         />
       )}
 
-      {detail && <DetailModal request={detail} onClose={() => setDetailId(null)} />}
+      {detail && <DetailModal request={detail} onClose={closeDetail} />}
     </div>
   );
 }

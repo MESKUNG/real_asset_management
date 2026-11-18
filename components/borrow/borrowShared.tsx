@@ -152,13 +152,15 @@ export function parseRequests(raw: string | null): Request[] {
   }
 }
 
-export function saveRequests(list: Request[]) {
+export function saveRequests(list: Request[]): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch (error) {
     console.error("Save requests failed:", error);
+    return false;
   }
   window.dispatchEvent(new Event(CHANGE_EVENT));
+  return true;
 }
 
 /* ---------- รายละเอียดคำขอ ---------- */

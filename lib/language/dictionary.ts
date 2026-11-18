@@ -3,6 +3,7 @@ export const englishTranslations: Record<string, string> = {
   "ภาพรวม": "Overview",
   "จัดการ Asset": "Manage Assets",
   "เบิก / คืน / ขอโอนย้ายทรัพย์สิน": "Borrow / Return / Transfer Assets",
+  "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน": "Borrow / Return / Transfer Assets",
   "ซ่อมบำรุง": "Maintenance",
   "รายการแจ้งซ่อม": "Repair Requests",
   "ประวัติซ่อม": "Repair History",
@@ -325,6 +326,13 @@ export const englishTranslations: Record<string, string> = {
   "สถานะคำขอได้รับการอัปเดต": "Request status updated",
   "ดำเนินการซ่อมเสร็จสิ้น": "Repair completed",
   "คำขอแจ้งซ่อมไม่ได้รับอนุมัติ": "Repair request rejected",
+  "คำขอเบิกทรัพย์สิน": "Asset withdrawal request",
+  "คำขอรับคืนทรัพย์สิน": "Asset return request",
+  "คำขอโอนย้ายทรัพย์สิน": "Asset transfer request",
+  "รอบตรวจนับใกล้ถึงกำหนด": "Inventory count is coming up",
+  "ทรัพย์สินหมดประกันแล้ว": "Asset warranty has expired",
+  "ทรัพย์สินใกล้หมดประกัน": "Asset warranty is expiring soon",
+  "ใกล้หมดประกัน": "Warranty expiring soon",
   "รายการใหม่": "new",
   "ไม่ทราบเวลา": "Unknown time",
   "พร้อมใช้": "Ready",
@@ -366,6 +374,8 @@ export const englishTranslations: Record<string, string> = {
     "Could not save the status. Please try again.",
   "ติดตามความเคลื่อนไหวของรายการแจ้งซ่อม":
     "Track repair request activity",
+  "ติดตามความเคลื่อนไหวของรายการในระบบ":
+    "Track activity across the system",
   "พัดลมระบายความร้อนมีเสียงดังผิดปกติ":
     "The cooling fan is unusually loud",
   "เครื่องเปิดไม่ติด": "The device will not turn on",

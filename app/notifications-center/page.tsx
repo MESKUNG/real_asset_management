@@ -7,14 +7,17 @@ import { useLanguage, useTranslate } from "@/lib/language";
 import {
   formatNotificationTime,
   getCredentialRoleSnapshot,
+  getNotificationHref,
   getNotificationsForRole,
-  getNotificationsPath,
+  getNotificationSourcesSnapshot,
   getReadNotificationsSnapshot,
   getServerCredentialRoleSnapshot,
+  getServerNotificationSourcesSnapshot,
   getServerReadNotificationsSnapshot,
   markNotificationsRead,
   parseReadNotifications,
   subscribeToCredentialChanges,
+  subscribeToNotificationSources,
   subscribeToNotificationChanges,
   type NotificationItem,
 } from "@/components/notifications/notifications";
@@ -46,8 +49,18 @@ export default function NotificationsCenterPage() {
     () => parseUserRepairRequestsSnapshot(userRequestsSnapshot),
     [userRequestsSnapshot],
   );
-  // คัดกรองแจ้งเตือนตาม role และสาขาที่มีสิทธิ์ รวมคำร้องที่อ่านมาจาก Local Storage
-  const visibleNotifications = getNotificationsForRole(role, userRequests);
+  // ใช้แหล่งข้อมูลชุดเดียวกับ dropdown เพื่อให้รายการแจ้งเตือนตรงกัน
+  const notificationSourcesSnapshot = useSyncExternalStore(
+    subscribeToNotificationSources,
+    getNotificationSourcesSnapshot,
+    getServerNotificationSourcesSnapshot,
+  );
+  // คัดกรองแจ้งเตือนตาม role และสาขาที่มีสิทธิ์ รวมข้อมูลจาก Local Storage
+  const visibleNotifications = getNotificationsForRole(
+    role,
+    userRequests,
+    notificationSourcesSnapshot,
+  );
   // อ่านสถานะอ่านแล้วและรับการเปลี่ยนแปลงชุดเดียวกับกล่องกระดิ่ง เพื่อให้สองหน้าตรงกัน
   const snapshot = useSyncExternalStore(
     subscribeToNotificationChanges,
@@ -67,7 +80,7 @@ export default function NotificationsCenterPage() {
   };
 
   const openNotification = (notification: NotificationItem) => {
-    // กดรายการเพื่อทำเครื่องหมายว่าอ่านแล้ว และเปิดหน้าซ่อมที่เกี่ยวข้อง
+    // กดรายการเพื่อทำเครื่องหมายว่าอ่านแล้ว และเปิดหน้าข้อมูลที่เกี่ยวข้อง
     try {
       markNotificationsRead([notification.id]);
       setError("");
@@ -76,13 +89,7 @@ export default function NotificationsCenterPage() {
       return;
     }
 
-    router.push(
-      getNotificationsPath(
-        role,
-        notification.request.status,
-        notification.request.id,
-      ),
-    );
+    router.push(getNotificationHref(role, notification));
   };
 
   return (
@@ -95,7 +102,7 @@ export default function NotificationsCenterPage() {
               {translateText("การแจ้งเตือน")}
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              {translateText("ติดตามความเคลื่อนไหวของรายการแจ้งซ่อม")}
+              {translateText("ติดตามความเคลื่อนไหวของรายการในระบบ")}
             </p>
           </div>
           <button
@@ -135,9 +142,9 @@ export default function NotificationsCenterPage() {
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
                   <span className="text-sm font-semibold" aria-hidden="true">
-                    {notification.category === "completed"
+                    {["completed", "returned", "warranty_expiring"].includes(notification.category)
                       ? "✓"
-                      : notification.category === "rejected"
+                      : ["rejected", "warranty_expired"].includes(notification.category)
                         ? "!"
                         : "•"}
                   </span>
@@ -152,12 +159,16 @@ export default function NotificationsCenterPage() {
                     </span>
                   </span>
                   <span className="mt-1 block text-sm text-slate-600">
-                    {translateText(notification.assetName)} ·{" "}
-                    {translateText(notification.issue)}
+                    {translateText(notification.assetName)}
+                    {notification.issue &&
+                      ` · ${translateText(notification.issue)}`}
                   </span>
                   <span className="mt-1 block text-xs text-slate-400">
                     {translateText(notification.branchName)} ·{" "}
-                    {notification.branchCode} · {notification.reference}
+                    {notification.branchCode}
+                    {notification.destinationBranchName &&
+                      ` → ${translateText(notification.destinationBranchName)}`}{" "}
+                    · {notification.reference}
                   </span>
                 </span>
                 {isUnread && (

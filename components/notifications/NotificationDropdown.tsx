@@ -15,14 +15,17 @@ import { useLanguage, useTranslate } from "@/lib/language";
 import {
   formatNotificationTime,
   getCredentialRoleSnapshot,
+  getNotificationHref,
   getNotificationsForRole,
-  getNotificationsPath,
+  getNotificationSourcesSnapshot,
   getReadNotificationsSnapshot,
   getServerCredentialRoleSnapshot,
+  getServerNotificationSourcesSnapshot,
   getServerReadNotificationsSnapshot,
   markNotificationsRead,
   parseReadNotifications,
   subscribeToCredentialChanges,
+  subscribeToNotificationSources,
   subscribeToNotificationChanges,
   type NotificationItem,
 } from "./notifications";
@@ -45,6 +48,12 @@ function NotificationIcon({
     updated: <RefreshCircle1Clockwise className={iconClass} />,
     completed: <CheckCircle1 className={iconClass} />,
     rejected: <Gear1 className={iconClass} />,
+    withdraw: <Bell1 className={iconClass} />,
+    return: <CheckCircle1 className={iconClass} />,
+    transfer: <RefreshCircle1Clockwise className={iconClass} />,
+    inventory: <Gear1 className={iconClass} />,
+    warranty_expired: <Gear1 className={iconClass} />,
+    warranty_expiring: <RefreshCircle1Clockwise className={iconClass} />,
   };
 
   return (
@@ -73,7 +82,17 @@ export default function NotificationDropdown() {
     () => parseUserRepairRequestsSnapshot(userRequestsSnapshot),
     [userRequestsSnapshot],
   );
-  const visibleNotifications = getNotificationsForRole(role, userRequests);
+  // ติดตามคำขอเบิก, รอบตรวจนับ และการเปลี่ยนแปลงข้อมูลทรัพย์สิน
+  const notificationSourcesSnapshot = useSyncExternalStore(
+    subscribeToNotificationSources,
+    getNotificationSourcesSnapshot,
+    getServerNotificationSourcesSnapshot,
+  );
+  const visibleNotifications = getNotificationsForRole(
+    role,
+    userRequests,
+    notificationSourcesSnapshot,
+  );
   // จำไว้ว่ากล่องอยู่ตรงไหน และตอนนี้เปิดอยู่หรือปิดอยู่
   const rootRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -134,13 +153,7 @@ export default function NotificationDropdown() {
       return;
     }
     setIsOpen(false);
-    router.push(
-      getNotificationsPath(
-        role,
-        notification.request.status,
-        notification.request.id,
-      ),
-    );
+    router.push(getNotificationHref(role, notification));
   };
 
   return (
@@ -221,13 +234,17 @@ export default function NotificationDropdown() {
                         {formatNotificationTime(notification.createdAt, language)}
                       </span>
                     </span>
-                    <span className="mt-1 block truncate text-xs text-slate-600">
-                      {translateText(notification.assetName)} ·{" "}
-                      {translateText(notification.issue)}
+                    <span className="mt-1 block line-clamp-2 whitespace-normal text-xs text-slate-600">
+                      {translateText(notification.assetName)}
+                      {notification.issue &&
+                        ` · ${translateText(notification.issue)}`}
                     </span>
                     <span className="mt-1 block text-[10px] text-slate-400">
                       {translateText(notification.branchName)} ·{" "}
-                      {notification.branchCode} · {notification.reference}
+                      {notification.branchCode}
+                      {notification.destinationBranchName &&
+                        ` → ${translateText(notification.destinationBranchName)}`}{" "}
+                      · {notification.reference}
                     </span>
                   </span>
                   {isUnread && (

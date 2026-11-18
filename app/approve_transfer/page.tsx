@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   DetailModal,
   ReasonModal,
+  STATUS,
   assetName,
   branchName,
   displayStatus,
@@ -14,6 +15,7 @@ import {
   useRequests,
   type Request,
 } from "@/components/borrow/borrowShared";
+import { publishUserActionNotification } from "@/lib/userActionNotifications";
 
 export default function Page() {
   const requests = useRequests();
@@ -43,16 +45,42 @@ export default function Page() {
       .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
   }, [transfers, query]);
 
-  function update(id: string, patch: Partial<Request>) {
+  function update(id: string, patch: Partial<Request>): boolean {
     const decidedAt = new Date().toISOString();
-    saveRequests(
-      requests.map((r) => (r.id === id ? { ...r, decidedAt, ...patch } : r)),
+    const request = requests.find((item) => item.id === id);
+    if (!request) return false;
+    const updatedRequest = { ...request, decidedAt, ...patch };
+    const nextRequests = requests.map((item) =>
+      item.id === id ? updatedRequest : item,
     );
+    if (!saveRequests(nextRequests)) {
+      window.alert("บันทึกการดำเนินการไม่สำเร็จ กรุณาลองอีกครั้ง");
+      return false;
+    }
+
+    try {
+      publishUserActionNotification({
+        key: `borrow:${updatedRequest.id}`,
+        recipientId: updatedRequest.borrowerId,
+        category: "transfer",
+        title: STATUS[displayStatus(updatedRequest)].label,
+        assetName: assetName(updatedRequest.assetId),
+        branchId: updatedRequest.branchId,
+        issue: updatedRequest.note?.trim() ?? "",
+        reference: updatedRequest.id,
+        href: `/Borrow?requestId=${encodeURIComponent(updatedRequest.id)}`,
+      });
+    } catch (error) {
+      console.error("แจ้งผู้ยื่นคำขอโอนย้ายไม่สำเร็จ:", error);
+      window.alert("บันทึกคำขอแล้ว แต่ส่งการแจ้งเตือนไม่สำเร็จ");
+    }
+    return true;
   }
 
   function confirmReject(reason: string) {
-    if (rejectId) update(rejectId, { status: "rejected", note: reason });
-    setRejectId(null);
+    if (rejectId && update(rejectId, { status: "rejected", note: reason })) {
+      setRejectId(null);
+    }
   }
 
   const stat = (label: string, value: number) => (
