@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useSyncExternalStore, Suspense } from "react";
+import { useState, useMemo, useSyncExternalStore, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Asset } from "@/data/asset";
 import { branches } from "@/data/branches";
 import {
@@ -17,6 +18,9 @@ import {
   ShieldAlert,
   ArrowLeft,
   Check,
+  Upload,
+  ImageIcon,
+  X,
 } from "lucide-react";
 
 type RoleKey = "user" | "admin" | "president" | "superadmin";
@@ -82,10 +86,49 @@ function toInputDate(dateStr?: string) {
   return d.toISOString().slice(0, 10);
 }
 
+// ย่อขนาดรูปภาพก่อนแปลงเป็น Base64 เพื่อป้องกัน localStorage เต็ม
+function compressImageToDataUrl(file: File, maxSize = 800): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(String(reader.result));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์รูปภาพได้"));
+      img.src = String(reader.result);
+    };
+    reader.onerror = () => reject(new Error("ไม่สามารถโหลดไฟล์ได้"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function EditAssetForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const assetId = searchParams.get("id") || "";
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const allAssets = useSyncExternalStore(
     subscribeAssets,
@@ -124,6 +167,11 @@ function EditAssetForm() {
       name: b.name || b.branchName || b.id || "",
     }));
   }, []);
+
+  const [assetImage, setAssetImage] = useState<string>(
+    targetAsset?.assetImage || ""
+  );
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const [name, setName] = useState(targetAsset?.name || "");
   const [category, setCategory] = useState(
@@ -205,6 +253,29 @@ function EditAssetForm() {
     );
   }
 
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("กรุณาเลือกไฟล์รูปภาพเท่านั้น (JPG, PNG, WEBP)");
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      const compressedDataUrl = await compressImageToDataUrl(file, 800);
+      setAssetImage(compressedDataUrl);
+    } catch {
+      alert("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -216,6 +287,7 @@ function EditAssetForm() {
       brand: brand.trim() || "-",
       model: model.trim() || "-",
       serialNumber: serialNumber.trim() || "-",
+      assetImage: assetImage || undefined,
       branchId,
       responsiblePersonId: responsiblePersonId
         ? Number(responsiblePersonId)
@@ -236,7 +308,8 @@ function EditAssetForm() {
       localStorage.setItem("updated_assets", JSON.stringify(saved));
       window.dispatchEvent(new Event("assetchange"));
     } catch {
-      // ignore storage error
+      alert("พื้นที่จัดเก็บชั่วคราวเต็ม กรุณาลดขนาดรูปภาพหรือใช้รูปที่เล็กลง");
+      return;
     }
 
     alert(`บันทึกการเปลี่ยนแปลง ${updatedAsset.name} (${updatedAsset.id}) เรียบร้อยแล้ว`);
@@ -253,10 +326,90 @@ function EditAssetForm() {
           </p>
         </div>
 
+        {/* Card 1: ข้อมูลทั่วไป + รูปภาพทรัพย์สิน */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             ข้อมูลทั่วไป
           </h2>
+
+          {/* ส่วนอัปโหลดรูปภาพ */}
+          <div className="mb-6">
+            <label className="block text-xs font-semibold text-slate-700 mb-2">
+              รูปภาพทรัพย์สิน
+            </label>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
+              {/* กล่องแสดงรูปตัวอย่าง */}
+              <div className="relative w-32 h-32 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                {assetImage ? (
+                  <>
+                    <Image
+                      src={assetImage}
+                      alt={name || targetAsset.name}
+                      width={256}
+                      height={256}
+                      unoptimized
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAssetImage("")}
+                      title="ลบรูปภาพ"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-900/70 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center text-slate-400">
+                    <ImageIcon size={26} />
+                    <span className="text-[11px] mt-1">ไม่มีรูปภาพ</span>
+                  </div>
+                )}
+              </div>
+
+              {/* ปุ่มเลือกรูป */}
+              <div className="space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    disabled={isUploadingImage}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold rounded-xl transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload size={15} />
+                    <span>
+                      {isUploadingImage
+                        ? "กำลังอัปโหลด..."
+                        : assetImage
+                        ? "เปลี่ยนรูปภาพ"
+                        : "อัปโหลดรูปภาพ"}
+                    </span>
+                  </button>
+
+                  {assetImage && (
+                    <button
+                      type="button"
+                      onClick={() => setAssetImage("")}
+                      className="px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                    >
+                      ลบรูป
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  รองรับไฟล์ JPG, PNG, WEBP (ระบบจะปรับขนาดให้อัตโนมัติเพื่อความรวดเร็ว)
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
