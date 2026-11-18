@@ -248,16 +248,7 @@ export default function Sidebar() {
             {translateText(menu.name)}
           </Link>
         ))}
-        <Link
-          href="/setting"
-          className={`rounded-lg p-3 font-medium ${
-            pathname === "/setting"
-              ? "bg-indigo-100 text-violet-800"
-              : "text-white hover:bg-indigo-100 hover:text-violet-800"
-          }`}
-        >
-          {translateText("ตั้งค่าระบบ")}
-        </Link>
+
       </nav>
     </aside>
   );
