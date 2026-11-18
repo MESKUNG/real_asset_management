@@ -20,6 +20,7 @@ export type Account = {
   last_login: number | null;
 };
 
+// ใช้ URL ตั้งค่ากลางของโปรเจกต์ แล้วต่อ resource Account ให้เหมือนจุดเรียก API อื่น
 function getAccountsApiUrl() {
   const baseUrl = process.env.NEXT_PUBLIC_MOCKAPI_URL?.trim();
 

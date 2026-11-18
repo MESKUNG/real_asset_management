@@ -30,6 +30,7 @@ export default function NotificationsCenterPage() {
   const language = useLanguage();
   const translateText = useTranslate();
   const [error, setError] = useState("");
+  // อ่าน role ล่าสุดจาก credential เพื่อใช้กำหนดว่าควรเห็นแจ้งเตือนชุดใด
   const role = useSyncExternalStore(
     subscribeToCredentialChanges,
     getCredentialRoleSnapshot,
@@ -45,8 +46,9 @@ export default function NotificationsCenterPage() {
     () => parseUserRepairRequestsSnapshot(userRequestsSnapshot),
     [userRequestsSnapshot],
   );
+  // คัดกรองแจ้งเตือนตาม role และสาขาที่มีสิทธิ์ รวมคำร้องที่อ่านมาจาก Local Storage
   const visibleNotifications = getNotificationsForRole(role, userRequests);
-  // สมัครรับการเปลี่ยนสถานะอ่านแล้วชุดเดียวกับกล่องกระดิ่ง เพื่อให้สองหน้าตรงกัน
+  // อ่านสถานะอ่านแล้วและรับการเปลี่ยนแปลงชุดเดียวกับกล่องกระดิ่ง เพื่อให้สองหน้าตรงกัน
   const snapshot = useSyncExternalStore(
     subscribeToNotificationChanges,
     getReadNotificationsSnapshot,
