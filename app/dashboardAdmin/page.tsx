@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -55,6 +57,7 @@ const categoryColors: Record<Task["category"], string> = {        //สีปร
 };
 
 export default function Page() {
+  const translateText = useTranslate();
   const [type, setType] = useState("all");
   const [branch, setBranch] = useState("all");
   const [status, setStatus] = useState("all");
@@ -169,26 +172,26 @@ export default function Page() {
     <main className="min-h-screen bg-[#f1f2f7] px-4 py-7 text-[#1c2740] sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-7">
         <section>
-          <h1 className="mb-4 text-xl font-bold">สรุปงานที่ต้องติดตาม</h1>
+          <h1 className="mb-4 text-xl font-bold">{translateText("สรุปงานที่ต้องติดตาม")}</h1>
           <div className="grid gap-4 md:grid-cols-3">
             <Summary
-              title="คำร้องแจ้งซ่อมที่ต้องติดตาม"
+              title={translateText("คำร้องแจ้งซ่อมที่ต้องติดตาม")}
               value={openRepairs.length}
-              note="คำร้องที่รอดำเนินการหรือกำลังซ่อม"
+              note={translateText("คำร้องที่รอดำเนินการหรือกำลังซ่อม")}
               icon={<Wrench />}
               color="text-amber-600"
             />
             <Summary
-              title="คำร้องเปลี่ยนการโอนย้าย"
+              title={translateText("คำร้องเปลี่ยนการโอนย้าย")}
               value={transferPending.length}
-              note="คำขอโอนย้ายที่รอดำเนินการ"
+              note={translateText("คำขอโอนย้ายที่รอดำเนินการ")}
               icon={<CircleCheck />}
               color="text-indigo-600"
             />
             <Summary
-              title="รอบตรวจนับที่ใกล้ที่สุด"
+              title={translateText("รอบตรวจนับที่ใกล้ที่สุด")}
               value={upcoming.length}
-              note="แสดงสูงสุด 3 รอบ · เรียงตามวันเริ่มต้น"
+              note={translateText("แสดงสูงสุด 3 รอบ · เรียงตามวันเริ่มต้น")}
               icon={<CalendarDays />}
               color="text-emerald-600"
             />
@@ -196,36 +199,36 @@ export default function Page() {
         </section>
 
         <section>
-          <h2 className="mb-4 text-xl font-bold">งานที่รอดำเนินการ</h2>
+          <h2 className="mb-4 text-xl font-bold">{translateText("งานที่รอดำเนินการ")}</h2>
           <div className="mb-3 flex gap-2">
             <Filter icon={<ClipboardList />}>
               <select
                 className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400"
-                aria-label="ประเภทงาน"
+                aria-label={translateText("ประเภทงาน")}
                 value={type}
                 onChange={(e) => {
                   setType(e.target.value);
                   setPage(1);
                 }}
               >
-                <option value="all">ประเภทงานทั้งหมด</option>
-                <option value="repair">ซ่อมบำรุง</option>
-                <option value="transfer">โอนย้าย</option>
-                <option value="borrow">เบิก/คืน Asset</option>
-                <option value="inventory">ตรวจนับ</option>
+                <option value="all">{translateText("ประเภทงานทั้งหมด")}</option>
+                <option value="repair">{translateText("ซ่อมบำรุง")}</option>
+                <option value="transfer">{translateText("โอนย้าย")}</option>
+                <option value="borrow">{translateText("เบิก/คืน Asset")}</option>
+                <option value="inventory">{translateText("ตรวจนับ")}</option>
               </select>
             </Filter>
             <Filter icon={<span className="text-sm">▦</span>}>
               <select
                 className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400"
-                aria-label="สาขา"
+                aria-label={translateText("สาขา")}
                 value={branch}
                 onChange={(e) => {
                   setBranch(e.target.value);
                   setPage(1);
                 }}
               >
-                <option value="all">ทุกสาขา</option>
+                <option value="all">{translateText("ทุกสาขา")}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -236,14 +239,14 @@ export default function Page() {
             <Filter icon={<CircleCheck />}>
               <select
                 className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400"
-                aria-label="สถานะ"
+                aria-label={translateText("สถานะ")}
                 value={status}
                 onChange={(e) => {
                   setStatus(e.target.value);
                   setPage(1);
                 }}
               >
-                <option value="all">ทุกสถานะ</option>
+                <option value="all">{translateText("ทุกสถานะ")}</option>
                 {[...new Set(tasks.map((item) => item.status))].map((s) => (
                   <option key={s} value={s}>
                     {statusNames[s] ?? s}
@@ -259,7 +262,7 @@ export default function Page() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder="ค้นหาวันที่ / งาน / Asset"
+                placeholder={translateText("ค้นหาวันที่ / งาน / Asset")}
                 className="h-full min-h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-indigo-400"
               />
             </label>
@@ -294,7 +297,7 @@ export default function Page() {
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${categoryColors[task.category]}`}
                       >
-                        {task.type}
+                        {translateText(task.type)}
                       </span>
                     </td>
                     <td className="px-4 py-4">
@@ -321,7 +324,8 @@ export default function Page() {
                         href={task.href}
                         className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50"
                       >
-                        ดูรายละเอียด
+                        
+                        {translateText("ดูรายละเอียด")}
                       </Link>
                     </td>
                   </tr>
@@ -332,7 +336,8 @@ export default function Page() {
                       colSpan={7}
                       className="px-4 py-9 text-center text-slate-500"
                     >
-                      ไม่พบงานตามตัวกรอง
+                      
+                      {translateText("ไม่พบงานตามตัวกรอง")}
                     </td>
                   </tr>
                 )}
@@ -342,14 +347,17 @@ export default function Page() {
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-500">
             <div className="flex flex-wrap items-center gap-3">
               <span>
-                แสดง {matching.length ? (page - 1) * pageSize + 1 : 0}–
-                {Math.min(page * pageSize, matching.length)} จาก {matching.length}{" "}
-                งาน
+                
+                {translateText("แสดง")} {matching.length ? (page - 1) * pageSize + 1 : 0}–
+                {Math.min(page * pageSize, matching.length)}  {translateText("จาก")} {matching.length}{" "}
+                
+                {translateText("งาน")}
               </span>
               <label className="flex items-center gap-2">
-                รายการต่อหน้า
+                
+                {translateText("รายการต่อหน้า")}
                 <select
-                  aria-label="จำนวนรายการต่อหน้า"
+                  aria-label={translateText("จำนวนรายการต่อหน้า")}
                   value={pageSize}
                   onChange={(e) => {
                     setPageSize(Number(e.target.value));
@@ -359,7 +367,7 @@ export default function Page() {
                 >
                   {[5, 10, 15, 20].map((size) => (
                     <option key={size} value={size}>
-                      {size} รายการ
+                      {size}  {translateText("รายการ")}
                     </option>
                   ))}
                 </select>
@@ -394,9 +402,9 @@ export default function Page() {
         </section>
 
         <section>
-          <h2 className="mb-4 text-xl font-bold">สถานะการซ่อมบำรุง & Asset</h2>
+          <h2 className="mb-4 text-xl font-bold">{translateText("สถานะการซ่อมบำรุง & Asset")}</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <InfoCard title="รายการ Asset ที่อยู่ระหว่างซ่อม">
+            <InfoCard title={translateText("รายการ Asset ที่อยู่ระหว่างซ่อม")}>
               {repairAssets.length ? (
                 repairAssets.map((id) => (
                   <InfoLine
@@ -413,10 +421,10 @@ export default function Page() {
                   />
                 ))
               ) : (
-                <EmptyText>ไม่มีรายการซ่อมที่กำลังดำเนินการ</EmptyText>
+                <EmptyText>{translateText("ไม่มีรายการซ่อมที่กำลังดำเนินการ")}</EmptyText>
               )}
             </InfoCard>
-            <InfoCard title="ประวัติการแจ้งซ่อมล่าสุด">
+            <InfoCard title={translateText("ประวัติการแจ้งซ่อมล่าสุด")}>
               {recentRepairs.map((item) => (
                 <InfoLine
                   key={item.id}
@@ -426,7 +434,7 @@ export default function Page() {
                 />
               ))}
             </InfoCard>
-            <InfoCard title="รอบตรวจนับที่ใกล้ที่สุด">
+            <InfoCard title={translateText("รอบตรวจนับที่ใกล้ที่สุด")}>
               {upcoming.length ? (
                 upcoming.map((item) => (
                   <InfoLine
@@ -437,10 +445,10 @@ export default function Page() {
                   />
                 ))
               ) : (
-                <EmptyText>ไม่มีรอบตรวจนับที่กำลังดำเนินการหรือวางแผนไว้</EmptyText>
+                <EmptyText>{translateText("ไม่มีรอบตรวจนับที่กำลังดำเนินการหรือวางแผนไว้")}</EmptyText>
               )}
             </InfoCard>
-            <InfoCard title="รายการเปลี่ยนสาขาล่าสุด">
+            <InfoCard title={translateText("รายการเปลี่ยนสาขาล่าสุด")}>
               {recentTransfers.length ? (
                 recentTransfers.map((item) => (
                   <InfoLine
@@ -452,7 +460,7 @@ export default function Page() {
                   />
                 ))
               ) : (
-                <EmptyText>ไม่มีข้อมูลประวัติการโอนย้าย</EmptyText>
+                <EmptyText>{translateText("ไม่มีข้อมูลประวัติการโอนย้าย")}</EmptyText>
               )}
             </InfoCard>
           </div>

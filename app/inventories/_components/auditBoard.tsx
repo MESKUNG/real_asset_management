@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -88,6 +90,7 @@ const buildInitialAuditList = (sessionId: string, branchId: string): AuditAssetI
 
 // canScan = false คือมุมมองติดตามการนับของ admin (ไม่มีปุ่มสแกน)
 export default function AuditBoard({ canScan }: { canScan: boolean }) {
+  const translateText = useTranslate();
   const router = useRouter();
 
   // ใช้รอบที่เสร็จแล้วเป็นค่าเริ่มต้น เพื่อแสดงผลตรวจจากข้อมูลจริง
@@ -196,7 +199,7 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
           <button
             type="button"
             onClick={() => router.back()}
-            aria-label="ย้อนกลับ"
+            aria-label={translateText("ย้อนกลับ")}
             className="text-slate-600 hover:text-slate-900 px-2 py-1 rounded-lg hover:bg-slate-100 font-bold"
           >
             ‹
@@ -214,14 +217,16 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
                 onClick={() => router.push("/inventories/scan")}
                 className="bg-[#4f46e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
               >
-                เปิดหน้าสแกน QR
+                
+                {translateText("เปิดหน้าสแกน QR")}
               </button>
               <button
                 type="button"
                 onClick={handleSimulateNextScan}
                 className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
               >
-                จำลองสแกน QR ถัดไป
+                
+                {translateText("จำลองสแกน QR ถัดไป")}
               </button>
             </>
           ) : (
@@ -230,7 +235,8 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
               onClick={() => router.push("/inventories/schedule")}
               className="bg-[#4f46e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
             >
-              มอบหมายวันที่ตรวจนับ ›
+              
+              {translateText("มอบหมายวันที่ตรวจนับ ›")}
             </button>
           )}
         </div>
@@ -253,20 +259,20 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
 
         <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-4 lg:mb-8">
           <div className="bg-white lg:bg-[#f8f9fc] border border-slate-200/80 rounded-xl px-4 lg:px-5 py-3 lg:py-3.5 shadow-sm lg:shadow-none">
-            <p className="text-[11px] lg:text-xs text-slate-400 mb-0.5 lg:mb-1">สาขา</p>
+            <p className="text-[11px] lg:text-xs text-slate-400 mb-0.5 lg:mb-1">{translateText("สาขา")}</p>
             <p className="text-xs lg:text-sm font-bold text-slate-800">{sessionBranch}</p>
           </div>
           <div className="bg-white lg:bg-[#f8f9fc] border border-slate-200/80 rounded-xl px-4 lg:px-5 py-3 lg:py-3.5 shadow-sm lg:shadow-none">
-            <p className="text-[11px] lg:text-xs text-slate-400 mb-0.5 lg:mb-1">ผู้อนุมัติ</p>
+            <p className="text-[11px] lg:text-xs text-slate-400 mb-0.5 lg:mb-1">{translateText("ผู้อนุมัติ")}</p>
             <p className="text-xs lg:text-sm font-bold text-slate-800">{approverName}</p>
           </div>
         </div>
 
         <div className="bg-white lg:bg-transparent border border-slate-200/80 lg:border-none rounded-2xl p-4 lg:p-0 mb-4 lg:mb-5 shadow-sm lg:shadow-none">
-          <p className="lg:hidden text-xs font-semibold text-slate-500 mb-1">จำนวนที่ตรวจแล้ว</p>
+          <p className="lg:hidden text-xs font-semibold text-slate-500 mb-1">{translateText("จำนวนที่ตรวจแล้ว")}</p>
           <div className="flex flex-col lg:flex-row lg:items-center gap-2.5 lg:gap-4">
             <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-900 whitespace-nowrap">
-              <span className="hidden lg:inline">จำนวนที่ตรวจแล้ว </span>
+              <span className="hidden lg:inline">{translateText("จำนวนที่ตรวจแล้ว")} </span>
               {totalCheckedCount} / {totalCount}
             </h2>
             <div className="w-full lg:max-w-2xl bg-slate-100 lg:bg-white rounded-full h-2.5 lg:h-4 lg:p-0.5 lg:shadow-inner lg:border lg:border-slate-100 overflow-hidden">
@@ -291,8 +297,8 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
                 setCheckedPage(1);
                 setUncheckedPage(1);
               }}
-              placeholder="ค้นหาชื่อ หรือรหัสทรัพย์สิน (เช่น AST-0001)"
-              aria-label="ค้นหาชื่อ หรือรหัสทรัพย์สิน"
+              placeholder={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน (เช่น AST-0001)")}
+              aria-label={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน")}
               className="w-full bg-white border border-slate-200 lg:border-slate-300 rounded-xl lg:rounded-lg pl-9 pr-3 py-2.5 lg:py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm lg:shadow-none"
             />
           </div>
@@ -302,14 +308,16 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
           {/* ฝั่งซ้าย: ตรวจแล้ว */}
           <div>
             <div className="flex items-center justify-between mb-2.5 lg:mb-3">
-              <h3 className="text-base lg:text-xl font-bold text-slate-900">รายการ ตรวจแล้ว</h3>
+              <h3 className="text-base lg:text-xl font-bold text-slate-900">{translateText("รายการ ตรวจแล้ว")}</h3>
               <span className="hidden lg:inline-block bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-800 shadow-sm">
-                ตรวจแล้ว {checkedList.length} รายการ
+                
+                {translateText("ตรวจแล้ว")} {checkedList.length}  {translateText("รายการ")}
               </span>
             </div>
 
             <div className="lg:hidden bg-white border border-slate-200/90 rounded-xl py-2.5 px-4 text-center text-xs font-bold text-slate-800 mb-2.5 shadow-sm">
-              ตรวจแล้ว {checkedList.length} รายการ
+              
+              {translateText("ตรวจแล้ว")} {checkedList.length}  {translateText("รายการ")}
             </div>
 
             {/* มุมมอง Mobile */}
@@ -341,7 +349,7 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
                       </div>
                       <span className="inline-flex items-center gap-1 bg-[#a8f5b8] text-emerald-950 text-[10px] font-bold px-2.5 py-1 rounded-full">
                         <span>•</span>
-                        <span>ตรวจแล้ว</span>
+                        <span>{translateText("ตรวจแล้ว")}</span>
                       </span>
                     </div>
                   </div>
@@ -367,8 +375,8 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
             {/* มุมมอง Desktop */}
             <div className="hidden lg:block bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-sm">
               <div className="flex justify-between px-10 py-3 bg-[#f8f9fc] border-b border-slate-100 text-xs font-semibold text-slate-500">
-                <span>ชื่อรายการ</span>
-                <span>ผู้รับผิดชอบ</span>
+                <span>{translateText("ชื่อรายการ")}</span>
+                <span>{translateText("ผู้รับผิดชอบ")}</span>
               </div>
 
               <div className="p-2.5 space-y-2.5 min-h-[260px]">
@@ -418,14 +426,16 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
           {/* รายการ ยังไม่ได้ตรวจ (สีแดง) */}
           <div>
             <div className="flex items-center justify-between mb-2.5 lg:mb-3">
-              <h3 className="text-base lg:text-xl font-bold text-slate-900">รายการ ยังไม่ได้ตรวจ</h3>
+              <h3 className="text-base lg:text-xl font-bold text-slate-900">{translateText("รายการ ยังไม่ได้ตรวจ")}</h3>
               <span className="hidden lg:inline-block bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-800 shadow-sm">
-                คงเหลือ {uncheckedList.length} รายการ
+                
+                {translateText("คงเหลือ")} {uncheckedList.length}  {translateText("รายการ")}
               </span>
             </div>
 
             <div className="lg:hidden bg-white border border-slate-200/90 rounded-xl py-2.5 px-4 text-center text-xs font-bold text-slate-800 mb-2.5 shadow-sm">
-              คงเหลือ {uncheckedList.length} รายการ
+              
+              {translateText("คงเหลือ")} {uncheckedList.length}  {translateText("รายการ")}
             </div>
 
             {/* มุมมอง Mobile */}
@@ -460,7 +470,7 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
                       </div>
                       <span className="inline-flex items-center gap-1 bg-[#ffc9c9] text-rose-950 text-[10px] font-bold px-2.5 py-1 rounded-full">
                         <span>•</span>
-                        <span>ยังไม่ได้ตรวจ</span>
+                        <span>{translateText("ยังไม่ได้ตรวจ")}</span>
                       </span>
                     </div>
                   </button>
@@ -486,8 +496,8 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
             {/* มุมมอง Desktop */}
             <div className="hidden lg:block bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-sm">
               <div className="flex justify-between px-10 py-3 bg-[#f8f9fc] border-b border-slate-100 text-xs font-semibold text-slate-500">
-                <span>ชื่อรายการ</span>
-                <span>ผู้รับผิดชอบ</span>
+                <span>{translateText("ชื่อรายการ")}</span>
+                <span>{translateText("ผู้รับผิดชอบ")}</span>
               </div>
 
               <div className="p-2.5 space-y-2.5 min-h-[260px]">
@@ -546,7 +556,7 @@ export default function AuditBoard({ canScan }: { canScan: boolean }) {
             className="w-full lg:w-auto bg-white hover:bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 lg:py-2.5 text-xs font-bold text-slate-800 shadow-sm flex items-center justify-center lg:justify-start gap-1.5 transition"
           >
             <span>‹</span>
-            <span>ย้อนกลับ</span>
+            <span>{translateText("ย้อนกลับ")}</span>
           </button>
         </div>
       </main>
@@ -563,6 +573,7 @@ function PaginationFooter({
   totalPages,
   isMobile = false,
 }: PaginationFooterProps) {
+  const translateText = useTranslate();
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * perPage + 1;
   const endItem = Math.min(currentPage * perPage, totalItems);
 
@@ -586,7 +597,8 @@ function PaginationFooter({
       }`}
     >
       <div>
-        แสดง {startItem}–{endItem} จาก {totalItems} รายการ
+        
+        {translateText("แสดง")} {startItem}–{endItem}  {translateText("จาก")} {totalItems}  {translateText("รายการ")}
       </div>
 
       <div
@@ -595,18 +607,18 @@ function PaginationFooter({
         }`}
       >
         <div className="flex items-center justify-between lg:justify-start gap-2">
-          <span>แสดง</span>
+          <span>{translateText("แสดง")}</span>
           <select
             value={perPage}
             onChange={(e) => setPerPage(Number(e.target.value))}
-            aria-label="จำนวนรายการต่อหน้า"
+            aria-label={translateText("จำนวนรายการต่อหน้า")}
             className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none"
           >
-            <option value={3}>3 รายการ</option>
-            <option value={5}>5 รายการ</option>
-            <option value={10}>10 รายการ</option>
+            <option value={3}>{translateText("3 รายการ")}</option>
+            <option value={5}>{translateText("5 รายการ")}</option>
+            <option value={10}>{translateText("10 รายการ")}</option>
           </select>
-          <span>ต่อหน้า</span>
+          <span>{translateText("ต่อหน้า")}</span>
         </div>
 
         <div className="flex items-center justify-center gap-1 pt-1 lg:pt-0">

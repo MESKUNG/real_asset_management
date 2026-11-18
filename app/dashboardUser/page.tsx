@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 ///////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////
 ////////////////////////รวม library จ้า ///////////////////////////////
@@ -68,6 +70,7 @@ function getActivityColor(action: string, newValue: string | null) {          //
 
 
 export default function Page() {
+  const translateText = useTranslate();
   const [branchId, setBranchId] = useState<string | null>(null);        //ใช้เก็บรหัสสาขาของผู้ใช้งานที่เข้าสู่ระบบ ค่าเริม่ต้นเป้น null
   const [branchResolved, setBranchResolved] = useState(false);          //ใช้ตรวจสอบว่าระบบอ่านข้อมูลสาขาของผู้ใช้งานเสร็จแล้วหรือยัง
 
@@ -147,7 +150,7 @@ export default function Page() {
   const activeBorrowRequests = borrowRequests.filter(              //นับจำนวนคำขอยืมทุกอย่างที่อยู่ในกระบวนการ          
     (request) =>
       (!branchId || request.branchId === branchId) &&             //หากผู้ใช้ไม่มีม brancheID ก็แสดงทุกสาขา แต่ถ้ามี ต้อง request.branchId เหมือนกับ branch.Id 
-      ["pending", "approved", "borrowed", "overdue"].includes(request.status),             //includes มี Array ตรงอย่างน้อย 1 อันไหม
+      ["pending", "revision", "approved", "overdue"].includes(request.status),             //นับคำขอที่ยังต้องดำเนินการ รวมรายการที่ส่งกลับให้แก้ไข
   ).length;
 
   const nextInventory = inventorySessions      //ค้นหารอบตรวจนับครั้งถัดไปจาก invertorysession
@@ -177,17 +180,16 @@ export default function Page() {
     .slice(0, 6)       //เลือกเพียง 6 รายการจากทั้งหมด
     .map((history) => {            //หลังจากเรียงแล้ว นำประวัติแต่ละรายการมาแปลงเป้น obj
       const asset = assets.find((item) => item.id === history.assetId);    //หา asset จาก data asset และต้องตรงกับ assetId ใน history
-      const activityBranchId =     
-        history.action === "transferred" && history.newValue         //กิจกรรมต้อง transfer และมีค่า newvalue
-          ? history.newValue    //ถ้าใช่ต้องอิงจากสาขาปลายทาง
-          : asset?.branchId;          //ถ้าไม่ใช่อิงจากสาขาเก่า
+      const activityBranchName =
+        history.action === "transferred"
+          ? `${branches.find((branch) => branch.id === history.oldValue)?.name ?? history.oldValue ?? "ไม่ระบุสาขา"} → ${branches.find((branch) => branch.id === history.newValue)?.name ?? history.newValue ?? "ไม่ระบุสาขา"}`
+          : branches.find((branch) => branch.id === asset?.branchId)?.name ??
+            "Error";
 
       return {
         ...history,         //แตก history ออกเป็น obj ใหม่
         assetName: asset?.name ?? "Error",     //นำชื่ิอทรัพสินจาก assetname หากไม่มี ใช้ error
-        branchName:         
-          branches.find((branch) => branch.id === activityBranchId)?.name ??     //ค้นหาชื่อ array จาก branch    หาสาขา id ที่ตรงกับ activity branch      หลังจากพบแล้วดึง name ของสาขา
-          "Error",
+        branchName: activityBranchName,
       };
     });
 
@@ -203,16 +205,17 @@ export default function Page() {
     <div className="flex flex-col gap-8 px-6 py-8">
       <section className="flex flex-col gap-3">
         <div>
-          <h1 className="text-xl font-bold">สรุปสถานะทรัพย์สิน</h1>
+          <h1 className="text-xl font-bold">{translateText("สรุปสถานะทรัพย์สิน")}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            สาขาที่ผูกกับบัญชี:{" "}
+            
+            {translateText("สาขาที่ผูกกับบัญชี:")}{" "}
             <span className="font-medium text-red-600">{branchLabel}</span>
           </p>
         </div>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <div className="flex flex-col gap-3 rounded-xl border border-gray-300 bg-white p-4">
             <div className="flex justify-between">
-              <div className="text-lg text-gray-500">ทรัพย์สินทั้งหมด</div>
+              <div className="text-lg text-gray-500">{translateText("ทรัพย์สินทั้งหมด")}</div>
               <Boxes className="text-indigo-600" />
             </div>
             <div className="text-5xl font-bold">{totalAssets ?? "—"}</div>
@@ -220,20 +223,22 @@ export default function Page() {
           </div>
           <div className="flex flex-col gap-3 rounded-xl border border-gray-300 bg-white p-4">
             <div className="flex justify-between">
-              <div className="text-lg text-gray-500">พร้อมใช้งาน</div>
+              <div className="text-lg text-gray-500">{translateText("พร้อมใช้งาน")}</div>
               <CircleCheck className="text-green-600" />
             </div>
             <div className="text-5xl font-bold">
               {hasScope ? availableAssets : "—"}
             </div>
             <div className="text-sm text-green-600">
-              พร้อมสำหรับการมอบหมาย
+              
+              {translateText("พร้อมสำหรับการมอบหมาย")}
             </div>
           </div>
           <div className="flex flex-col gap-3 rounded-xl border border-gray-300 bg-white p-4">
             <div className="flex justify-between">
               <div className="text-lg text-gray-500">
-                ชำรุด/อยู่ระหว่างซ่อมบำรุง
+                
+                {translateText("ชำรุด/อยู่ระหว่างซ่อมบำรุง")}
               </div>
               <Wrench className="text-red-600" />
             </div>
@@ -241,7 +246,8 @@ export default function Page() {
               {hasScope ? maintenanceAssets : "—"}
             </div>
             <div className="text-sm text-red-600">
-              ชำรุด {hasScope ? damagedAssets : "—"} | กำลังซ่อม{" "}
+              
+              {translateText("ชำรุด")} {hasScope ? damagedAssets : "—"}  {translateText("| กำลังซ่อม")}{" "}
               {hasScope ? repairAssets : "—"}
             </div>
           </div>
@@ -249,10 +255,10 @@ export default function Page() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-bold">งานที่ต้องดำเนินการ</h2>
+        <h2 className="text-xl font-bold">{translateText("งานที่ต้องดำเนินการ")}</h2>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
-            <span className="font-semibold">รอบตรวจนับครั้งถัดไป</span>
+            <span className="font-semibold">{translateText("รอบตรวจนับครั้งถัดไป")}</span>
             <span className="text-right text-sm text-red-600">
               {hasScope
                 ? nextInventory
@@ -262,25 +268,26 @@ export default function Page() {
             </span>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
-            <span className="font-semibold">คำขอซ่อมที่ต้องติดตาม</span>
+            <span className="font-semibold">{translateText("คำขอซ่อมที่ต้องติดตาม")}</span>
             <span className="text-sm text-red-600">
               {hasScope ? `${activeRepairs} รายการ` : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
-            <span className="font-semibold">คำขอยืมที่ยังไม่เสร็จ</span>
+            <span className="font-semibold">{translateText("คำขอยืมที่ยังไม่เสร็จ")}</span>
             <span className="text-sm text-red-600">
               {hasScope ? `${activeBorrowRequests} รายการ` : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
-            <span className="font-semibold">ทรัพย์สินใกล้หมดประกันที่สุด</span>
+            <span className="font-semibold">{translateText("ทรัพย์สินใกล้หมดประกันที่สุด")}</span>
             <span className="text-right text-sm text-red-600">
               {hasScope && nearestWarrantyAsset ? (
                 <>
                   {nearestWarrantyAsset.name}
                   <br />
-                  หมดประกัน {formatDate(nearestWarrantyAsset.warrantyEndDate)}
+                  
+                  {translateText("หมดประกัน")} {formatDate(nearestWarrantyAsset.warrantyEndDate)}
                 </>
               ) : hasScope ? (
                 "ไม่มีข้อมูลวันหมดประกัน"
@@ -293,10 +300,10 @@ export default function Page() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-bold">ภาพรวมและรายการล่าสุด</h2>
+        <h2 className="text-xl font-bold">{translateText("ภาพรวมและรายการล่าสุด")}</h2>
         <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
           <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="font-semibold">สัดส่วนสถานะทรัพย์สิน</h3>
+            <h3 className="font-semibold">{translateText("สัดส่วนสถานะทรัพย์สิน")}</h3>
             <div className="mt-4 h-[196px] rounded-xl bg-gray-100 p-2">
               {hasScope ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -332,7 +339,8 @@ export default function Page() {
                       dominantBaseline="middle"
                       className="fill-gray-500 text-xs"
                     >
-                      จำนวนทรัพย์สินทั้งหมด
+                      
+                      {translateText("จำนวนทรัพย์สินทั้งหมด")}
                     </text>
                   </PieChart>
                 </ResponsiveContainer>
@@ -352,7 +360,7 @@ export default function Page() {
                     className="h-2.5 w-2.5 shrink-0 rounded-sm"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span>{item.name}</span>
+                  <span>{translateText(item.name)}</span>
                   <span>{hasScope ? item.value.toLocaleString("en-US") : "—"}</span>
                   <span>
                     {hasScope && totalAssets
@@ -367,9 +375,10 @@ export default function Page() {
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-4 xl:col-span-2">
-            <h3 className="font-semibold">รายการล่าสุด</h3>
+            <h3 className="font-semibold">{translateText("รายการล่าสุด")}</h3>
             <p className="mt-1 text-xs text-gray-500">
-              กิจกรรมล่าสุดของ {scopeLabel}
+              
+              {translateText("กิจกรรมล่าสุดของ")} {scopeLabel}
             </p>
             <ul className="mt-2 divide-y divide-gray-200">
               {recentActivities.length > 0 ? (

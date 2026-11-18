@@ -1,4 +1,6 @@
 "use client";
+import { useTranslate } from "@/lib/language";
+
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -136,6 +138,7 @@ function Metric({
 }
 
 function StatusPill({ status }: { status: string }) {
+  const translateText = useTranslate();
   const style =
     status === "รออนุมัติ"
       ? "bg-violet-50 text-violet-700"
@@ -147,7 +150,7 @@ function StatusPill({ status }: { status: string }) {
       className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${style}`}
     >
       <Check className="mr-1 inline size-3" />
-      {status}
+      {translateText(status)}
     </span>
   );
 }
@@ -162,6 +165,7 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 export default function Page() {
+  const translateText = useTranslate();
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState("ทั้งหมด");
@@ -233,36 +237,36 @@ export default function Page() {
       <div className="mx-auto flex max-w-[1600px] flex-col gap-7">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">ภาพรวมองค์กร</h1>
+            <h1 className="text-2xl font-bold">{translateText("ภาพรวมองค์กร")}</h1>
           </div>
         </header>
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Metric
-            label="Asset ทั้งองค์กร"
+            label={translateText("Asset ทั้งองค์กร")}
             value={fmt(total)}
             note={`${assets.length ? "ข้อมูลตัวอย่าง" : "ไม่มีข้อมูล"} · ${latestAssetUpdate ? dateFmt(latestAssetUpdate.slice(0, 10)) : "—"}`}
             color="text-indigo-600"
             icon={<Boxes />}
           />
           <Metric
-            label="จำนวนสาขา"
+            label={translateText("จำนวนสาขา")}
             value={fmt(branches.length)}
             note={`${branches.filter((branch) => branch.status === "active").length} สาขาเปิดใช้งาน`}
             color="text-emerald-600"
             icon={<CircleCheck />}
           />
           <Metric
-            label="Asset พร้อมใช้งาน"
+            label={translateText("Asset พร้อมใช้งาน")}
             value={`${readyPct}%`}
             note={`พร้อมใช้งาน ${fmt(ready)} รายการ`}
             color="text-amber-600"
             icon={<Wrench />}
           />
           <Metric
-            label="คำขอรออนุมัติ"
+            label={translateText("คำขอรออนุมัติ")}
             value={fmt(pending.length)}
-            note="คำขอเบิก/โอนที่ยังรอดำเนินการ"
+            note={translateText("คำขอเบิก/โอนที่ยังรอดำเนินการ")}
             color="text-cyan-600"
             icon={<CircleCheck />}
           />
@@ -270,17 +274,17 @@ export default function Page() {
 
         <section>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-bold">ภาพรวมสาขา</h2>
+            <h2 className="text-xl font-bold">{translateText("ภาพรวมสาขา")}</h2>
             <div className="flex flex-wrap gap-2">
               <label className="relative">
                 <Building2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <select
-                  aria-label="เลือกสาขา"
+                  aria-label={translateText("เลือกสาขา")}
                   value={selectedBranch}
                   onChange={(event) => setSelectedBranch(event.target.value)}
                   className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600"
                 >
-                  <option value="all">ทุกสาขา</option>
+                  <option value="all">{translateText("ทุกสาขา")}</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
@@ -292,13 +296,13 @@ export default function Page() {
               <label className="relative">
                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <select
-                  aria-label="ช่วงเวลา"
+                  aria-label={translateText("ช่วงเวลา")}
                   value={range}
                   onChange={(event) => setRange(event.target.value)}
                   className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600"
                 >
-                  <option>ทั้งหมด</option>
-                  <option>เดือนนี้</option>
+                  <option>{translateText("ทั้งหมด")}</option>
+                  <option>{translateText("เดือนนี้")}</option>
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               </label>
@@ -307,16 +311,18 @@ export default function Page() {
           <Card className="p-5 sm:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-semibold text-slate-500">
-                จำนวน Asset แยกตามสาขา
+                
+                {translateText("จำนวน Asset แยกตามสาขา")}
               </h3>
               <span className="text-xs text-slate-400">
-                ข้อมูลจำนวนรายการจาก Asset ในระบบ
+                
+                {translateText("ข้อมูลจำนวนรายการจาก Asset ในระบบ")}
               </span>
             </div>
             <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
-              <Legend color={palette.available} label="พร้อมใช้" />
-              <Legend color={palette.repair} label="ชำรุด/ซ่อม" />
-              <Legend color={palette.other} label="สถานะอื่น" />
+              <Legend color={palette.available} label={translateText("พร้อมใช้")} />
+              <Legend color={palette.repair} label={translateText("ชำรุด/ซ่อม")} />
+              <Legend color={palette.other} label={translateText("สถานะอื่น")} />
             </div>
             {rows.length ? (
               <div className="h-[260px] w-full">
@@ -376,7 +382,8 @@ export default function Page() {
               </div>
             ) : (
               <div className="grid h-[260px] place-items-center text-sm text-slate-400">
-                ไม่พบข้อมูลสาขา
+                
+                {translateText("ไม่พบข้อมูลสาขา")}
               </div>
             )}
             <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
@@ -420,7 +427,8 @@ export default function Page() {
                           className="font-semibold text-indigo-600 hover:underline"
                           href="/reports"
                         >
-                          ดูรายงานสาขา
+                          
+                          {translateText("ดูรายงานสาขา")}
                         </Link>
                       </td>
                     </tr>
@@ -431,7 +439,8 @@ export default function Page() {
                         colSpan={6}
                         className="px-4 py-8 text-center text-slate-400"
                       >
-                        ไม่พบสาขาที่ค้นหา
+                        
+                        {translateText("ไม่พบสาขาที่ค้นหา")}
                       </td>
                     </tr>
                   )}
@@ -439,21 +448,23 @@ export default function Page() {
               </table>
             </div>
             <p className="mt-4 text-xs text-slate-500">
-              พร้อมใช้งาน {fmt(ready)} · ชำรุด/ซ่อม {fmt(inRepair)} · สถานะอื่น{" "}
-              {fmt(other)} รายการ
+              
+              {translateText("พร้อมใช้งาน")} {fmt(ready)}  {translateText("· ชำรุด/ซ่อม")} {fmt(inRepair)}  {translateText("· สถานะอื่น")}{" "}
+              {fmt(other)}  {translateText("รายการ")}
             </p>
           </Card>
         </section>
 
         <section>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-bold">คำขอโอนย้ายและเบิกทรัพย์สิน</h2>
+            <h2 className="text-xl font-bold">{translateText("คำขอโอนย้ายและเบิกทรัพย์สิน")}</h2>
             <button
               onClick={downloadCsv}
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
             >
               <Download size={17} />
-              ส่งออก Excel
+              
+              {translateText("ส่งออก Excel")}
             </button>
           </div>
           <Card className="overflow-x-auto">
@@ -501,7 +512,8 @@ export default function Page() {
                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 font-semibold hover:bg-slate-50"
                       >
                         <ClipboardCheck size={16} />
-                        ตรวจสอบคำขอ
+                        
+                        {translateText("ตรวจสอบคำขอ")}
                       </Link>
                     </td>
                   </tr>
@@ -512,7 +524,8 @@ export default function Page() {
                       colSpan={7}
                       className="px-4 py-8 text-center text-slate-400"
                     >
-                      ไม่มีคำขอรออนุมัติ
+                      
+                      {translateText("ไม่มีคำขอรออนุมัติ")}
                     </td>
                   </tr>
                 )}
@@ -523,19 +536,21 @@ export default function Page() {
 
         <section>
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-xl font-bold">รายงานและสถิติ</h2>
+            <h2 className="text-xl font-bold">{translateText("รายงานและสถิติ")}</h2>
             <Link
               href="/reports"
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
             >
               <FileBarChart2 size={17} />
-              เข้าสู่หน้ารายงาน
+              
+              {translateText("เข้าสู่หน้ารายงาน")}
             </Link>
           </div>
           <div className="grid gap-4 xl:grid-cols-2">
             <Card className="p-5">
               <h3 className="font-semibold text-slate-500">
-                จำนวน Asset แยกตามสถานะ
+                
+                {translateText("จำนวน Asset แยกตามสถานะ")}
               </h3>
               <div className="mt-5 grid grid-cols-3 gap-3">
                 {[
@@ -554,7 +569,8 @@ export default function Page() {
             </Card>
             <Card className="p-5">
               <h3 className="font-semibold text-slate-500">
-                ผลการตรวจนับทรัพย์สิน
+                
+                {translateText("ผลการตรวจนับทรัพย์สิน")}
               </h3>
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div>
@@ -562,7 +578,8 @@ export default function Page() {
                     {completedInventories}
                   </strong>
                   <span className="text-xs text-slate-500">
-                    รอบที่เสร็จแล้ว
+                    
+                    {translateText("รอบที่เสร็จแล้ว")}
                   </span>
                 </div>
                 <div>
@@ -570,18 +587,21 @@ export default function Page() {
                     {unfinishedInventories}
                   </strong>
                   <span className="text-xs text-slate-500">
-                    รอบที่ต้องติดตาม
+                    
+                    {translateText("รอบที่ต้องติดตาม")}
                   </span>
                 </div>
               </div>
               <p className="mt-3 text-xs text-slate-400">
-                อ้างอิงรอบตรวจนับ {inventorySessions.length} รายการที่มีในระบบ
+                
+                {translateText("อ้างอิงรอบตรวจนับ")} {inventorySessions.length}  {translateText("รายการที่มีในระบบ")}
               </p>
             </Card>
             <Card className="p-5">
               <div className="mb-4 flex items-center gap-2 font-semibold">
                 <ChartNoAxesCombined size={18} className="text-indigo-600" />
-                ประวัติการเคลื่อนย้าย Asset
+                
+                {translateText("ประวัติการเคลื่อนย้าย Asset")}
               </div>
               <div className="space-y-3">
                 {latestTransfers.length ? (
@@ -604,7 +624,7 @@ export default function Page() {
                               {history.description}
                             </p>
                           </div>
-                          <StatusPill status="บันทึกแล้ว" />
+                          <StatusPill status={translateText("บันทึกแล้ว")} />
                         </div>
                         <p className="mt-2 text-xs text-slate-500">
                           {dateFmt(history.performedAt)}
@@ -614,7 +634,8 @@ export default function Page() {
                   })
                 ) : (
                   <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                    Error: ไม่มีข้อมูลประวัติการโอนย้ายทรัพย์สินใน Data
+                    
+                    {translateText("Error: ไม่มีข้อมูลประวัติการโอนย้ายทรัพย์สินใน Data")}
                   </p>
                 )}
               </div>
@@ -622,17 +643,19 @@ export default function Page() {
                 href="/reports"
                 className="mt-4 inline-block text-sm font-semibold text-indigo-600"
               >
-                ดูประวัติการเคลื่อนย้ายทั้งหมด
+                
+                {translateText("ดูประวัติการเคลื่อนย้ายทั้งหมด")}
               </Link>
             </Card>
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between gap-2">
-                <h3 className="font-semibold">สรุปงานซ่อมบำรุง</h3>
+                <h3 className="font-semibold">{translateText("สรุปงานซ่อมบำรุง")}</h3>
                 <Link
                   href="/repairs"
                   className="text-sm font-semibold text-indigo-600"
                 >
-                  ดูรายการซ่อม
+                  
+                  {translateText("ดูรายการซ่อม")}
                 </Link>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -670,7 +693,8 @@ export default function Page() {
               </div>
               <div className="mt-4 rounded-lg bg-[#f1f2f7] p-3">
                 <p className="text-sm font-semibold">
-                  รายการซ่อมที่ยังเปิดอยู่
+                  
+                  {translateText("รายการซ่อมที่ยังเปิดอยู่")}
                 </p>
                 {repairOpen[0] ? (
                   <p className="mt-1 text-xs text-slate-500">
@@ -678,7 +702,8 @@ export default function Page() {
                   </p>
                 ) : (
                   <p className="mt-1 text-xs text-slate-500">
-                    ไม่มีรายการซ่อมค้าง
+                    
+                    {translateText("ไม่มีรายการซ่อมค้าง")}
                   </p>
                 )}
               </div>
@@ -689,7 +714,8 @@ export default function Page() {
             className="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-600 hover:bg-slate-50"
           >
             <Download size={15} className="mr-2 inline" />
-            ส่งออก Excel
+            
+            {translateText("ส่งออก Excel")}
           </button>
         </section>
       </div>

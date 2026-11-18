@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
+import { useTranslate } from "@/lib/language";
 ///////////////////////////////////////////////////
 
 type RoleKey = "user" | "admin" | "president" | "superadmin"; //สร้าง Type ชื่อ RoleKey โดยกำหนดให้สามารถรับค่าได้เพียง 4 ค่าเท่านั้น
@@ -153,6 +154,7 @@ function getRoleSnapshot(): RoleKey | null {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const translateText = useTranslate();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     ตรวจสอบและอนุมัติ: true,
     สถานที่และแผนก: true,
@@ -191,7 +193,7 @@ export default function Sidebar() {
                 }
                 className="flex w-full items-center justify-between rounded-lg p-3 text-left font-medium text-white hover:bg-indigo-100 hover:text-violet-800"
               >
-                {menu.name}
+                {translateText(menu.name)}
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 20 20"
@@ -221,7 +223,7 @@ export default function Sidebar() {
                           : "text-white hover:bg-indigo-100 hover:text-violet-800"
                       }`}
                     >
-                      {item.name}
+                      {translateText(item.name)}
                     </Link>
                   ))}
                 </div>
@@ -242,11 +244,20 @@ export default function Sidebar() {
               : "p-3 text-base"
         }
       `}
-            >
-              {menu.name}
-            </Link>
-          ),
-        )}
+          >
+            {translateText(menu.name)}
+          </Link>
+        ))}
+        <Link
+          href="/setting"
+          className={`rounded-lg p-3 font-medium ${
+            pathname === "/setting"
+              ? "bg-indigo-100 text-violet-800"
+              : "text-white hover:bg-indigo-100 hover:text-violet-800"
+          }`}
+        >
+          {translateText("ตั้งค่าระบบ")}
+        </Link>
       </nav>
     </aside>
   );

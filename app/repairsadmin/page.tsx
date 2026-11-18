@@ -1,6 +1,15 @@
 "use client";
+import {
+  formatLocalizedDate,
+  useLanguage,
+  useTranslate,
+} from "@/lib/language";
 
-import { useMemo, useState } from "react";
+
+// หน้านี้ให้ Admin ค้นหา ตรวจสอบ และอัปเดตคำร้องแจ้งซ่อม
+// ตอนนี้การแก้ไขยังไม่บันทึกลงฐานข้อมูล ถ้ารีเฟรชหน้าจะกลับเป็นข้อมูลเดิม
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -28,6 +37,7 @@ import { vendors } from "@/data/vendor";
 
 const pageSize = 5;
 
+// ชื่อและสีที่แสดงให้แต่ละสถานะ ถ้าเพิ่มสถานะใหม่ให้เพิ่มในรายการเหล่านี้ด้วย
 const statusLabels: Record<RepairStatus, string> = {
   pending: "รอดำเนินการ",
   in_progress: "กำลังซ่อม",
@@ -49,6 +59,7 @@ const statuses: RepairStatus[] = [
   "rejected",
 ];
 const allowedFileTypes = new Set([
+  // ชนิดไฟล์ที่อนุญาตให้แนบ
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -59,6 +70,7 @@ const allowedFileTypes = new Set([
 const maxFileSize = 10 * 1024 * 1024;
 
 function formatThaiDate(date: string) {
+  // แปลงวันที่ให้เป็นรูปแบบภาษาไทย
   return new Date(date).toLocaleDateString("th-TH", {
     day: "numeric",
     month: "short",
@@ -67,6 +79,7 @@ function formatThaiDate(date: string) {
 }
 
 function formatThaiDateTime(date: string) {
+  // แสดงวันและเวลาในหน้ารายละเอียด
   return new Date(date).toLocaleString("th-TH", {
     day: "numeric",
     month: "short",
@@ -75,23 +88,41 @@ function formatThaiDateTime(date: string) {
     minute: "2-digit",
   });
 }
-
-export default function RepairsAdminPage() {
+// จำรายการ ตัวกรอง หน้าที่กำลังดู ข้อมูลที่กำลังแก้ และข้อความแจ้งผล
+function RepairsAdminPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestId = searchParams.get("requestId");
+  const language = useLanguage();
+  const translateText = useTranslate();
   const [requests, setRequests] = useState(initialRequests);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [branchFilter, setBranchFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRequest, setSelectedRequest] = useState<RepairRequest | null>(
+  const [manuallySelectedRequest, setManuallySelectedRequest] = useState<RepairRequest | null>(
     null,
   );
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<RepairStatus>("pending");
   const [adminNote, setAdminNote] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const selectedRequest =
+    requests.find((request) => request.id === requestId) ??
+    manuallySelectedRequest;
+  const activeEditStatus =
+    selectedRequest && editingRequestId === selectedRequest.id
+      ? editStatus
+      : selectedRequest?.status ?? editStatus;
+  const activeAdminNote =
+    selectedRequest && editingRequestId === selectedRequest.id
+      ? adminNote
+      : selectedRequest?.adminNote ?? adminNote;
 
+  // เลือกแสดงรายการตามคำค้นหา สถานะ สาขา และวันที่
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
     return [...requests]
@@ -138,12 +169,15 @@ export default function RepairsAdminPage() {
     : undefined;
 
   const updateFilter = (update: () => void) => {
+    // เปลี่ยนตัวกรองแล้วกลับไปหน้าแรก
     update();
     setCurrentPage(1);
   };
 
   const showDetails = (request: RepairRequest) => {
-    setSelectedRequest(request);
+    // เปิดรายละเอียดพร้อมใส่ข้อมูลเดิมลงในช่องแก้ไข
+    setManuallySelectedRequest(request);
+    setEditingRequestId(request.id);
     setEditStatus(request.status);
     setAdminNote(request.adminNote);
     setFiles([]);
@@ -151,7 +185,13 @@ export default function RepairsAdminPage() {
     setSuccess("");
   };
 
+  const closeDetails = () => {
+    setManuallySelectedRequest(null);
+    if (requestId) router.replace("/repairsadmin", { scroll: false });
+  };
+
   const handleFiles = (selectedFiles: File[]) => {
+    // ตรวจไฟล์ที่เลือกหรือวาง; ไม่รับไฟล์ที่ชนิดไม่ตรงหรือใหญ่กว่า 10 MB
     const invalidFile = selectedFiles.find(
       (file) => !allowedFileTypes.has(file.type) || file.size > maxFileSize,
     );
@@ -169,40 +209,45 @@ export default function RepairsAdminPage() {
   };
 
   const updateRequest = () => {
+    // เปลี่ยนสถานะและหมายเหตุในหน้าจอนี้; ตอนนี้ยังไม่ได้บันทึกลงฐานข้อมูล
     if (!selectedRequest) return;
     setError("");
     setSuccess("");
     const updatedRequest = {
       ...selectedRequest,
-      status: editStatus,
-      adminNote: adminNote.trim(),
+      status: activeEditStatus,
+      adminNote: activeAdminNote.trim(),
     };
     setRequests((current) =>
       current.map((request) =>
         request.id === updatedRequest.id ? updatedRequest : request,
       ),
     );
-    setSelectedRequest(updatedRequest);
+    setManuallySelectedRequest(updatedRequest);
+    setEditingRequestId(updatedRequest.id);
     setSuccess("อัปเดตสถานะเรียบร้อยแล้ว");
   };
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
+        {/* เลือกรายการแล้วจะแสดงหน้ารายละเอียด; ถ้ายังไม่เลือกจะแสดงรายการทั้งหมด */}
         {selectedRequest ? (
           <div className="mx-auto max-w-4xl">
             <button
               type="button"
-              onClick={() => setSelectedRequest(null)}
+              onClick={closeDetails}
               className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-700"
             >
               <ArrowLeft className="size-4" />
-              กลับไปหน้ารายการคำร้อง
+
+              {translateText("กลับไปหน้ารายการคำร้อง")}
             </button>
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
               <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <h1 className="text-lg font-semibold text-slate-900">
-                  รายละเอียดคำร้อง
+
+                  {translateText("รายละเอียดคำร้อง")}
                 </h1>
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="break-all text-xs font-semibold text-slate-700 sm:text-sm">
@@ -211,7 +256,7 @@ export default function RepairsAdminPage() {
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[selectedRequest.status]}`}
                   >
-                    {statusLabels[selectedRequest.status]}
+                    {translateText(statusLabels[selectedRequest.status])}
                   </span>
                 </div>
               </header>
@@ -221,16 +266,19 @@ export default function RepairsAdminPage() {
                   <div className="flex items-start gap-3">
                     <User2 className="mt-0.5 size-4 shrink-0 text-slate-400" />
                     <dt className="w-24 shrink-0 text-xs text-slate-500">
-                      ผู้แจ้ง
+
+                      {translateText("ผู้แจ้ง")}
                     </dt>
                     <dd className="min-w-0 break-words text-xs font-medium text-slate-700">
-                      ผู้ใช้งาน #{selectedRequest.reporterId}
+
+                      {translateText("ผู้ใช้งาน #")}{selectedRequest.reporterId}
                     </dd>
                   </div>
                   <div className="flex items-start gap-3">
                     <LaptopPhone className="mt-0.5 size-4 shrink-0 text-slate-400" />
                     <dt className="w-24 shrink-0 text-xs text-slate-500">
-                      Asset
+
+                      {translateText("Asset")}
                     </dt>
                     <dd className="text-xs font-medium text-slate-700">
                       {asset?.name ?? "ไม่พบข้อมูลทรัพย์สิน"}{" "}
@@ -242,19 +290,27 @@ export default function RepairsAdminPage() {
                   <div className="flex items-start gap-3">
                     <MapMarker5 className="mt-0.5 size-4 shrink-0 text-slate-400" />
                     <dt className="w-24 shrink-0 text-xs text-slate-500">
-                      สาขา
+
+                      {translateText("สาขา")}
                     </dt>
                     <dd className="text-xs font-medium text-slate-700">
-                      {branch?.name ?? "ไม่ระบุสาขา"}
+                      {translateText(branch?.name ?? "ไม่ระบุสาขา")}
                     </dd>
                   </div>
                   <div className="flex items-start gap-3">
                     <Calendar className="mt-0.5 size-4 shrink-0 text-slate-400" />
                     <dt className="w-24 shrink-0 text-xs text-slate-500">
-                      วันที่แจ้ง
+
+                      {translateText("วันที่แจ้ง")}
                     </dt>
                     <dd className="text-xs font-medium text-slate-700">
-                      {formatThaiDateTime(selectedRequest.reportedAt)}
+                      {formatLocalizedDate(selectedRequest.reportedAt, language, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </dd>
                   </div>
                 </dl>
@@ -262,7 +318,8 @@ export default function RepairsAdminPage() {
                   <div className="flex items-start gap-3">
                     <Gear1 className="mt-0.5 size-4 shrink-0 text-slate-400" />
                     <dt className="w-24 shrink-0 text-xs text-slate-500">
-                      ผู้จัดจำหน่าย
+
+                      {translateText("ผู้จัดจำหน่าย")}
                     </dt>
                     <dd className="text-xs font-medium text-slate-700">
                       {vendor?.name ?? "ไม่ระบุผู้จัดจำหน่าย"}
@@ -271,7 +328,8 @@ export default function RepairsAdminPage() {
                   <div className="flex items-start gap-3">
                     <Phone className="mt-0.5 size-4 shrink-0 text-slate-400" />
                     <dt className="w-24 shrink-0 text-xs text-slate-500">
-                      ช่องทางติดต่อ Vendor
+
+                      {translateText("ช่องทางติดต่อ Vendor")}
                     </dt>
                     <dd className="min-w-0 break-words text-xs leading-5 text-slate-700">
                       {vendor?.phone ?? "-"}
@@ -284,29 +342,35 @@ export default function RepairsAdminPage() {
 
               <div className="border-b border-slate-200 py-4">
                 <p className="mb-1 text-xs font-medium text-slate-500">
-                  อาการที่แจ้ง
+
+                  {translateText("อาการที่แจ้ง")}
                 </p>
                 <p className="break-words text-sm text-slate-700">
                   {selectedRequest.issue}
                 </p>
               </div>
 
+              {/* ช่องแก้สถานะ หมายเหตุ และแนบไฟล์ */}
               <div className="space-y-5 pt-4">
                 <label className="block text-xs font-medium text-slate-600">
-                  สถานะ <span className="text-rose-500">*</span>
+
+                  {translateText("สถานะ")} <span className="text-rose-500">*</span>
                   <span className="relative mt-2 block">
                     <CheckCircle1 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                     <select
                       required
-                      value={editStatus}
-                      onChange={(event) =>
-                        setEditStatus(event.target.value as RepairStatus)
-                      }
+                      value={activeEditStatus}
+                      onChange={(event) => {
+                        if (selectedRequest) {
+                          setEditingRequestId(selectedRequest.id);
+                        }
+                        setEditStatus(event.target.value as RepairStatus);
+                      }}
                       className="h-10 w-full appearance-none rounded-md border border-slate-200 bg-white pl-9 pr-3 text-xs font-normal text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     >
                       {statuses.map((status) => (
                         <option key={status} value={status}>
-                          {statusLabels[status]}
+                          {translateText(statusLabels[status])}
                         </option>
                       ))}
                     </select>
@@ -314,19 +378,27 @@ export default function RepairsAdminPage() {
                 </label>
 
                 <label className="block text-xs font-medium text-slate-600">
-                  หมายเหตุ (ภายใน)
+
+                  {translateText("หมายเหตุ (ภายใน)")}
                   <textarea
                     rows={3}
-                    value={adminNote}
-                    onChange={(event) => setAdminNote(event.target.value)}
-                    placeholder="ระบุหมายเหตุการดำเนินการ..."
+                    value={activeAdminNote}
+                    onChange={(event) => {
+                      if (selectedRequest) {
+                        setEditingRequestId(selectedRequest.id);
+                      }
+                      setAdminNote(event.target.value);
+                    }}
+                    placeholder={translateText("ระบุหมายเหตุการดำเนินการ...")}
                     className="mt-2 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-xs font-normal outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                   />
                 </label>
 
+                {/* เลือกไฟล์จากเครื่องหรือลากไฟล์มาวางตรงนี้ */}
                 <div>
                   <p className="mb-2 text-xs font-medium text-slate-600">
-                    ไฟล์แนบ (ถ้ามี)
+
+                    {translateText("ไฟล์แนบ (ถ้ามี)")}
                   </p>
                   <label
                     onDragOver={(event) => event.preventDefault()}
@@ -342,7 +414,8 @@ export default function RepairsAdminPage() {
                         ? files.map((file) => file.name).join(", ")
                         : "ลากไฟล์มาวางที่นี่ หรือ คลิกเพื่อเลือกไฟล์"}
                       <span className="mt-1 block text-[10px] text-slate-400">
-                        รองรับไฟล์รูปภาพ, PDF, DOC (ไม่เกิน 10 MB)
+
+                        {translateText("รองรับไฟล์รูปภาพ, PDF, DOC (ไม่เกิน 10 MB)")}
                       </span>
                     </span>
                     <input
@@ -367,13 +440,15 @@ export default function RepairsAdminPage() {
                     {success}
                   </p>
                 )}
+                {/* กดเพื่ออัปเดตข้อมูลที่แก้ */}
                 <button
                   type="button"
                   onClick={updateRequest}
                   className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-indigo-600 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
                 >
                   <RefreshCircle1Clockwise className="size-4" />
-                  อัปเดตสถานะ
+
+                  {translateText("อัปเดตสถานะ")}
                 </button>
               </div>
             </section>
@@ -382,28 +457,33 @@ export default function RepairsAdminPage() {
           <>
             <header className="mb-6">
               <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-                รายการแจ้งซ่อม
+
+                {translateText("รายการแจ้งซ่อม")}
               </h1>
               <p className="mt-1 text-xs text-slate-500">
-                ตรวจสอบคำร้องแจ้งซ่อมและติดตามสถานะการดำเนินงาน
+
+                {translateText("ตรวจสอบคำร้องแจ้งซ่อมและติดตามสถานะการดำเนินงาน")}
               </p>
             </header>
 
+            {/* แสดงสาขาที่กำลังดู */}
             <section className="mb-5 flex flex-col items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <div className="flex min-w-0 items-center gap-2 text-sm text-slate-700">
                 <FileText className="size-4 text-slate-500" />
-                <span>สาขาที่ดูแล</span>
+                <span>{translateText("สาขาที่ดูแล")}</span>
                 <span className="break-words font-semibold text-slate-900">
                   {branchFilter === "all"
-                    ? "ทุกสาขา"
-                    : `${branches.find((item) => item.id === branchFilter)?.name} · ${branches.find((item) => item.id === branchFilter)?.code}`}
+                    ? translateText("ทุกสาขา")
+                    : `${translateText(branches.find((item) => item.id === branchFilter)?.name ?? "ไม่ระบุสาขา")} · ${branches.find((item) => item.id === branchFilter)?.code}`}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                แสดงรายการแจ้งซ่อมทั้งหมดในระบบ
+
+                {translateText("แสดงรายการแจ้งซ่อมทั้งหมดในระบบ")}
               </p>
             </section>
 
+            {/* ช่องค้นหาและตัวเลือกกรองรายการ */}
             <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row">
                 <label className="relative min-w-0 flex-1">
@@ -414,13 +494,13 @@ export default function RepairsAdminPage() {
                     onChange={(event) =>
                       updateFilter(() => setSearch(event.target.value))
                     }
-                    placeholder="ค้นหาคำร้อง, อุปกรณ์, ผู้แจ้ง..."
-                    aria-label="ค้นหารายการแจ้งซ่อม"
+                    placeholder={translateText("ค้นหาคำร้อง, อุปกรณ์, ผู้แจ้ง...")}
+                    aria-label={translateText("ค้นหารายการแจ้งซ่อม")}
                     className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                   />
                 </label>
                 <label className="relative">
-                  <span className="sr-only">กรองตามสถานะ</span>
+                  <span className="sr-only">{translateText("กรองตามสถานะ")}</span>
                   <select
                     value={statusFilter}
                     onChange={(event) =>
@@ -428,17 +508,17 @@ export default function RepairsAdminPage() {
                     }
                     className="h-10 w-full appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 sm:w-44"
                   >
-                    <option value="all">สถานะทั้งหมด</option>
+                    <option value="all">{translateText("สถานะทั้งหมด")}</option>
                     {Object.entries(statusLabels).map(([status, label]) => (
                       <option key={status} value={status}>
-                        {label}
+                        {translateText(label)}
                       </option>
                     ))}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 </label>
                 <label>
-                  <span className="sr-only">แสดงรายการตั้งแต่วันที่</span>
+                  <span className="sr-only">{translateText("แสดงรายการตั้งแต่วันที่")}</span>
                   <input
                     type="date"
                     value={dateFrom}
@@ -449,7 +529,7 @@ export default function RepairsAdminPage() {
                   />
                 </label>
                 <label className="relative">
-                  <span className="sr-only">กรองตามสาขา</span>
+                  <span className="sr-only">{translateText("กรองตามสาขา")}</span>
                   <select
                     value={branchFilter}
                     onChange={(event) =>
@@ -457,10 +537,10 @@ export default function RepairsAdminPage() {
                     }
                     className="h-10 w-full appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 sm:w-44"
                   >
-                    <option value="all">ทุกสาขา</option>
+                    <option value="all">{translateText("ทุกสาขา")}</option>
                     {branches.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.name}
+                        {translateText(item.name)}
                       </option>
                     ))}
                   </select>
@@ -468,6 +548,7 @@ export default function RepairsAdminPage() {
                 </label>
               </div>
 
+              {/* หน้าจอมือถือแสดงรายการเป็นการ์ด */}
               <div className="divide-y divide-slate-100 md:hidden">
                 {visibleRequests.map((request) => {
                   const rowAsset = assets.find(
@@ -486,7 +567,7 @@ export default function RepairsAdminPage() {
                         <span
                           className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${statusStyles[request.status]}`}
                         >
-                          {statusLabels[request.status]}
+                          {translateText(statusLabels[request.status])}
                         </span>
                       </div>
                       <div className="min-w-0">
@@ -499,23 +580,25 @@ export default function RepairsAdminPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         <div className="min-w-0">
-                          <p className="text-[10px] text-slate-400">ผู้แจ้ง</p>
+                          <p className="text-[10px] text-slate-400">{translateText("ผู้แจ้ง")}</p>
                           <p className="mt-1 break-words text-slate-700">
-                            ผู้ใช้งาน #{request.reporterId}
+
+                            {translateText("ผู้ใช้งาน #")}{request.reporterId}
                           </p>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] text-slate-400">สาขา</p>
+                          <p className="text-[10px] text-slate-400">{translateText("สาขา")}</p>
                           <p className="mt-1 break-words text-slate-700">
                             {rowBranch?.name ?? "ไม่ระบุสาขา"}
                           </p>
                         </div>
                         <div className="col-span-2">
                           <p className="text-[10px] text-slate-400">
-                            วันที่แจ้ง
+
+                            {translateText("วันที่แจ้ง")}
                           </p>
                           <p className="mt-1 text-slate-700">
-                            {formatThaiDate(request.reportedAt)}
+                            {formatLocalizedDate(request.reportedAt, language)}
                           </p>
                         </div>
                       </div>
@@ -524,29 +607,32 @@ export default function RepairsAdminPage() {
                         onClick={() => showDetails(request)}
                         className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                       >
-                        ดูรายละเอียด
+
+                        {translateText("ดูรายละเอียด")}
                       </button>
                     </article>
                   );
                 })}
                 {visibleRequests.length === 0 && (
                   <p className="px-4 py-10 text-center text-sm text-slate-500">
-                    ไม่พบรายการแจ้งซ่อมที่ตรงกับการค้นหา
+
+                    {translateText("ไม่พบรายการแจ้งซ่อมที่ตรงกับการค้นหา")}
                   </p>
                 )}
               </div>
 
+              {/* หน้าจอใหญ่แสดงรายการเป็นตาราง */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[850px] border-collapse text-left">
                   <thead className="bg-slate-50 text-[11px] font-medium text-slate-500">
                     <tr>
-                      <th className="px-4 py-3">เลขที่คำร้อง</th>
-                      <th className="px-4 py-3">Asset / อุปกรณ์</th>
-                      <th className="px-4 py-3">ผู้แจ้ง</th>
-                      <th className="px-4 py-3">สาขา / ID</th>
-                      <th className="px-4 py-3">วันที่แจ้ง</th>
-                      <th className="px-4 py-3">สถานะ</th>
-                      <th className="px-4 py-3 text-center">ดำเนินการ</th>
+                      <th className="px-4 py-3">{translateText("เลขที่คำร้อง")}</th>
+                      <th className="px-4 py-3">{translateText("Asset / อุปกรณ์")}</th>
+                      <th className="px-4 py-3">{translateText("ผู้แจ้ง")}</th>
+                      <th className="px-4 py-3">{translateText("สาขา / ID")}</th>
+                      <th className="px-4 py-3">{translateText("วันที่แจ้ง")}</th>
+                      <th className="px-4 py-3">{translateText("สถานะ")}</th>
+                      <th className="px-4 py-3 text-center">{translateText("ดำเนินการ")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -574,7 +660,8 @@ export default function RepairsAdminPage() {
                             </p>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3.5">
-                            ผู้ใช้งาน #{request.reporterId}
+
+                            {translateText("ผู้ใช้งาน #")}{request.reporterId}
                           </td>
                           <td className="px-4 py-3.5">
                             <p className="font-medium text-slate-700">
@@ -585,13 +672,13 @@ export default function RepairsAdminPage() {
                             </p>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3.5 text-slate-500">
-                            {formatThaiDate(request.reportedAt)}
+                            {formatLocalizedDate(request.reportedAt, language)}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3.5">
                             <span
                               className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${statusStyles[request.status]}`}
                             >
-                              {statusLabels[request.status]}
+                              {translateText(statusLabels[request.status])}
                             </span>
                           </td>
                           <td className="px-4 py-3.5 text-center">
@@ -600,7 +687,8 @@ export default function RepairsAdminPage() {
                               onClick={() => showDetails(request)}
                               className="whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                             >
-                              ดูรายละเอียด
+
+                              {translateText("ดูรายละเอียด")}
                             </button>
                           </td>
                         </tr>
@@ -612,7 +700,8 @@ export default function RepairsAdminPage() {
                           colSpan={7}
                           className="px-4 py-12 text-center text-sm text-slate-500"
                         >
-                          ไม่พบรายการแจ้งซ่อมที่ตรงกับการค้นหา
+
+                          {translateText("ไม่พบรายการแจ้งซ่อมที่ตรงกับการค้นหา")}
                         </td>
                       </tr>
                     )}
@@ -620,19 +709,22 @@ export default function RepairsAdminPage() {
                 </table>
               </div>
 
+              {/* ปุ่มเปลี่ยนหน้า; จำนวนรายการต่อหน้าปรับได้ที่ pageSize ด้านบน */}
               <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
                 <p className="text-[11px] text-slate-500">
-                  แสดง{" "}
+
+                  {translateText("แสดง")}{" "}
                   {filteredRequests.length === 0
                     ? 0
                     : (currentPage - 1) * pageSize + 1}{" "}
                   - {Math.min(currentPage * pageSize, filteredRequests.length)}{" "}
-                  จาก {filteredRequests.length} รายการ
+
+                  {translateText("จาก")} {filteredRequests.length}  {translateText("รายการ")}
                 </p>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    aria-label="หน้าก่อนหน้า"
+                    aria-label={translateText("หน้าก่อนหน้า")}
                     disabled={currentPage === 1}
                     onClick={() =>
                       setCurrentPage((page) => Math.max(1, page - 1))
@@ -651,18 +743,17 @@ export default function RepairsAdminPage() {
                       aria-label={`หน้า ${page}`}
                       aria-current={page === currentPage ? "page" : undefined}
                       onClick={() => setCurrentPage(page)}
-                      className={`size-8 rounded-md text-xs font-medium transition ${
-                        page === currentPage
+                      className={`size-8 rounded-md text-xs font-medium transition ${page === currentPage
                           ? "bg-indigo-50 text-indigo-700"
                           : "text-slate-500 hover:bg-slate-100"
-                      }`}
+                        }`}
                     >
                       {page}
                     </button>
                   ))}
                   <button
                     type="button"
-                    aria-label="หน้าถัดไป"
+                    aria-label={translateText("หน้าถัดไป")}
                     disabled={currentPage === pageCount}
                     onClick={() =>
                       setCurrentPage((page) => Math.min(pageCount, page + 1))
@@ -678,5 +769,13 @@ export default function RepairsAdminPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function RepairsAdminPage() {
+  return (
+    <Suspense fallback={null}>
+      <RepairsAdminPageContent />
+    </Suspense>
   );
 }

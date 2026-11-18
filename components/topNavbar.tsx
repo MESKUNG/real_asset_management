@@ -11,10 +11,12 @@ import { InputGroup, InputGroupInput } from "./tailgrids/core/input-group";
 
 import { AvatarBadge } from "@/components/tailgrids/core/avatar";
 
-import { Search1, Bell1, Gear1,User2 } from "@tailgrids/icons";
+import { Search1, Gear1,User2 } from "@tailgrids/icons";
 import { Button } from "./tailgrids/core/button";
+import NotificationDropdown from "./notifications/NotificationDropdown";
 
 import { useRouter } from "next/navigation";
+import { useTranslate } from "@/lib/language";
 
 ////////////////////////////////////////////////////////////
 
@@ -53,6 +55,7 @@ function getProfileImage(account: Record<string, unknown>): string | undefined {
 
 export default function TopNavbar() {
   const router = useRouter();
+  const translateText = useTranslate();
 
   const [user, setUser] = useState<Account | null>(null);   //ใช้เก็บข้อมูล Account ของผู้ใช้ที่กำลัง Login อยู่   เก็บข้อมูลได้ทั้ง Type Accout หรือ null  เริ่มต้นเป็น null
   const [isLoadingAccount, setIsLoadingAccount] = useState(true);                //ตรวจสอบว่าระบบกำลังโหลดข้อมูล Account อยู่หรือไม่ เริ่มต้นเป็น true
@@ -174,16 +177,17 @@ export default function TopNavbar() {
           <TextField className="flex flex-col gap-2">
             <InputGroup className="w-64 gap-4 border-gray-300">
               <Search1 className="size-4.5 ml-2" />
-              <InputGroupInput placeholder="ค้นหาชื่อ หรือรหัสทรัพย์สิน..." />
+              <InputGroupInput placeholder={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน...")} />
             </InputGroup>
           </TextField>
 
           <div className="flex items-center gap-4 mr-4">
-            <Button>
-              <Bell1 className="size-4.5" />
-            </Button>
+            <NotificationDropdown />
 
-            <Button>
+            <Button
+              aria-label="ตั้งค่าระบบ"
+              onClick={() => router.push("/setting")}
+            >
               <Gear1 className="size-4.5" />
             </Button>
 
@@ -191,7 +195,7 @@ export default function TopNavbar() {
               className="bg-red-500 text-white hover:bg-red-600 w-30 h-10 text-sm"
               onClick={() => logout()}
             >
-              ออกจากระบบ
+              {translateText("ออกจากระบบ")}
             </Button>
           </div>
         </div>
@@ -220,7 +224,7 @@ export default function TopNavbar() {
             <figcaption>
               <p className="text-sm font-medium w-30">
                 {user?.username ||
-                  (isLoadingAccount ? "กำลังโหลด..." : "กรุณาเข้าสู่ระบบ")}
+                  (isLoadingAccount ? translateText("กำลังโหลด...") : translateText("กรุณาเข้าสู่ระบบ"))}
               </p>
 
               <p className="text-xs text-gray-500">
