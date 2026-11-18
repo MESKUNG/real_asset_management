@@ -88,10 +88,35 @@ function localizedPeriodLabel(period: Period, language: AppLanguage) {
   }).format(from);
 }
 
+function localizedCount(count: number, thaiUnit: string, englishUnit: string, language: AppLanguage) {
+  if (language === "th") return `${count} ${thaiUnit}`;
+  return `${count} ${englishUnit}${count === 1 ? "" : "s"}`;
+}
+
+function localizedActivityText(value: string, translateText: (text: string) => string) {
+  const inventoryPrefix = "บันทึกผลตรวจนับ: ";
+  const repairPrefix = "แจ้งซ่อม: ";
+  if (value.startsWith(inventoryPrefix)) {
+    return `${translateText("บันทึกผลตรวจนับ")}: ${translateText(value.slice(inventoryPrefix.length))}`;
+  }
+  if (value.startsWith(repairPrefix)) {
+    return `${translateText("แจ้งซ่อม")}: ${translateText(value.slice(repairPrefix.length))}`;
+  }
+  const transferMatch = value.match(/^โอนทรัพย์สิน(กลับ)?จาก (BR-\d+) ไปยัง (BR-\d+)$/);
+  if (transferMatch) {
+    const [, isReturning, fromBranch, toBranch] = transferMatch;
+    return `Asset transferred${isReturning ? " back" : ""} from ${fromBranch} to ${toBranch}`;
+  }
+  if (value.startsWith("ขอ") && value.endsWith("ทรัพย์สิน")) {
+    return translateText(value);
+  }
+  return translateText(value);
+}
 function formatLocalizedDateTime(value: string, language: AppLanguage) {
   return new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "Asia/Bangkok",
   }).format(new Date(value));
 }
 
@@ -198,7 +223,7 @@ export default function UserSummary() {
           <Kpi
             label={translateText("พบปัญหาจากการตรวจนับ")}
             value={`${inventoryIssues.toLocaleString(countLocale)} ${translateText("รายการ")}`}
-            note={`${translateText("ชำรุด / สูญหาย")} · ${inventoryRows.length} ${translateText("รอบ")}`}
+            note={`${translateText("ชำรุด / สูญหาย")} · ${localizedCount(inventoryRows.length, "รอบ", "cycle", language)}`}
             icon={<CircleCheck size={24} />}
             tone="green"
           />
@@ -288,9 +313,9 @@ export default function UserSummary() {
             <ReportCard
               title={translateText(REPORT_NAME.inventory)}
               tone={activeRounds > 0 ? "info" : "good"}
-              badge={activeRounds > 0 ? `${translateText("กำลังนับ")} ${activeRounds} ${translateText("รอบ")}` : translateText("พร้อมใช้งาน")}
+              badge={activeRounds > 0 ? `${translateText("กำลังนับ")} ${localizedCount(activeRounds, "รอบ", "cycle", language)}` : translateText("พร้อมใช้งาน")}
               stats={[
-                [translateText("รอบที่เสร็จแล้ว"), `${completedRounds} ${translateText("รอบ")}`],
+                [translateText("รอบที่เสร็จแล้ว"), `${localizedCount(completedRounds, "รอบ", "cycle", language)}`],
                 [translateText("พบปัญหา"), `${inventoryIssues} ${translateText("รายการ")}`],
               ]}
               onClick={() => setPreview("inventory")}
@@ -309,7 +334,7 @@ export default function UserSummary() {
         </section>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Export Excel" badge={<Badge tone="good">{translateText("พร้อมใช้งาน")}</Badge>}>
+          <Card title={translateText("ส่งออก Excel")} badge={<Badge tone="good">{translateText("พร้อมใช้งาน")}</Badge>}>
             <div className="grid grid-cols-2 gap-3">
               <Stat label={translateText("คอลัมน์")} value={`${columns.length} ${translateText("คอลัมน์")}`} />
               <Stat label={translateText("รูปแบบ")} value=".xlsx" />
@@ -369,7 +394,7 @@ export default function UserSummary() {
                       <tr key={a.id}>
                         <td className="whitespace-nowrap px-3 py-3">{formatLocalizedDateTime(a.at, language)}</td>
                         <td className="px-3 py-3">{a.who}</td>
-                        <td className="px-3 py-3">{translateText(a.text)}</td>
+                        <td className="px-3 py-3">{localizedActivityText(a.text, translateText)}</td>
                         <td className="px-3 py-3">{a.ref}</td>
                       </tr>
                     ))}
@@ -381,7 +406,7 @@ export default function UserSummary() {
                 {activities.map((a) => (
                   <li key={a.id} className="rounded-xl border border-slate-200 p-3">
                     <p className="text-sm text-slate-500">{formatLocalizedDateTime(a.at, language)}</p>
-                    <p className="text-base font-semibold text-slate-900">{translateText(a.text)}</p>
+                    <p className="text-base font-semibold text-slate-900">{localizedActivityText(a.text, translateText)}</p>
                     <p className="text-sm text-slate-600">
                       {a.who} · {a.ref}
                     </p>

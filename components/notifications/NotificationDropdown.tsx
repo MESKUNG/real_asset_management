@@ -182,7 +182,7 @@ export default function NotificationDropdown() {
         <section
           role="dialog"
           aria-label={translateText("การแจ้งเตือน")}
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-50 max-h-[calc(100dvh-5rem)] w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl"
+          className="fixed inset-x-3 top-[3.75rem] z-50 mx-auto max-h-[calc(100dvh-5rem)] w-auto overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+0.75rem)] sm:mx-0 sm:w-[22rem]"
         >
           {/* กล่องนี้จะแสดงหลังจากกดกระดิ่ง */}
           <header className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-3 sm:px-4">
@@ -217,7 +217,7 @@ export default function NotificationDropdown() {
             </p>
           )}
 
-          <div className="max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto">
+          <div className="max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto overscroll-contain">
             {/* กล่องย่อแสดง 4 รายการล่าสุดที่ผู้ใช้มีสิทธิ์เห็น */}
             {visibleNotifications.slice(0, 4).map((notification) => {
               const isUnread = !readIds.has(notification.id);
