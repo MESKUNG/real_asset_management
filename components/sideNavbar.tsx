@@ -54,7 +54,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
         { name: "ประวัติซ่อม", path: "/repair-historyadmin" },
       ],
     },
-    { name: "จัดการ Staff และสาขา", path: "/staffandbranches" },
+    { name: "จัดการ Staff", path: "/staffManagement" },
     {
       name: "รายงาน",
       path: "/reports",
@@ -92,7 +92,13 @@ const menus: Record<RoleKey, MenuEntry[]> = {
   superadmin: [
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการบัญชี Admin / President", path: "/admin_and_presidents" },
-{ name: "สถานที่และแผนก", path: "/" },
+    {
+      name: "สถานที่และแผนก",
+      items: [
+        { name: "จัดการสาขา", path: "/staffandbranches" },
+        { name: "จัดการ Admin", path: "/admin_and_presidents" },
+      ],
+    },
     { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
   ],
 };
@@ -151,7 +157,8 @@ export default function Sidebar() {
     ตรวจสอบและอนุมัติ: true,
     สถานที่และแผนก: true,
   });
-  const role = useSyncExternalStore(      //Wtf is this???? ยอกทีว่าจะได้เรียนตอน เทอม 2  
+  const role = useSyncExternalStore(
+    //Wtf is this???? ยอกทีว่าจะได้เรียนตอน เทอม 2
     subscribeToCredentialChanges,
     getRoleSnapshot,
     getServerRoleSnapshot,
@@ -235,10 +242,11 @@ export default function Sidebar() {
               : "p-3 text-base"
         }
       `}
-          >
-            {menu.name}
-          </Link>
-        ))}
+            >
+              {menu.name}
+            </Link>
+          ),
+        )}
       </nav>
     </aside>
   );
