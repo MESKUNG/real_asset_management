@@ -1,579 +1,589 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-
-// ชื่อไฟล์ในโปรเจกต์สะกดว่า catagories.ts
-import { assets } from "@/data/asset";
-import { assetHistories } from "@/data/assetHistories";
+// หน้าสรุปรายงาน: ตัวเลขทุกจุดคำนวณจากไฟล์ใน data/ และผลตรวจนับที่บันทึกไว้
+import { useState } from "react";
+import { assets, type AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
 import { categories } from "@/data/catagories";
-import { inventoryChecks } from "@/data/inventoryCheck";
-import { inventorySessions } from "@/data/inventorySessions";
-import { repairRequests } from "@/data/repairRequests";
+import { repairRequests, type RepairStatus } from "@/data/repairRequests";
+import { borrowRequests, type BorrowRequestType, type BorrowStatus } from "@/data/borrowRequests";
+import { assetHistories } from "@/data/assetHistories";
+import { exportExcel } from "@/lib/exportExcel";
+import {
+  ASSET_STATUS_LABEL,
+  RESULT_LABEL,
+  SESSION_STATUS_LABEL,
+  findAsset,
+  formatBaht,
+  formatDateRange,
+  formatThaiDate,
+  formatThaiDateTime,
+  getBranchName,
+  getCategoryName,
+  getCheckerName,
+  getSessionProgress,
+  getStaffName,
+  getVendorName,
+  toDateValue,
+  useInventoryStore,
+} from "@/lib/inventory";
+import {
+  EmptyState,
+  Loading,
+  PageHeader,
+  ProgressBar,
+  RoleGate,
+  StatusPill,
+  Toast,
+  buttonStyle,
+  useToast,
+} from "../inventories/_components/ui";
 
-type BadgeTone = "green" | "purple" | "amber";
+const ASSET_STATUSES = Object.keys(ASSET_STATUS_LABEL) as AssetStatus[];
 
-interface ReportCardItem {
-  id: string;
-  title: string;
-  badgeText: string;
-  badgeTone: BadgeTone;
-  branchName: string;
-  period: string;
-  box1Label: string;
-  box1Value: string;
-  box2Label: string;
-  box2Value: string;
-  keywords: string;
-}
-
-interface ActivityItem {
-  id: number;
-  time: string;
-  operator: string;
-  action: string;
-  reference: string;
-  branchName: string;
-  period: string;
-  statusCategory: string;
-}
-
-// ข้อมูลการ์ดรายงาน 4 ประเภท
-const buildReportCards = (): ReportCardItem[] => {
-  const itCategoryName = categories[0]?.name ?? "อุปกรณ์ไอที";
-  const availableAssets = assets.filter((asset) => asset.status === "available");
-  const availableValue = availableAssets.reduce((sum, asset) => sum + asset.purchasePrice, 0);
-  const movementCount = assetHistories.filter((history) => history.action === "assigned" || history.action === "transferred").length;
-  const completedSessions = inventorySessions.filter((session) => session.status === "completed");
-  const completedCheckCount = inventoryChecks.filter((check) => completedSessions.some((session) => session.id === check.sessionId)).length;
-  const repairCost = repairRequests.reduce((sum, request) => sum + (request.actualCost ?? 0), 0);
-
-  return [
-    {
-      id: "asset",
-      title: "รายงาน Asset",
-      badgeText: "พร้อมใช้งาน",
-      badgeTone: "green",
-      branchName: branches[0]?.name ?? "สำนักงานใหญ่",
-      period: "ทุกช่วงเวลา",
-      box1Label: "รายการ",
-      box1Value: `${availableAssets.length} รายการจาก ${assets.length}`,
-      box2Label: "มูลค่ารวม",
-      box2Value: `฿${availableValue.toLocaleString("th-TH")}`,
-      keywords: `asset ทรัพย์สิน พร้อมใช้งาน ${availableAssets.length} มูลค่ารวม ${availableValue} ${assets.map((a) => a.id).join(" ")}`,
-    },
-    {
-      id: "movement",
-      title: "รายงาน Movement",
-      badgeText: "มอบหมายแล้ว",
-      badgeTone: "purple",
-      branchName: branches[1]?.name ?? "สาขาเชียงใหม่",
-      period: "ทุกช่วงเวลา",
-      box1Label: "การเคลื่อนไหว",
-      box1Value: `${movementCount} รายการ`,
-      box2Label: "รายการทรัพย์สิน",
-      box2Value: `${new Set(assetHistories.filter((history) => history.action === "assigned" || history.action === "transferred").map((history) => history.assetId)).size} ชิ้น`,
-      keywords: "movement การเคลื่อนไหว โอนย้าย เบิก ยืมคืน IS-0001 CNT-2026-010",
-    },
-    {
-      id: "inventory",
-      title: "รายงาน Inventory",
-      badgeText: "ตรวจนับแล้ว",
-      badgeTone: "green",
-      branchName: branches[0]?.name ?? "สำนักงานใหญ่",
-      period: "ทุกช่วงเวลา",
-      box1Label: "รอบที่เสร็จแล้ว",
-      box1Value: `${completedSessions.length} รอบ`,
-      box2Label: "ผลตรวจนับ",
-      box2Value: `${completedCheckCount} รายการ`,
-      keywords: `inventory ตรวจนับ ${completedSessions.length} sessions ${completedCheckCount} checks ${itCategoryName}`,
-    },
-    {
-      id: "repair",
-      title: "รายงาน Repair",
-      badgeText: "ซ่อมบำรุง",
-      badgeTone: "amber",
-      branchName: branches[0]?.name ?? "สำนักงานใหญ่",
-      period: "ทุกช่วงเวลา",
-      box1Label: "งานซ่อม",
-      box1Value: `${repairRequests.length} งานซ่อม`,
-      box2Label: "ค่าใช้จ่ายรวม",
-      box2Value: `฿${repairCost.toLocaleString("th-TH")}`,
-      keywords: `repair งานซ่อม ซ่อมบำรุง ${repairRequests.length} ${repairCost} ${repairRequests.map((request) => request.assetId).join(" ")}`,
-    },
-  ];
+const ASSET_STATUS_COLOR: Record<AssetStatus, string> = {
+  available: "bg-emerald-500",
+  borrowed: "bg-blue-500",
+  repair: "bg-amber-500",
+  damaged: "bg-rose-500",
+  disposed: "bg-slate-400",
 };
 
-const reportActivities: ActivityItem[] = assetHistories
-  .slice()
-  .sort((a, b) => b.performedAt.localeCompare(a.performedAt))
-  .slice(0, 3)
-  .map((history) => {
-    const asset = assets.find((item) => item.id === history.assetId);
-    const branch = branches.find((item) => item.id === asset?.branchId);
-    const actionCategory = history.action === "assigned" || history.action === "transferred"
-      ? "มอบหมายแล้ว"
-      : history.action === "disposed"
-        ? "จำหน่ายแล้ว"
-        : history.action === "status_changed"
-        ? "ซ่อมบำรุง"
-        : "พร้อมใช้งาน";
+const REPAIR_STATUS_LABEL: Record<RepairStatus, string> = {
+  pending: "รอดำเนินการ",
+  in_progress: "กำลังซ่อม",
+  completed: "ซ่อมเสร็จ",
+  rejected: "ไม่อนุมัติ",
+};
 
-    return {
-      id: Number(history.id.replace(/\D/g, "")),
-      time: new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(history.performedAt)),
-      operator: `Admin #${history.performedBy}`,
-      action: history.description,
-      reference: `${history.assetId}${asset ? ` (${asset.name})` : ""}`,
-      branchName: branch?.name ?? "ไม่ระบุสาขา",
-      period: "ทุกช่วงเวลา",
-      statusCategory: actionCategory,
-    };
+const BORROW_STATUS_LABEL: Record<BorrowStatus, string> = {
+  pending: "รออนุมัติ",
+  revision: "ส่งกลับแก้ไข",
+  approved: "อนุมัติแล้ว",
+  returned: "คืนแล้ว",
+  rejected: "ไม่อนุมัติ",
+  overdue: "เกินกำหนดคืน",
+};
+
+const BORROW_TYPE_LABEL: Record<BorrowRequestType, string> = {
+  withdraw: "เบิก",
+  return: "คืน",
+  transfer: "โอนย้าย",
+};
+
+// รายการยาวแสดงทีละ 10 แถว กด "แสดงเพิ่ม" เพื่อดูต่อ
+const LIST_STEP = 10;
+
+// ค่าซ่อม: ใช้ค่าจริงถ้ามี ถ้ายังไม่มีใช้ค่าประเมิน
+function repairCost(r: { actualCost: number | null; estimatedCost: number | null }) {
+  return r.actualCost ?? r.estimatedCost ?? 0;
+}
+
+function assetName(id: string) {
+  return findAsset(id)?.name ?? id;
+}
+
+type Activity = { id: string; at: string; who: string; text: string; kind: string; branchId: string };
+
+export default function ReportsPage() {
+  return (
+    <RoleGate allow={["user", "admin", "president"]}>
+      <ReportContent />
+    </RoleGate>
+  );
+}
+
+function ReportContent() {
+  const { sessions, checks, ready } = useInventoryStore();
+  const toast = useToast();
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | AssetStatus>("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [assetLimit, setAssetLimit] = useState(LIST_STEP);
+  const [repairLimit, setRepairLimit] = useState(LIST_STEP);
+  const [borrowLimit, setBorrowLimit] = useState(LIST_STEP);
+
+  if (!ready) return <Loading />;
+
+  // ตัวกรองทั้ง 4 ช่องต้องผ่านพร้อมกัน
+  const q = query.trim().toLowerCase();
+  const filtered = assets.filter(
+    (a) =>
+      (branchFilter === "all" || a.branchId === branchFilter) &&
+      (statusFilter === "all" || a.status === statusFilter) &&
+      (categoryFilter === "all" || a.category === categoryFilter) &&
+      (!q || a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q) || a.brand.toLowerCase().includes(q)),
+  );
+
+  const totalValue = filtered.reduce((sum, a) => sum + a.purchasePrice, 0);
+  const statusCounts = ASSET_STATUSES.map((status) => ({
+    status,
+    count: filtered.filter((a) => a.status === status).length,
+  }));
+  const maxStatusCount = Math.max(1, ...statusCounts.map((s) => s.count));
+
+  const branchSummary = branches.map((b) => {
+    const list = filtered.filter((a) => a.branchId === b.id);
+    return { branch: b, count: list.length, value: list.reduce((sum, a) => sum + a.purchasePrice, 0) };
   });
 
-export default function ReportSummaryPage() {
-  const router = useRouter();
+  // รอบตรวจนับและกิจกรรมล่าสุดกรองตามสาขาเท่านั้น
+  const reportSessions = sessions
+    .filter((s) => branchFilter === "all" || s.branchId === branchFilter)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const activeSessions = reportSessions.filter((s) => s.status === "in_progress");
+  const activeProgress = activeSessions.map((s) => getSessionProgress(s, checks));
+  const activeChecked = activeProgress.reduce((sum, p) => sum + p.checked, 0);
+  const activeTotal = activeProgress.reduce((sum, p) => sum + p.total, 0);
 
-  const reportCards = buildReportCards();
-  const latestCompletedSession = inventorySessions
-    .filter((session) => session.status === "completed")
-    .slice()
-    .sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
-  const latestCompletedMonth = latestCompletedSession
-    ? new Intl.DateTimeFormat("th-TH", { month: "short", year: "numeric" }).format(new Date(`${latestCompletedSession.endDate}T00:00:00`))
-    : "ยังไม่มีรอบตรวจที่เสร็จแล้ว";
+  // งานซ่อมและการยืมจากข้อมูลกลางของกลุ่ม กรองตามสาขา
+  const inBranch = (branchId: string) => branchFilter === "all" || branchId === branchFilter;
+  const repairs = repairRequests
+    .filter((r) => inBranch(r.branchId))
+    .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
+  const openRepairs = repairs.filter((r) => r.status === "pending" || r.status === "in_progress");
+  const repairTotal = repairs
+    .filter((r) => r.status === "completed" || r.status === "in_progress")
+    .reduce((sum, r) => sum + repairCost(r), 0);
+  const borrows = borrowRequests
+    .filter((r) => inBranch(r.branchId))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // กำลังเบิกอยู่ = ใบเบิกที่อนุมัติแล้วหรือเกินกำหนดคืน
+  const activeBorrows = borrows.filter(
+    (r) => r.type === "withdraw" && (r.status === "approved" || r.status === "overdue"),
+  );
+  const overdueBorrows = borrows.filter((r) => r.status === "overdue");
 
-  const [locationFilter, setLocationFilter] = useState<string>("ทุกสถานที่");
-  const [periodFilter, setPeriodFilter] = useState<string>("ทุกช่วงเวลา");
-  const [statusFilter, setStatusFilter] = useState<string>("ทุกสถานะ");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  // รวมกิจกรรมจากทุกไฟล์ข้อมูล แล้วเรียงจากล่าสุด
+  const activities: Activity[] = [
+    ...assetHistories.map((h) => ({
+      id: h.id,
+      at: h.performedAt,
+      who: getStaffName(h.performedBy),
+      text: `${h.description} (${assetName(h.assetId)})`,
+      kind: "ประวัติ",
+      branchId: findAsset(h.assetId)?.branchId ?? "",
+    })),
+    ...checks.map((c) => ({
+      id: c.id,
+      at: c.checkedAt,
+      who: getCheckerName(c),
+      text: `ตรวจนับ ${assetName(c.assetId)}: ${RESULT_LABEL[c.result]}`,
+      kind: "ตรวจนับ",
+      branchId: c.branchId,
+    })),
+    ...repairRequests.map((r) => ({
+      id: r.id,
+      at: r.reportedAt,
+      who: getStaffName(r.reporterId),
+      text: `แจ้งซ่อม ${assetName(r.assetId)}: ${r.issue}`,
+      kind: "ซ่อม",
+      branchId: r.branchId,
+    })),
+    ...borrowRequests.map((r) => ({
+      id: r.id,
+      at: r.createdAt,
+      who: getStaffName(r.borrowerId),
+      text: `ขอ${BORROW_TYPE_LABEL[r.type]} ${assetName(r.assetId)}: ${r.purpose}`,
+      kind: "ยืม",
+      branchId: r.branchId,
+    })),
+  ];
+  const latestActivities = activities
+    .filter((a) => inBranch(a.branchId))
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 10);
 
-  const [columnCount, setColumnCount] = useState<number>(6);
-  const [mockupNotice, setMockupNotice] = useState<string | null>(null);
-
-  const showNotice = (message: string) => {
-    setMockupNotice(message);
-    setTimeout(() => {
-      setMockupNotice(null);
-    }, 2500);
+  const handleExport = async () => {
+    await exportExcel(`รายงานทรัพย์สิน_${toDateValue(new Date())}`, [
+      {
+        name: "ทรัพย์สิน",
+        rows: filtered.map((a) => ({
+          รหัส: a.id,
+          ชื่อ: a.name,
+          หมวดหมู่: getCategoryName(a.category),
+          ยี่ห้อ: a.brand,
+          รุ่น: a.model,
+          "Serial Number": a.serialNumber,
+          สาขา: getBranchName(a.branchId),
+          สถานะ: ASSET_STATUS_LABEL[a.status],
+          "ราคาซื้อ (บาท)": a.purchasePrice,
+          วันที่ซื้อ: formatThaiDate(a.purchaseDate),
+          หมดประกัน: formatThaiDate(a.warrantyEndDate),
+        })),
+      },
+      {
+        name: "สรุปตามสาขา",
+        rows: branchSummary.map((r) => ({ สาขา: r.branch.name, "จำนวน (ชิ้น)": r.count, "มูลค่า (บาท)": r.value })),
+      },
+      {
+        name: "รอบตรวจนับ",
+        rows: reportSessions.map((s) => {
+          const p = getSessionProgress(s, checks);
+          return {
+            รหัสรอบ: s.id,
+            ชื่อรอบ: s.name,
+            สาขา: getBranchName(s.branchId),
+            ช่วงวันที่: formatDateRange(s.startDate, s.endDate),
+            สถานะ: SESSION_STATUS_LABEL[s.status],
+            ตรวจแล้ว: p.checked,
+            ทั้งหมด: p.total,
+            ชำรุด: p.damaged,
+            ไม่พบ: p.missing,
+            ไม่ตรงสาขา: p.mismatch,
+          };
+        }),
+      },
+      {
+        name: "ผลตรวจนับ",
+        rows: checks
+          .filter((c) => branchFilter === "all" || c.branchId === branchFilter)
+          .map((c) => ({
+            รหัสรอบ: c.sessionId,
+            รหัสทรัพย์สิน: c.assetId,
+            ชื่อทรัพย์สิน: findAsset(c.assetId)?.name ?? "-",
+            ผลตรวจ: RESULT_LABEL[c.result],
+            ผู้ตรวจ: getCheckerName(c),
+            เวลา: formatThaiDateTime(c.checkedAt),
+            หมายเหตุ: c.note,
+          })),
+      },
+      {
+        name: "งานซ่อม",
+        rows: repairs.map((r) => ({
+          เลขที่: r.id,
+          ทรัพย์สิน: `${r.assetId} ${assetName(r.assetId)}`,
+          อาการ: r.issue,
+          ผู้แจ้ง: getStaffName(r.reporterId),
+          ร้านซ่อม: getVendorName(r.vendorId),
+          สถานะ: REPAIR_STATUS_LABEL[r.status],
+          วันที่แจ้ง: formatThaiDate(r.reportedAt),
+          "ค่าซ่อม (บาท)": repairCost(r),
+        })),
+      },
+      {
+        name: "เบิก-คืน-โอนย้าย",
+        rows: borrows.map((r) => ({
+          เลขที่: r.id,
+          ประเภท: BORROW_TYPE_LABEL[r.type],
+          ทรัพย์สิน: `${r.assetId} ${assetName(r.assetId)}`,
+          ผู้ขอ: getStaffName(r.borrowerId),
+          วัตถุประสงค์: r.purpose,
+          วันที่: formatThaiDate(r.borrowDate || r.expectedReturnDate),
+          สถานะ: BORROW_STATUS_LABEL[r.status],
+        })),
+      },
+    ]);
+    toast.show("ดาวน์โหลดรายงาน Excel แล้ว (6 ชีต)");
   };
 
-  // จำลองการ export Excel
-  const handleMockExportExcel = (fileName: string) => {
-    showNotice(`กำลังดาวน์โหลดไฟล์ ${fileName}.xlsx (${columnCount} คอลัมน์) สำเร็จ! (Mockup)`);
-  };
-
-  const handleCycleColumnCount = () => {
-    const nextCount = columnCount === 6 ? 8 : columnCount === 8 ? 10 : 6;
-    setColumnCount(nextCount);
-    showNotice(`เปลี่ยนการตั้งค่าส่งออกเป็น ${nextCount} คอลัมน์เรียบร้อย`);
-  };
-
-  const cleanQuery = searchQuery.trim().toLowerCase();
-
-  const filteredCards = reportCards.filter((card) => {
-    const matchLocation =
-      locationFilter === "ทุกสถานที่" || card.branchName === locationFilter;
-    const matchPeriod =
-      periodFilter === "ทุกช่วงเวลา" || card.period === periodFilter;
-    const matchStatus =
-      statusFilter === "ทุกสถานะ" || card.badgeText === statusFilter;
-    const matchSearch =
-      !cleanQuery ||
-      card.title.toLowerCase().includes(cleanQuery) ||
-      card.box1Value.toLowerCase().includes(cleanQuery) ||
-      card.box2Value.toLowerCase().includes(cleanQuery) ||
-      card.keywords.toLowerCase().includes(cleanQuery);
-
-    return matchLocation && matchPeriod && matchStatus && matchSearch;
-  });
-
-  const filteredActivities = reportActivities.filter((act) => {
-    const matchLocation =
-      locationFilter === "ทุกสถานที่" || act.branchName === locationFilter;
-    const matchPeriod =
-      periodFilter === "ทุกช่วงเวลา" || act.period === periodFilter;
-    const matchStatus =
-      statusFilter === "ทุกสถานะ" || act.statusCategory === statusFilter;
-    const matchSearch =
-      !cleanQuery ||
-      act.operator.toLowerCase().includes(cleanQuery) ||
-      act.action.toLowerCase().includes(cleanQuery) ||
-      act.reference.toLowerCase().includes(cleanQuery);
-
-    return matchLocation && matchPeriod && matchStatus && matchSearch;
-  });
+  const selectStyle =
+    "min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
-    <div className="min-h-screen bg-[#f4f5f9] text-slate-800 font-sans pb-12">
-      {mockupNotice && (
-        <div
-          role="status"
-          className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2"
-        >
-          <span>✓</span>
-          <span>{mockupNotice}</span>
-        </div>
-      )}
+    <div className="min-h-screen bg-slate-50 pb-12 text-slate-800">
+      <Toast message={toast.message} />
+      <PageHeader
+        title="สรุปรายงานทั้งหมด"
+        subtitle={`ข้อมูล ณ วันที่ ${formatThaiDate(toDateValue(new Date()))}`}
+        actions={
+          <button type="button" onClick={handleExport} className={buttonStyle.primary}>
+            ส่งออก Excel
+          </button>
+        }
+      />
 
-      <div className="bg-white border-b border-slate-200 px-4 lg:px-8 py-3.5 flex items-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="ย้อนกลับ"
-          className="text-slate-600 hover:text-slate-900 px-2 py-1 rounded-lg hover:bg-slate-100 font-bold"
-        >
-          ‹
-        </button>
-        <h1 className="text-sm lg:text-lg font-bold text-slate-900">สรุปรายงานทั้งหมด</h1>
-      </div>
-
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-4 lg:pt-6 space-y-5">
-        {/* การ์ดสรุป KPI */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 lg:gap-5">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">มูลค่าทรัพย์สิน</span>
-              <span className="text-[#4f46e5]">
-                <CubeIcon />
-              </span>
-            </div>
-            <p className="text-3xl font-extrabold text-slate-900 mb-2">฿{assets.reduce((sum, asset) => sum + asset.purchasePrice, 0).toLocaleString("th-TH")}</p>
-            <p className="text-xs font-medium text-[#4f46e5]">
-              มูลค่าตามราคาซื้อของ Asset {assets.length} ชิ้น
-            </p>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">รอบตรวจนับที่เสร็จแล้ว</span>
-              <span className="text-emerald-600">
-                <CheckCircleIcon />
-              </span>
-            </div>
-            <p className="text-3xl font-extrabold text-slate-900 mb-2">{inventorySessions.filter((session) => session.status === "completed").length} รอบ</p>
-            <p className="text-xs font-medium text-emerald-600">ผลตรวจ {inventoryChecks.filter((check) => inventorySessions.some((session) => session.id === check.sessionId && session.status === "completed")).length.toLocaleString("th-TH")} รายการ</p>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-500">ค่าใช้จ่ายซ่อม</span>
-              <span className="text-amber-600">
-                <WrenchIcon />
-              </span>
-            </div>
-            <p className="text-3xl font-extrabold text-slate-900 mb-2">฿{repairRequests.reduce((sum, request) => sum + (request.actualCost ?? 0), 0).toLocaleString("th-TH")}</p>
-            <p className="text-xs font-medium text-amber-600">ค่าใช้จ่ายจริงจากคำขอซ่อม {repairRequests.length} งาน</p>
-          </div>
+      <main className="mx-auto max-w-6xl space-y-6 px-4 pt-5 lg:px-8">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <select aria-label="กรองตามสาขา" value={branchFilter} onChange={(e) => { setBranchFilter(e.target.value); setAssetLimit(LIST_STEP); }} className={selectStyle}>
+            <option value="all">ทุกสาขา</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="กรองตามสถานะ"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "all" | AssetStatus)}
+            className={selectStyle}
+          >
+            <option value="all">ทุกสถานะ</option>
+            {ASSET_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {ASSET_STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+          <select aria-label="กรองตามหมวดหมู่" value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setAssetLimit(LIST_STEP); }} className={selectStyle}>
+            <option value="all">ทุกหมวดหมู่</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="search"
+            aria-label="ค้นหาทรัพย์สิน"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setAssetLimit(LIST_STEP); }}
+            placeholder="ค้นหาชื่อหรือรหัส"
+            className={selectStyle}
+          />
         </div>
 
-        {/* ตัวกรอง */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
-              ⚲
-            </span>
-            <select
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              aria-label="กรองตามสถานที่"
-              className="w-full bg-white border border-slate-200/90 rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
-            >
-              <option value="ทุกสถานที่">ทุกสถานที่</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.name}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
-              🗓
-            </span>
-            <select
-              value={periodFilter}
-              onChange={(e) => setPeriodFilter(e.target.value)}
-              aria-label="กรองตามช่วงเวลา"
-              className="w-full bg-white border border-slate-200/90 rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
-            >
-              <option value="ส.ค.–ต.ค. 2569">ส.ค.–ต.ค. 2569</option>
-              <option value="ทุกช่วงเวลา">ทุกช่วงเวลา</option>
-            </select>
-          </div>
-
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
-              ✓
-            </span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              aria-label="กรองตามสถานะ"
-              className="w-full bg-white border border-slate-200/90 rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
-            >
-              <option value="ทุกสถานะ">ทุกสถานะ</option>
-              <option value="พร้อมใช้งาน">พร้อมใช้งาน</option>
-              <option value="มอบหมายแล้ว">มอบหมายแล้ว</option>
-              <option value="ซ่อมบำรุง">ซ่อมบำรุง</option>
-              <option value="ตรวจนับแล้ว">ตรวจนับแล้ว</option>
-              <option value="จำหน่ายแล้ว">จำหน่ายแล้ว</option>
-            </select>
-          </div>
-
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
-              ⌕
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ค้นหาชื่อ หรือรหัสทรัพย์สิน"
-              aria-label="ค้นหาชื่อ หรือรหัสทรัพย์สิน"
-              className="w-full bg-white border border-slate-200/90 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-700 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Kpi label="ทรัพย์สินทั้งหมด" value={`${filtered.length} ชิ้น`} note={`จากทั้งระบบ ${assets.length} ชิ้น`} />
+          <Kpi label="มูลค่ารวม (ราคาซื้อ)" value={formatBaht(totalValue)} note="รวมตามตัวกรอง" />
+          <Kpi
+            label="งานซ่อมที่ยังไม่เสร็จ"
+            value={`${openRepairs.length} งาน`}
+            note={`ค่าซ่อมรวม ${formatBaht(repairTotal)}`}
+            tone="warn"
+          />
+          <Kpi
+            label="ตรวจนับรอบปัจจุบัน"
+            value={activeTotal > 0 ? `${activeChecked}/${activeTotal}` : "-"}
+            note={`${activeSessions.length} รอบกำลังนับ`}
+          />
         </div>
 
-        {/* รายงานรวม 4 ประเภท */}
-        <section className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-6 shadow-sm">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-sm lg:text-base font-bold text-slate-900">รายงานรวม 4 ประเภท</h2>
-              <p className="text-[11px] lg:text-xs text-slate-400 mt-0.5">
-                รวม Asset · Movement · Inventory · Repair พร้อมแยกชิ้นการส่งออกเดียว
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleMockExportExcel("all_reports_20261024")}
-              className="w-full lg:w-auto bg-white hover:bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 shadow-sm flex items-center justify-center gap-2 transition"
-            >
-              <span>↓</span>
-              <span>ส่งออกรายงานทั้งหมด</span>
-            </button>
-          </div>
-
-          {filteredCards.length === 0 ? (
-            <div className="py-10 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl">
-              ไม่พบประเภทรายงานที่ตรงกับเงื่อนไขการค้นหา
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-              {filteredCards.map((card) => (
-                <div
-                  key={card.id}
-                  className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between"
-                >
-                  <div className="flex items-center justify-between gap-2 mb-3.5">
-                    <h3 className="text-xs font-bold text-slate-900">{card.title}</h3>
-                    <ReportBadge text={card.badgeText} tone={card.badgeTone} />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-4 text-lg font-bold">จำนวนตามสถานะ</h2>
+            <ul className="space-y-3">
+              {statusCounts.map(({ status, count }) => (
+                <li key={status} className="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-3 text-base">
+                  <span>{ASSET_STATUS_LABEL[status]}</span>
+                  <div className="h-4 overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-full rounded-full ${ASSET_STATUS_COLOR[status]}`} style={{ width: `${(count / maxStatusCount) * 100}%` }} />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3">
-                      <p className="text-[10px] text-slate-400 mb-1">{card.box1Label}</p>
-                      <p className="text-xs font-bold text-slate-900 leading-snug">
-                        {card.box1Value}
-                      </p>
-                    </div>
-                    <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3">
-                      <p className="text-[10px] text-slate-400 mb-1">{card.box2Label}</p>
-                      <p className="text-xs font-bold text-slate-900 leading-snug">
-                        {card.box2Value}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  <span className="text-right font-bold">{count}</span>
+                </li>
               ))}
-            </div>
-          )}
-        </section>
+            </ul>
+          </section>
 
-        {/* Export Excel และประวัติตรวจนับ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-5 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3.5">
-                <h3 className="text-sm font-bold text-slate-900">Export Excel</h3>
-                <ReportBadge text="พร้อมใช้งาน" tone="green" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
-                  <p className="text-[11px] text-slate-400 mb-1">คอลัมน์</p>
-                  <p className="text-xs font-bold text-slate-900">{columnCount} คอลัมน์</p>
-                </div>
-                <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
-                  <p className="text-[11px] text-slate-400 mb-1">รูปแบบ</p>
-                  <p className="text-xs font-bold text-slate-900">.xlsx</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleMockExportExcel("asset_20261024")}
-                className="bg-white hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-800 flex items-center justify-center gap-1.5 transition"
-              >
-                <span>↓</span>
-                <span>ส่งออก Excel</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleCycleColumnCount}
-                className="bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-xl py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition"
-              >
-                <span>+</span>
-                <span>ตั้งค่าข้อมูล</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-5 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3.5">
-                <h3 className="text-sm font-bold text-slate-900">ประวัติตรวจนับ</h3>
-                <ReportBadge text="พร้อมใช้งาน" tone="green" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
-                  <p className="text-[11px] text-slate-400 mb-1">รอบล่าสุด</p>
-                  <p className="text-xs font-bold text-slate-900">{latestCompletedMonth}</p>
-                </div>
-                <div className="bg-[#f8f9fc] border border-slate-100 rounded-xl p-3.5">
-                  <p className="text-[11px] text-slate-400 mb-1">สถานะ</p>
-                  <p className="text-xs font-bold text-slate-900">ปิดรอบแล้ว</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleMockExportExcel("audit_history_sep2569")}
-                className="bg-white hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-800 flex items-center justify-center gap-1.5 transition"
-              >
-                <span>↓</span>
-                <span>ส่งออก Excel</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => showNotice("เปิดดูรายละเอียดประวัติตรวจนับ (Mockup)")}
-                className="bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-xl py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition"
-              >
-                <span>+</span>
-                <span>ดูรายละเอียด</span>
-              </button>
-            </div>
-          </div>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-4 text-lg font-bold">สรุปตามสาขา</h2>
+            <table className="w-full text-base">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-sm text-slate-500">
+                  <th className="py-2 font-semibold">สาขา</th>
+                  <th className="py-2 text-right font-semibold">จำนวน</th>
+                  <th className="py-2 text-right font-semibold">มูลค่า</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {branchSummary.map((r) => (
+                  <tr key={r.branch.id}>
+                    <td className="py-2">{r.branch.name}</td>
+                    <td className="py-2 text-right">{r.count}</td>
+                    <td className="py-2 text-right font-semibold">{formatBaht(r.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
         </div>
 
-        {/* กิจกรรมล่าสุด */}
-        <section className="bg-white border border-slate-200/80 rounded-2xl p-4 lg:p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm lg:text-base font-bold text-slate-900">กิจกรรมล่าสุด</h2>
-            <ReportBadge text={`${filteredActivities.length} กิจกรรม`} tone="amber" />
-          </div>
-
-          {filteredActivities.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-400">
-              ไม่พบรายการกิจกรรมที่ตรงกับตัวกรอง
-            </div>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="mb-4 text-lg font-bold">รายการทรัพย์สิน ({filtered.length})</h2>
+          {filtered.length === 0 ? (
+            <EmptyState text="ไม่พบทรัพย์สินที่ตรงกับตัวกรอง" />
           ) : (
             <>
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full text-base">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-[#f8f9fc] text-[11px] font-semibold text-slate-400">
-                      <th className="py-2.5 px-4 rounded-l-lg">เวลา</th>
-                      <th className="py-2.5 px-4">ผู้ดำเนินการ</th>
-                      <th className="py-2.5 px-4">กิจกรรม</th>
-                      <th className="py-2.5 px-4 rounded-r-lg">รายการที่เกี่ยวข้อง</th>
+                    <tr className="border-b border-slate-200 text-left text-sm text-slate-500">
+                      <th className="py-2 font-semibold">รหัส</th>
+                      <th className="py-2 font-semibold">ชื่อ</th>
+                      <th className="py-2 font-semibold">หมวดหมู่</th>
+                      <th className="py-2 font-semibold">สาขา</th>
+                      <th className="py-2 font-semibold">สถานะ</th>
+                      <th className="py-2 text-right font-semibold">ราคาซื้อ</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredActivities.map((act) => (
-                      <tr key={act.id} className="hover:bg-slate-50/70 transition">
-                        <td className="py-3.5 px-4 text-slate-600 font-medium">{act.time}</td>
-                        <td className="py-3.5 px-4 text-slate-800 font-medium">{act.operator}</td>
-                        <td className="py-3.5 px-4 text-slate-700">{act.action}</td>
-                        <td className="py-3.5 px-4 font-semibold text-slate-800">{act.reference}</td>
+                  <tbody className="divide-y divide-slate-100">
+                    {filtered.slice(0, assetLimit).map((a) => (
+                      <tr key={a.id}>
+                        <td className="py-3 font-semibold">{a.id}</td>
+                        <td className="py-3">{a.name}</td>
+                        <td className="py-3 text-slate-600">{getCategoryName(a.category)}</td>
+                        <td className="py-3 text-slate-600">{getBranchName(a.branchId)}</td>
+                        <td className="py-3">{ASSET_STATUS_LABEL[a.status]}</td>
+                        <td className="py-3 text-right">{formatBaht(a.purchasePrice)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-
-              <div className="lg:hidden divide-y divide-slate-100">
-                {filteredActivities.map((act) => (
-                  <div key={act.id} className="py-3 first:pt-1 last:pb-1 space-y-0.5">
-                    <p className="text-[11px] text-slate-400">{act.time}</p>
-                    <p className="text-xs font-bold text-slate-900">{act.action}</p>
-                    <p className="text-[11px] text-slate-500">ผู้ดำเนินการ · {act.operator}</p>
-                    <p className="text-xs font-semibold text-[#4f46e5] pt-0.5">{act.reference}</p>
-                  </div>
+              <ul className="divide-y divide-slate-100 lg:hidden">
+                {filtered.slice(0, assetLimit).map((a) => (
+                  <li key={a.id} className="py-3">
+                    <div className="flex justify-between gap-3">
+                      <p className="text-base font-semibold">{a.name}</p>
+                      <p className="shrink-0 text-base">{formatBaht(a.purchasePrice)}</p>
+                    </div>
+                    <p className="text-sm text-slate-600">
+                      {a.id} · {getBranchName(a.branchId)} · {ASSET_STATUS_LABEL[a.status]}
+                    </p>
+                  </li>
                 ))}
-              </div>
+              </ul>
+              <ShowMore shown={assetLimit} total={filtered.length} onClick={() => setAssetLimit((n) => n + LIST_STEP)} />
             </>
           )}
         </section>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-4 text-lg font-bold">ผลการตรวจนับแต่ละรอบ</h2>
+            {reportSessions.length === 0 ? (
+              <EmptyState text="ไม่มีรอบตรวจนับของสาขานี้" />
+            ) : (
+              <ul className="space-y-4">
+                {reportSessions.map((s) => {
+                  const p = getSessionProgress(s, checks);
+                  return (
+                    <li key={s.id}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-base font-semibold">{s.name}</p>
+                          <p className="text-sm text-slate-500">
+                            {s.id} · {formatDateRange(s.startDate, s.endDate)} · ชำรุด {p.damaged} · ไม่พบ {p.missing}
+                          </p>
+                        </div>
+                        <StatusPill status={s.status} />
+                      </div>
+                      <div className="mt-2 flex items-center gap-3">
+                        <div className="flex-1">
+                          <ProgressBar percent={p.percent} />
+                        </div>
+                        <span className="text-sm font-semibold">
+                          {p.checked}/{p.total}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-4 text-lg font-bold">กิจกรรมล่าสุด</h2>
+            {latestActivities.length === 0 ? (
+              <EmptyState text="ยังไม่มีกิจกรรม" />
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {latestActivities.map((a) => (
+                  <li key={a.id} className="flex items-start justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="text-base">
+                        <strong>{a.who}</strong> {a.text}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {formatThaiDateTime(a.at)} · {a.id}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+                      {a.kind}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-1 text-lg font-bold">งานซ่อม ({repairs.length})</h2>
+            <p className="mb-4 text-sm text-slate-500">
+              ยังไม่เสร็จ {openRepairs.length} งาน · ค่าซ่อมรวม {formatBaht(repairTotal)}
+            </p>
+            {repairs.length === 0 ? (
+              <EmptyState text="ไม่มีงานซ่อมของสาขานี้" />
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {repairs.slice(0, repairLimit).map((r) => (
+                  <li key={r.id} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-base font-semibold">{assetName(r.assetId)}</p>
+                      <span className="shrink-0 text-base font-semibold">
+                        {repairCost(r) > 0 ? formatBaht(repairCost(r)) : "-"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600">{r.issue}</p>
+                    <p className="text-sm text-slate-500">
+                      {r.id} · {getVendorName(r.vendorId)} · {REPAIR_STATUS_LABEL[r.status]}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ShowMore shown={repairLimit} total={repairs.length} onClick={() => setRepairLimit((n) => n + LIST_STEP)} />
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-1 text-lg font-bold">เบิก / คืน / โอนย้าย ({borrows.length})</h2>
+            <p className="mb-4 text-sm text-slate-500">
+              กำลังเบิกอยู่ {activeBorrows.length} รายการ · เกินกำหนดคืน {overdueBorrows.length} รายการ
+            </p>
+            {borrows.length === 0 ? (
+              <EmptyState text="ไม่มีรายการของสาขานี้" />
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {borrows.slice(0, borrowLimit).map((r) => (
+                  <li key={r.id} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-base font-semibold">
+                        {BORROW_TYPE_LABEL[r.type]} {assetName(r.assetId)}
+                      </p>
+                      <span
+                        className={`shrink-0 text-sm font-semibold ${r.status === "overdue" ? "text-rose-700" : "text-slate-700"}`}
+                      >
+                        {BORROW_STATUS_LABEL[r.status]}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600">
+                      {getStaffName(r.borrowerId)} · {formatThaiDate(r.borrowDate || r.expectedReturnDate)}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {r.id} · {r.purpose}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ShowMore shown={borrowLimit} total={borrows.length} onClick={() => setBorrowLimit((n) => n + LIST_STEP)} />
+          </section>
+        </div>
       </main>
     </div>
   );
 }
 
-function ReportBadge({ text, tone }: { text: string; tone: BadgeTone }) {
-  if (tone === "purple") {
-    return (
-      <span className="inline-flex items-center gap-1 bg-[#ede9fe] text-[#4f46e5] text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0">
-        <span>•</span>
-        <span>{text}</span>
-      </span>
-    );
-  }
-  if (tone === "amber") {
-    return (
-      <span className="inline-flex items-center gap-1 bg-[#fef3c7] text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0">
-        <span>•</span>
-        <span>{text}</span>
-      </span>
-    );
-  }
+function Kpi({ label, value, note, tone }: { label: string; value: string; note: string; tone?: "warn" }) {
   return (
-    <span className="inline-flex items-center gap-1 bg-[#dcfce7] text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0">
-      <span>•</span>
-      <span>{text}</span>
-    </span>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <p className="text-sm font-semibold text-slate-500">{label}</p>
+      <p className={`mt-1 text-2xl font-extrabold lg:text-3xl ${tone === "warn" ? "text-amber-600" : "text-slate-900"}`}>{value}</p>
+      <p className="mt-1 text-sm text-slate-500">{note}</p>
+    </div>
   );
 }
 
-function CubeIcon() {
+function ShowMore({ shown, total, onClick }: { shown: number; total: number; onClick: () => void }) {
+  if (shown >= total) return null;
   return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
-
-function WrenchIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085" />
-    </svg>
+    <button type="button" onClick={onClick} className={`${buttonStyle.secondary} mt-3 w-full`}>
+      แสดงเพิ่ม (เหลืออีก {total - shown} รายการ)
+    </button>
   );
 }

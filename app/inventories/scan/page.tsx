@@ -1,108 +1,331 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+// หน้าสแกน QR ด้วยกล้องจริง (ใช้ไลบรารี @yudiel/react-qr-scanner)
+// สแกนได้ต่อเนื่องหลายชิ้นโดยไม่ต้องกลับไปหน้ารายการทุกครั้ง
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
+import type { IDetectedBarcode, IScannerError } from "@yudiel/react-qr-scanner";
+import {
+  RESULT_LABEL,
+  formatThaiDateTime,
+  getBranchName,
+  getCheckerName,
+  getSessionProgress,
+  previewScan,
+  saveCheck,
+  useCredential,
+  useInventoryStore,
+  type ScanOutcome,
+} from "@/lib/inventory";
+import ConfirmCheckSheet from "../_components/ConfirmCheckSheet";
+import {
+  EmptyState,
+  Loading,
+  PageHeader,
+  ProgressBar,
+  RoleGate,
+  Toast,
+  buttonStyle,
+  useToast,
+} from "../_components/ui";
 
-export default function QrScannerMockupPage() {
-  const router = useRouter();
-  const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
-  const [isFrontCamera, setIsFrontCamera] = useState<boolean>(false);
-  const [scanStatus, setScanStatus] = useState<string>("พร้อมสแกน");
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+// กล้องใช้ได้เฉพาะบนเบราว์เซอร์ จึงปิดการ render ฝั่ง server (ssr: false)
+const Scanner = dynamic(
+  () => import("@yudiel/react-qr-scanner").then((m) => m.Scanner),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex aspect-square items-center justify-center text-base text-white">
+        กำลังเปิดกล้อง...
+      </div>
+    ),
+  },
+);
 
-  const showSimpleToast = (text: string) => {
-    setToastMsg(text);
-    setTimeout(() => setToastMsg(null), 2500);
+const CAMERA_ERROR_TEXT: Record<IScannerError["kind"], string> = {
+  "permission-denied": "ยังไม่ได้อนุญาตให้ใช้กล้อง กดรูปกุญแจที่แถบที่อยู่เว็บแล้วอนุญาตกล้อง",
+  "no-camera": "ไม่พบกล้องในอุปกรณ์นี้",
+  "in-use": "กล้องถูกใช้งานโดยแอปอื่นอยู่",
+  overconstrained: "กล้องตัวนี้ใช้ไม่ได้ ลองกดสลับกล้อง",
+  "insecure-context": "เบราว์เซอร์อนุญาตกล้องเฉพาะเว็บที่เป็น https หรือ localhost",
+  unsupported: "เบราว์เซอร์นี้ไม่รองรับการสแกน",
+  aborted: "การเปิดกล้องถูกยกเลิก",
+  security: "เบราว์เซอร์ไม่อนุญาตให้ใช้กล้อง",
+  "type-error": "เปิดกล้องไม่สำเร็จ",
+  unknown: "เปิดกล้องไม่สำเร็จ",
+};
+
+export default function ScanPage() {
+  return (
+    <RoleGate allow={["user"]}>
+      <Suspense fallback={<Loading />}>
+        <ScanContent />
+      </Suspense>
+    </RoleGate>
+  );
+}
+
+function ScanContent() {
+  const sessionId = useSearchParams().get("session");
+  const { credential } = useCredential();
+  const { sessions, checks, ready } = useInventoryStore();
+  const toast = useToast();
+
+  const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
+  const [manualCode, setManualCode] = useState("");
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  if (!ready) return <Loading />;
+
+  const session = sessions.find((s) => s.id === sessionId);
+  if (!session) {
+    return (
+      <div className="mx-auto max-w-md p-6 pt-16">
+        <EmptyState text="ไม่พบรอบตรวจนับ กรุณาเลือกรอบจากหน้ากำหนดการก่อน">
+          <Link href="/inventories" className={buttonStyle.primary}>
+            ไปหน้ากำหนดการ
+          </Link>
+        </EmptyState>
+      </div>
+    );
+  }
+
+  const progress = getSessionProgress(session, checks);
+  const allDone = progress.total > 0 && progress.checked === progress.total;
+  const auditHref = `/inventories/audit?session=${session.id}`;
+  const isOpen = session.status === "in_progress";
+
+  const handleCode = (rawCode: string) => {
+    const code = rawCode.trim();
+    if (!code || outcome) return;
+    setOutcome(previewScan(session, code, checks));
   };
 
-  // ยังไม่ได้ต่อกล้องจริง ใช้การคลิกกรอบกล้องแทนการสแกนไปก่อน
-  const handleMockScan = () => {
-    if (scanStatus === "กำลังสแกน...") return; // กันกดซ้ำระหว่างกำลังสแกน
-
-    setScanStatus("กำลังสแกน...");
-    setTimeout(() => {
-      setScanStatus("สแกนสำเร็จ (AST-0025)");
-      showSimpleToast("สแกนทรัพย์สิน AST-0025 สำเร็จ!");
-      router.push("/inventories/audit");
-    }, 500);
+  // ไลบรารีจะไม่ส่งโค้ดเดิมซ้ำติดกัน จึงไม่ต้องกันการอ่านซ้ำเอง
+  const handleScan = (codes: IDetectedBarcode[]) => {
+    handleCode(codes[0]?.rawValue ?? "");
   };
+
+  const handleManualSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    handleCode(manualCode);
+    setManualCode("");
+  };
+
+  const handleConfirm = (result: "found" | "damaged", note: string) => {
+    if (outcome?.type !== "ready" || !credential) return;
+    const saved = saveCheck({ sessionId: session.id, asset: outcome.asset, result, checker: credential, note });
+    toast.show(saved ? `บันทึก ${outcome.asset.id} (${RESULT_LABEL[result]}) แล้ว` : "บันทึกไม่สำเร็จ");
+    setOutcome(null);
+  };
+
+  const handleRecordMismatch = () => {
+    if (outcome?.type !== "mismatch" || !credential) return;
+    const saved = saveCheck({
+      sessionId: session.id,
+      asset: outcome.asset,
+      result: "mismatch",
+      checker: credential,
+      note: `พบทรัพย์สินของ${getBranchName(outcome.asset.branchId)} ที่${getBranchName(session.branchId)}`,
+    });
+    toast.show(saved ? `บันทึก ${outcome.asset.id} ว่าพบต่างสาขาแล้ว` : "บันทึกไม่สำเร็จ");
+    setOutcome(null);
+  };
+
+  const closeSheet = () => setOutcome(null);
 
   return (
-    <div className="min-h-screen bg-[#f4f5f9] text-slate-800 font-sans pb-12">
-      {toastMsg && (
-        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-lg">
-          ✅ {toastMsg}
-        </div>
-      )}
+    <div className="min-h-screen bg-slate-50 pb-12 text-slate-800">
+      <Toast message={toast.message} />
+      <PageHeader title="สแกน QR Code" subtitle={`${session.id} · ${getBranchName(session.branchId)}`} backHref={auditHref} />
 
-      <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3">
-        <button type="button" onClick={() => router.back()} className="text-slate-700 font-bold">
-          ←
-        </button>
-        <h1 className="text-base font-bold text-slate-900">สแกน QR Code</h1>
-      </header>
-
-      <main className="max-w-md mx-auto px-4 pt-5">
-        <h2 className="text-sm font-bold text-slate-900">สแกน QR Code บนทรัพย์สิน</h2>
-        <p className="text-xs text-slate-500 mt-0.5 mb-4">วาง QR Code ให้อยู่ภายในกรอบเพื่อสแกน</p>
-
-        {/* กรอบกล้องจำลอง */}
-        <div
-          onClick={handleMockScan}
-          className="relative w-full aspect-[3/4] max-h-[440px] rounded-2xl bg-gradient-to-b from-[#1e2238] to-[#0c0e18] p-4 flex flex-col justify-between cursor-pointer shadow-md"
-        >
-          <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-3.5 py-1.5 w-fit">
-            <span className="w-2 h-2 rounded-full bg-[#8b7ff9]" />
-            <span className="text-[11px] font-semibold text-white">{scanStatus}</span>
+      <main className="mx-auto max-w-md space-y-4 px-4 pt-4">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-2 flex justify-between text-base">
+            <span>
+              ตรวจแล้ว <strong>{progress.checked}</strong> / {progress.total} รายการ
+            </span>
+            <span className="font-bold text-blue-600">{progress.percent}%</span>
           </div>
+          <ProgressBar percent={progress.percent} />
+          {allDone && (
+            <Link
+              href={auditHref}
+              className="mt-3 flex min-h-12 items-center justify-center rounded-xl bg-emerald-600 text-base font-bold text-white"
+            >
+              ตรวจครบแล้ว กลับไปส่งผล
+            </Link>
+          )}
+        </section>
 
-          {/* กรอบเล็ง 4 มุม */}
-          <div className="relative my-auto mx-auto w-[70%] aspect-square flex items-center justify-center border border-white/10 rounded-xl">
-            <div className="w-[88%] h-[2px] bg-[#a594ff] shadow-[0_0_10px_2px_rgba(165,148,255,0.8)]" />
-          </div>
+        {!isOpen ? (
+          <EmptyState text="รอบนี้ไม่ได้เปิดให้สแกน">
+            <Link href={auditHref} className={buttonStyle.primary}>
+              กลับไปหน้ารายการ
+            </Link>
+          </EmptyState>
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-3xl bg-slate-900">
+              {cameraError ? (
+                <div className="flex aspect-square flex-col items-center justify-center gap-3 p-6 text-center text-base text-white">
+                  <p>{cameraError}</p>
+                  <p className="text-sm text-slate-300">ใช้ช่องพิมพ์รหัสด้านล่างแทนได้</p>
+                </div>
+              ) : (
+                <Scanner
+                  key={facingMode}
+                  onScan={handleScan}
+                  onError={(error) => setCameraError(CAMERA_ERROR_TEXT[error.kind] ?? error.message)}
+                  paused={outcome !== null}
+                  constraints={{ facingMode }}
+                  formats={["qr_code", "code_128", "code_39", "ean_13"]}
+                  components={{ finder: true, torch: true }}
+                  sound
+                />
+              )}
+            </div>
 
-          <div className="text-center pb-2">
-            <p className="text-xs font-bold text-white">
-              เล็งกล้องไปที่ QR Code ({isFrontCamera ? "กล้องหน้า" : "กล้องหลัง"})
+            <p className="text-center text-base text-slate-600">
+              เล็งกล้องไปที่ QR Code บนทรัพย์สิน ระบบจะอ่านให้อัตโนมัติ
             </p>
-            <p className="text-[11px] text-slate-300 mt-1">
-              (แตะที่กรอบมืดนี้เพื่อจำลองการสแกนสำเร็จ)
-            </p>
-          </div>
-        </div>
 
-        <div className="mt-6 flex items-center justify-center gap-16">
-          <div className="flex flex-col items-center gap-2">
             <button
               type="button"
               onClick={() => {
-                setIsTorchOn(!isTorchOn);
-                showSimpleToast(!isTorchOn ? "เปิดไฟฉายแล้ว (Mockup)" : "ปิดไฟฉายแล้ว");
+                setFacingMode((m) => (m === "environment" ? "user" : "environment"));
+                setCameraError(null);
               }}
-              className={`w-14 h-14 rounded-2xl border flex items-center justify-center font-bold ${
-                isTorchOn ? "bg-[#4f46e5] text-white" : "bg-white text-[#5848e5]"
-              }`}
+              className={`${buttonStyle.secondary} w-full`}
             >
-              🔦
+              สลับเป็น{facingMode === "environment" ? "กล้องหน้า" : "กล้องหลัง"}
             </button>
-            <span className="text-xs font-bold">{isTorchOn ? "ปิดไฟฉาย" : "เปิดไฟฉาย"}</span>
-          </div>
 
-          <div className="flex flex-col items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsFrontCamera(!isFrontCamera);
-                showSimpleToast(!isFrontCamera ? "สลับเป็นกล้องหน้า" : "สลับเป็นกล้องหลัง");
-              }}
-              className="w-14 h-14 rounded-2xl bg-white text-[#5848e5] border flex items-center justify-center font-bold"
-            >
-              📷
-            </button>
-            <span className="text-xs font-bold">สลับกล้อง</span>
-          </div>
-        </div>
+            <form onSubmit={handleManualSubmit} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <label htmlFor="manual-code" className="text-base font-semibold text-slate-800">
+                สแกนไม่ติด? พิมพ์รหัสทรัพย์สิน
+              </label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="manual-code"
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value)}
+                  placeholder="เช่น AST-0005"
+                  autoCapitalize="characters"
+                  className="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-300 px-3 text-base uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button type="submit" className={buttonStyle.primary} disabled={!manualCode.trim()}>
+                  ตรวจ
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+
+        <Link href={auditHref} className={`${buttonStyle.secondary} w-full`}>
+          ดูรายการทั้งหมด
+        </Link>
       </main>
+
+      {outcome?.type === "ready" && (
+        <ConfirmCheckSheet
+          asset={outcome.asset}
+          title="พบทรัพย์สินในรอบนี้"
+          onConfirm={handleConfirm}
+          onCancel={closeSheet}
+        />
+      )}
+      {outcome?.type === "duplicate" && (
+        <MessageSheet
+          tone="warn"
+          title="สแกนซ้ำ"
+          body={`${outcome.asset.name} (${outcome.asset.id}) ตรวจไปแล้วเมื่อ ${formatThaiDateTime(outcome.check.checkedAt)} โดย ${getCheckerName(outcome.check)}`}
+          primaryLabel="สแกนชิ้นต่อไป"
+          onPrimary={closeSheet}
+        />
+      )}
+      {outcome?.type === "mismatch" && (
+        <MessageSheet
+          tone="error"
+          title="ทรัพย์สินนี้ไม่ได้อยู่ในสาขาที่ตรวจ"
+          body={`${outcome.asset.name} (${outcome.asset.id}) ลงทะเบียนไว้ที่${getBranchName(outcome.asset.branchId)} แต่รอบนี้ตรวจ${getBranchName(session.branchId)}`}
+          primaryLabel="บันทึกว่าพบต่างสาขา"
+          onPrimary={handleRecordMismatch}
+          secondaryLabel="ไม่บันทึก"
+          onSecondary={closeSheet}
+        />
+      )}
+      {outcome?.type === "not_found" && (
+        <MessageSheet
+          tone="error"
+          title="ไม่พบรหัสนี้ในระบบ"
+          body={`รหัส ${outcome.code} ไม่ตรงกับทรัพย์สินใดเลย ตรวจดูว่า QR ถูกต้อง หรือพิมพ์รหัสใหม่`}
+          primaryLabel="สแกนใหม่"
+          onPrimary={closeSheet}
+        />
+      )}
+      {outcome?.type === "closed" && (
+        <MessageSheet
+          tone="error"
+          title="รอบนี้ปิดแล้ว"
+          body="ไม่สามารถบันทึกผลเพิ่มได้"
+          primaryLabel="ตกลง"
+          onPrimary={closeSheet}
+        />
+      )}
+    </div>
+  );
+}
+
+function MessageSheet({
+  tone,
+  title,
+  body,
+  primaryLabel,
+  onPrimary,
+  secondaryLabel,
+  onSecondary,
+}: {
+  tone: "warn" | "error";
+  title: string;
+  body: string;
+  primaryLabel: string;
+  onPrimary: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+}) {
+  return (
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/50 lg:items-center"
+    >
+      <div className="w-full max-w-lg rounded-t-3xl bg-white p-5 shadow-xl lg:rounded-3xl">
+        <h2 className={`text-xl font-bold ${tone === "warn" ? "text-amber-700" : "text-rose-700"}`}>
+          {title}
+        </h2>
+        <p className="mt-2 text-base text-slate-700">{body}</p>
+        <button
+          type="button"
+          onClick={onPrimary}
+          className="mt-5 min-h-14 w-full rounded-2xl bg-blue-900 text-lg font-bold text-white hover:bg-blue-950"
+        >
+          {primaryLabel}
+        </button>
+        {secondaryLabel && onSecondary && (
+          <button
+            type="button"
+            onClick={onSecondary}
+            className="mt-3 min-h-12 w-full rounded-2xl border border-slate-300 text-base font-semibold text-slate-700"
+          >
+            {secondaryLabel}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
