@@ -156,7 +156,7 @@ export default function UserSummary() {
           <Kpi
             label="พบปัญหาจากการตรวจนับ"
             value={`${inventoryIssues.toLocaleString("th-TH")} รายการ`}
-            note={`ชำรุด / ไม่พบ / ไม่ตรงทะเบียน · ${inventoryRows.length} รอบ`}
+            note={`ชำรุด / สูญหาย · ${inventoryRows.length} รอบ`}
             icon={<CircleCheck size={24} />}
             tone="green"
           />
@@ -478,7 +478,7 @@ function PreviewList({ type, assetRows, movementRows, inventoryRows, repairRows 
           ? inventoryRows.slice(0, 10).map(({ session: s, progress: p }) => ({
               key: s.id,
               title: `${s.id} · ${getBranchName(s.branchId)}`,
-              sub: `ตรวจแล้ว ${p.checked}/${p.total} · ชำรุด ${p.damaged} · ไม่พบ ${p.missing}`,
+              sub: `ตรวจแล้ว ${p.checked}/${p.total} · ชำรุด ${p.damaged} · สูญหาย ${p.lost}`,
               badge: <Badge tone={s.status === "completed" ? "good" : "info"}>{SESSION_STATUS_LABEL[s.status]}</Badge>,
             }))
           : repairRows.slice(0, 10).map((r) => ({

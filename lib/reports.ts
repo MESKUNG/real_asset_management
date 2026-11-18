@@ -344,7 +344,7 @@ export function getInventoryRows(
 export type InventoryRow = ReturnType<typeof getInventoryRows>[number];
 
 export const issueCount = (row: InventoryRow) =>
-  row.progress.damaged + row.progress.missing + row.progress.mismatch;
+  row.progress.damaged + row.progress.lost;
 
 export function inventorySheet(rows: InventoryRow[]): ExcelSheet {
   return {
@@ -359,8 +359,7 @@ export function inventorySheet(rows: InventoryRow[]): ExcelSheet {
       ต้องตรวจ: p.total,
       "ความคืบหน้า (%)": p.percent,
       ชำรุด: p.damaged,
-      ไม่พบ: p.missing,
-      ไม่ตรงทะเบียน: p.mismatch,
+      สูญหาย: p.lost,
     })),
   };
 }

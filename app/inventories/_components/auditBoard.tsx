@@ -1,12 +1,12 @@
 "use client";
-import { useTranslate } from "@/lib/language";
 
-
-// หน้ารายการตรวจนับของรอบที่เลือก (?session=IS-0004)
-// User: สแกน/ยืนยันด้วยมือ และส่งผล | Admin: ดูอย่างเดียว
+// หน้ารายการตรวจนับของรอบที่เลือก (?session=IS-0032) วางตาม Figma:
+// การ์ดแต่ละชิ้นมีช่อง "สภาพทรัพย์สิน" ให้เลือก ปกติ (ค่าเริ่มต้น) / ชำรุด / สูญหาย
+// User: บันทึก แก้สภาพ ยกเลิกผล และส่งผล | Admin: ดูอย่างเดียว
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { Armchair, ChevronLeft, ChevronRight, Laptop, Monitor, Printer, Router, X } from "lucide-react";
 import type { Asset } from "@/data/asset";
 import { exportExcel } from "@/lib/exportExcel";
 import {
@@ -16,20 +16,21 @@ import {
   formatDateRange,
   formatThaiDate,
   formatThaiDateTime,
+  getAwayReason,
   getBranchName,
   getCategoryName,
   getCheckerName,
+  getConditionHint,
   getSessionAssets,
   getSessionProgress,
-  getAwayReason,
   getStaffName,
   removeCheck,
   saveCheck,
+  updateCheck,
   useCredential,
   useInventoryStore,
   type StoredCheck,
 } from "@/lib/inventory";
-import ConfirmCheckSheet from "./ConfirmCheckSheet";
 import {
   EmptyState,
   Loading,
@@ -43,7 +44,16 @@ import {
 } from "./ui";
 
 type Tab = "unchecked" | "checked";
-const PAGE_SIZE = 20;
+type Condition = "found" | "damaged" | "missing";
+
+// ตัวเลือกสภาพทรัพย์สิน ปกติเป็นค่าเริ่มต้น
+const CONDITIONS: { value: Condition; label: string }[] = [
+  { value: "found", label: "ปกติ" },
+  { value: "damaged", label: "ชำรุด" },
+  { value: "missing", label: "สูญหาย" },
+];
+
+const PAGE_SIZES = [5, 10, 20];
 
 export default function AuditBoard() {
   const router = useRouter();
@@ -54,13 +64,17 @@ export default function AuditBoard() {
 
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("unchecked");
-  const [showCount, setShowCount] = useState(PAGE_SIZE);
-  const [manualAsset, setManualAsset] = useState<Asset | null>(null);
+  const [pageSize, setPageSize] = useState(5);
+  const [uncheckedPage, setUncheckedPage] = useState(1);
+  const [checkedPage, setCheckedPage] = useState(1);
+  // สภาพที่เลือกไว้ในการ์ดที่ยังไม่ตรวจ (ยังไม่บันทึก) ถ้าไม่ได้เลือก = ปกติ
+  const [picked, setPicked] = useState<Record<string, Condition>>({});
 
   if (!ready || !credentialReady) return <Loading />;
 
   const sessionId = searchParams.get("session");
   const session = sessions.find((s) => s.id === sessionId);
+
   if (!session) {
     return (
       <div className="mx-auto max-w-md p-6 pt-16">
@@ -80,40 +94,57 @@ export default function AuditBoard() {
 
   const sessionAssets = getSessionAssets(session);
   const sessionChecks = checks.filter((c) => c.sessionId === session.id);
-  const checkedIds = new Set(sessionChecks.map((c) => c.assetId));
+  const checkByAsset = new Map(sessionChecks.map((c) => [c.assetId, c]));
 
   const q = query.trim().toLowerCase();
   const matches = (a: Asset) =>
-    !q ||
-    a.name.toLowerCase().includes(q) ||
-    a.id.toLowerCase().includes(q) ||
-    a.brand.toLowerCase().includes(q);
+    !q || a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q) || a.brand.toLowerCase().includes(q);
 
-  const notChecked = sessionAssets.filter((a) => !checkedIds.has(a.id) && matches(a));
-  // แยกของที่ถูกยืมหรือส่งซ่อมออกไป เพราะไม่อยู่ในสาขา ไม่ต้องเดินหา
-  const uncheckedAssets = notChecked.filter((a) => !getAwayReason(a));
-  const awayAssets = notChecked.filter((a) => getAwayReason(a));
-  // รายการที่ตรวจแล้ว เรียงล่าสุดขึ้นก่อน (รวมของต่างสาขาที่สแกนเจอด้วย)
-  const checkedRows = sessionChecks
-    .map((check) => ({ check, asset: findAsset(check.assetId) }))
-    .filter((row): row is { check: StoredCheck; asset: Asset } => !!row.asset && matches(row.asset))
-    .sort((a, b) => b.check.checkedAt.localeCompare(a.check.checkedAt));
+  // แบ่งของเป็น 3 กลุ่ม ให้ตัวเลขบนหัวตรงกับจำนวนในรายการเสมอ
+  // 1) ของในสาขาที่ต้องตรวจ  2) ของที่ถูกเบิก/ยืม หรือส่งซ่อมแล้ว  3) ของที่เจอแต่ไม่อยู่ในรายการรอบนี้
+  const onSite = sessionAssets.filter((a) => !getAwayReason(a));
+  const onSiteIds = new Set(onSite.map((a) => a.id));
+  const sessionAssetIds = new Set(sessionAssets.map((a) => a.id));
+  const awayAssets = sessionAssets.filter((a) => getAwayReason(a) && matches(a));
+  const uncheckedAssets = onSite.filter((a) => !checkByAsset.has(a.id) && matches(a));
+  const toRows = (list: StoredCheck[]) =>
+    list
+      .map((check) => ({ check, asset: findAsset(check.assetId) }))
+      .filter((row): row is { check: StoredCheck; asset: Asset } => !!row.asset && matches(row.asset));
+  const checkedRows = toRows(sessionChecks.filter((c) => onSiteIds.has(c.assetId))).sort((a, b) =>
+    b.check.checkedAt.localeCompare(a.check.checkedAt),
+  );
+  const extraRows = toRows(sessionChecks.filter((c) => !sessionAssetIds.has(c.assetId)));
 
-  const handleManualConfirm = (result: "found" | "damaged", note: string) => {
-    if (!manualAsset || !credential) return;
+  const uncheckedPageData = paginate(uncheckedAssets, uncheckedPage, pageSize);
+  const checkedPageData = paginate(checkedRows, checkedPage, pageSize);
+
+  const resetPages = () => {
+    setUncheckedPage(1);
+    setCheckedPage(1);
+  };
+
+  const handleSave = (asset: Asset) => {
+    if (!credential) return;
+    const result = picked[asset.id] ?? "found";
     const saved = saveCheck({
       sessionId: session.id,
-      asset: manualAsset,
+      asset,
       result,
       checker: credential,
-      note: note ? `ยืนยันด้วยมือ: ${note}` : "ยืนยันด้วยมือ (ไม่ได้สแกน)",
+      note: "ยืนยันด้วยมือ (ไม่ได้สแกน)",
     });
-    toast.show(saved ? `บันทึก ${manualAsset.id} (${RESULT_LABEL[result]}) แล้ว` : "บันทึกไม่สำเร็จ");
-    setManualAsset(null);
+    toast.show(saved ? `บันทึก ${asset.id}: ${RESULT_LABEL[result]}` : "บันทึกไม่สำเร็จ");
+  };
+
+  const handleChange = (check: StoredCheck, result: Condition) => {
+    if (!credential) return;
+    const changed = updateCheck(check.id, result, credential);
+    toast.show(changed ? `เปลี่ยน ${check.assetId} เป็น ${RESULT_LABEL[result]}` : "เปลี่ยนไม่สำเร็จ");
   };
 
   const handleUndo = (check: StoredCheck) => {
-    if (!window.confirm(`ยกเลิกผลตรวจของ ${check.assetId} ใช่ไหม?`)) return;
+    if (!window.confirm(`ยกเลิกผลตรวจของ ${check.assetId} แล้วย้ายกลับไปรายการที่ยังไม่ตรวจ ใช่ไหม?`)) return;
     toast.show(removeCheck(check.id) ? `ยกเลิกผล ${check.assetId} แล้ว` : "ยกเลิกไม่สำเร็จ");
   };
 
@@ -122,37 +153,30 @@ export default function AuditBoard() {
     const remaining = progress.total - progress.checked;
     const message =
       remaining > 0
-        ? `ยังเหลือ ${remaining} รายการที่ไม่ได้สแกน ระบบจะบันทึกว่า "ไม่พบ" ยืนยันส่งผลไหม?`
+        ? `ยังเหลือ ${remaining} รายการที่ไม่ได้ตรวจ ระบบจะบันทึกว่า "สูญหาย" ยืนยันส่งผลไหม?`
         : "ยืนยันส่งผลตรวจนับและปิดรอบนี้?";
     if (!window.confirm(message)) return;
-    if (completeSession(session.id, credential)) {
-      router.push("/inventories");
-    } else {
-      toast.show("ส่งผลไม่สำเร็จ");
-    }
+    if (completeSession(session.id, credential)) router.push("/inventories");
+    else toast.show("ส่งผลไม่สำเร็จ");
   };
 
   const handleExport = async () => {
-    const checkByAsset = new Map(sessionChecks.map((c) => [c.assetId, c]));
     const rowOf = (asset: Asset, check?: StoredCheck) => ({
       รหัส: asset.id,
       ชื่อทรัพย์สิน: asset.name,
       "ยี่ห้อ / รุ่น": `${asset.brand} ${asset.model}`,
       หมวดหมู่: getCategoryName(asset.category),
       สาขาที่ลงทะเบียน: getBranchName(asset.branchId),
-      ผลตรวจ: check ? RESULT_LABEL[check.result] : "ยังไม่ตรวจ",
+      ผลตรวจ: check ? RESULT_LABEL[check.result] : (getAwayReason(asset)?.text ?? "ยังไม่ตรวจ"),
       ผู้ตรวจ: check ? getCheckerName(check) : "-",
       เวลาตรวจ: check ? formatThaiDateTime(check.checkedAt) : "-",
       หมายเหตุ: check?.note ?? "",
     });
-    const rows = sessionAssets.map((a) => rowOf(a, checkByAsset.get(a.id)));
-    const extraRows = sessionChecks
-      .filter((c) => c.result === "mismatch")
-      .flatMap((c) => {
-        const asset = findAsset(c.assetId);
-        return asset ? [rowOf(asset, c)] : [];
-      });
-    await exportExcel(`ผลตรวจนับ_${session.id}`, [{ name: session.id, rows: [...rows, ...extraRows] }]);
+    const rows = [
+      ...sessionAssets.map((a) => rowOf(a, checkByAsset.get(a.id))),
+      ...extraRows.map(({ asset, check }) => rowOf(asset, check)),
+    ];
+    await exportExcel(`ผลตรวจนับ_${session.id}`, [{ name: session.id, rows }]);
     toast.show("ดาวน์โหลดไฟล์ Excel แล้ว");
   };
 
@@ -194,14 +218,13 @@ export default function AuditBoard() {
           <div className="mt-2">
             <ProgressBar percent={progress.percent} />
           </div>
-          {progress.away > 0 && (
-            <p className="mt-3 text-base text-slate-600">
-              ไม่ต้องสแกน {progress.away} รายการ เพราะถูกยืมหรือส่งซ่อมอยู่
-            </p>
-          )}
-          {(progress.damaged > 0 || progress.missing > 0 || progress.mismatch > 0) && (
-            <p className="mt-3 text-base font-semibold text-amber-700">
-              พบปัญหา: ชำรุด {progress.damaged} · ไม่พบ {progress.missing} · ไม่ตรงทะเบียน {progress.mismatch}
+          <p className="mt-3 text-base text-slate-600">
+            ตรวจแล้ว {progress.checked} · ยังไม่ตรวจ {progress.total - progress.checked}
+            {progress.away > 0 && ` · ไม่อยู่ในสาขา ${progress.away} รายการ (ไม่ต้องสแกน)`}
+          </p>
+          {(progress.damaged > 0 || progress.lost > 0) && (
+            <p className="mt-1 text-base font-semibold text-amber-700">
+              พบปัญหา: ชำรุด {progress.damaged} · สูญหาย {progress.lost}
             </p>
           )}
         </section>
@@ -215,21 +238,41 @@ export default function AuditBoard() {
         )}
         {!isUser && session.status === "in_progress" && (
           <p className="rounded-xl bg-blue-50 px-4 py-3 text-base text-blue-800">
-            มุมมองผู้ดูแล: ติดตามความคืบหน้าได้ การสแกนทำโดยผู้ใช้ที่ได้รับมอบหมาย
+            มุมมองผู้ดูแล: ติดตามความคืบหน้าได้ การตรวจนับทำโดยผู้ใช้ของสาขา
           </p>
         )}
 
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setShowCount(PAGE_SIZE);
-          }}
-          placeholder="ค้นหาชื่อ ยี่ห้อ หรือรหัสทรัพย์สิน"
-          aria-label="ค้นหาทรัพย์สิน"
-          className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 lg:max-w-md"
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              resetPages();
+            }}
+            placeholder="ค้นหาชื่อ ยี่ห้อ หรือรหัสทรัพย์สิน"
+            aria-label="ค้นหาทรัพย์สิน"
+            className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 sm:max-w-md"
+          />
+          <label className="flex items-center gap-2 text-base text-slate-600">
+            แสดง
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                resetPages();
+              }}
+              className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-base"
+            >
+              {PAGE_SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n} รายการ
+                </option>
+              ))}
+            </select>
+            ต่อหน้า
+          </label>
+        </div>
 
         {/* มือถือ: แท็บสลับ 2 รายการ โดยเปิด "ยังไม่ตรวจ" ก่อน */}
         <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200 p-1 lg:hidden" role="tablist">
@@ -241,59 +284,56 @@ export default function AuditBoard() {
           </TabButton>
         </div>
 
-        {/* คอม: แสดง 2 คอลัมน์คู่กัน โดยให้ "ยังไม่ตรวจ" อยู่ซ้าย */}
+        {/* คอม: 2 คอลัมน์คู่กัน "ยังไม่ตรวจ" อยู่ซ้าย */}
         <div className="grid gap-6 lg:grid-cols-2">
           <section className={`${tab === "unchecked" ? "block" : "hidden"} lg:block`}>
-            <h2 className="mb-3 hidden text-lg font-bold lg:block">
-              ยังไม่ตรวจ ({uncheckedAssets.length})
-            </h2>
+            <h2 className="mb-3 hidden text-lg font-bold lg:block">รายการ ยังไม่ได้ตรวจ</h2>
+            <p className="mb-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-base font-semibold text-slate-800">
+              คงเหลือ {uncheckedAssets.length} รายการ
+            </p>
             {uncheckedAssets.length === 0 ? (
               <EmptyState text={q ? "ไม่พบรายการที่ค้นหา" : "ตรวจครบทุกรายการแล้ว"} />
             ) : (
               <ul className="space-y-3">
-                {uncheckedAssets.slice(0, showCount).map((asset) => (
-                  <li
+                {uncheckedPageData.items.map((asset) => (
+                  <AssetCard
                     key={asset.id}
-                    className="flex items-start justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-base font-bold text-slate-900">{asset.name}</p>
-                      <p className="text-sm text-slate-600">
-                        {asset.id} · {asset.brand} {asset.model}
-                      </p>
-                      <p className="text-sm text-slate-600">
-                        ผู้รับผิดชอบ {getStaffName(asset.responsiblePersonId)}
-                      </p>
-                    </div>
-                    {canScan && (
-                      <button
-                        type="button"
-                        onClick={() => setManualAsset(asset)}
-                        className="min-h-11 shrink-0 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
-                      >
-                        ยืนยันด้วยมือ
-                      </button>
-                    )}
-                  </li>
+                    asset={asset}
+                    tone="unchecked"
+                    person={getStaffName(asset.responsiblePersonId)}
+                    hint={getConditionHint(asset)}
+                    footer={
+                      canScan ? (
+                        <>
+                          <ConditionSelect
+                            value={picked[asset.id] ?? "found"}
+                            onChange={(v) => setPicked((p) => ({ ...p, [asset.id]: v }))}
+                          />
+                          <button type="button" onClick={() => handleSave(asset)} className={`${buttonStyle.primary} shrink-0`}>
+                            บันทึก
+                          </button>
+                        </>
+                      ) : null
+                    }
+                  />
                 ))}
               </ul>
             )}
-            {uncheckedAssets.length > showCount && (
-              <button
-                type="button"
-                onClick={() => setShowCount((c) => c + PAGE_SIZE)}
-                className={`${buttonStyle.secondary} mt-3 w-full`}
-              >
-                แสดงเพิ่ม ({uncheckedAssets.length - showCount} รายการ)
-              </button>
-            )}
+            <Pager
+              page={uncheckedPageData.page}
+              pages={uncheckedPageData.pages}
+              total={uncheckedAssets.length}
+              shown={uncheckedPageData.items.length}
+              onPage={setUncheckedPage}
+            />
+
             {awayAssets.length > 0 && (
               <details className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4">
                 <summary className="cursor-pointer text-base font-semibold text-sky-900">
                   ไม่อยู่ในสาขา ({awayAssets.length}) ไม่ต้องสแกน
                 </summary>
                 <p className="mt-2 text-sm text-sky-900">
-                  ของที่ถูกเบิกหรือส่งซ่อม ระบบจะบันทึกให้อัตโนมัติตอนส่งผล ถ้าเจอของจริงในสาขาก็สแกนได้ตามปกติ
+                  ของที่ถูกเบิก/ยืม หรือส่งซ่อมแล้ว ระบบจะบันทึกให้อัตโนมัติตอนส่งผล
                 </p>
                 <ul className="mt-3 divide-y divide-sky-100">
                   {awayAssets.map((asset) => {
@@ -316,35 +356,64 @@ export default function AuditBoard() {
           </section>
 
           <section className={`${tab === "checked" ? "block" : "hidden"} lg:block`}>
-            <h2 className="mb-3 hidden text-lg font-bold lg:block">ตรวจแล้ว ({checkedRows.length})</h2>
+            <h2 className="mb-3 hidden text-lg font-bold lg:block">รายการ ตรวจแล้ว</h2>
+            <p className="mb-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-base font-semibold text-slate-800">
+              ตรวจแล้ว {checkedRows.length} รายการ
+            </p>
             {checkedRows.length === 0 ? (
               <EmptyState text={q ? "ไม่พบรายการที่ค้นหา" : "ยังไม่มีรายการที่ตรวจแล้ว"} />
             ) : (
               <ul className="space-y-3">
-                {checkedRows.slice(0, showCount).map(({ check, asset }) => (
-                  <li key={check.id} className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-base font-bold text-slate-900">{asset.name}</p>
-                        <p className="text-sm text-slate-600">
-                          {asset.id} · โดย {getCheckerName(check)} · {formatThaiDateTime(check.checkedAt)}
-                        </p>
-                        {check.note && <p className="mt-1 text-sm text-slate-600">หมายเหตุ: {check.note}</p>}
-                      </div>
-                      <ResultPill result={check.result} />
-                    </div>
-                    {canScan && check.result !== "missing" && (
-                      <button
-                        type="button"
-                        onClick={() => handleUndo(check)}
-                        className="mt-2 text-sm font-semibold text-slate-500 underline"
-                      >
-                        บันทึกผิด? ยกเลิกผลนี้
-                      </button>
-                    )}
-                  </li>
+                {checkedPageData.items.map(({ check, asset }) => (
+                  <AssetCard
+                    key={check.id}
+                    asset={asset}
+                    tone={check.result === "found" ? "checked" : "problem"}
+                    person={getCheckerName(check)}
+                    time={formatThaiDateTime(check.checkedAt)}
+                    note={check.note}
+                    onRemove={canScan ? () => handleUndo(check) : undefined}
+                    footer={
+                      canScan && check.result !== "mismatch" ? (
+                        <ConditionSelect value={check.result as Condition} onChange={(v) => handleChange(check, v)} />
+                      ) : (
+                        <span className="flex items-center gap-2 text-base text-slate-600">
+                          สภาพทรัพย์สิน <ResultPill result={check.result} />
+                        </span>
+                      )
+                    }
+                  />
                 ))}
               </ul>
+            )}
+            <Pager
+              page={checkedPageData.page}
+              pages={checkedPageData.pages}
+              total={checkedRows.length}
+              shown={checkedPageData.items.length}
+              onPage={setCheckedPage}
+            />
+
+            {extraRows.length > 0 && (
+              <details className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <summary className="cursor-pointer text-base font-semibold text-rose-900">
+                  ทรัพย์สินนอกรายการรอบนี้ ({extraRows.length})
+                </summary>
+                <p className="mt-2 text-sm text-rose-900">ของที่ทะเบียนระบุว่าจำหน่ายแล้ว หรือเป็นของสาขาอื่น แต่พบระหว่างตรวจ</p>
+                <ul className="mt-3 divide-y divide-rose-100">
+                  {extraRows.map(({ check, asset }) => (
+                    <li key={check.id} className="flex items-start justify-between gap-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-base font-semibold text-slate-900">
+                          {asset.name} <span className="text-sm font-normal text-slate-600">{asset.id}</span>
+                        </p>
+                        <p className="text-sm text-rose-900">{check.note}</p>
+                      </div>
+                      <ResultPill result={check.result} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </section>
         </div>
@@ -382,36 +451,156 @@ export default function AuditBoard() {
           </div>
         </div>
       )}
-
-      {manualAsset && (
-        <ConfirmCheckSheet
-          asset={manualAsset}
-          onConfirm={handleManualConfirm}
-          onCancel={() => setManualAsset(null)}
-        />
-      )}
     </div>
   );
 }
 
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
+/* ---------------- ชิ้นส่วนของหน้านี้ ---------------- */
+
+// ตัดรายการเป็นหน้าละ size ชิ้น ถ้าหน้าที่เลือกเกินจำนวนหน้า (เช่นหลังบันทึกจนรายการลดลง) จะถอยไปหน้าสุดท้าย
+function paginate<T>(list: T[], page: number, size: number) {
+  const pages = Math.max(1, Math.ceil(list.length / size));
+  const current = Math.min(page, pages);
+  return { page: current, pages, items: list.slice((current - 1) * size, current * size) };
+}
+
+function Pager({ page, pages, total, shown, onPage }: {
+  page: number;
+  pages: number;
+  total: number;
+  shown: number;
+  onPage: (page: number) => void;
 }) {
+  if (total === 0) return null;
+  // แสดงเลขหน้ารอบๆ หน้าปัจจุบันไม่เกิน 5 ปุ่ม
+  const start = Math.max(1, Math.min(page - 2, pages - 4));
+  const numbers = Array.from({ length: Math.min(5, pages) }, (_, i) => start + i);
+  const pageButton = "flex h-10 min-w-10 items-center justify-center rounded-xl border px-2 text-base font-semibold sm:h-11 sm:min-w-11";
+  return (
+    <nav aria-label="เปลี่ยนหน้า" className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
+      <p className="mb-2 text-center text-sm text-slate-500">
+        แสดง {shown} จาก {total} รายการ · หน้า {page}/{pages}
+      </p>
+      <div className="flex items-center justify-center gap-1 sm:gap-2">
+        <button
+          type="button"
+          onClick={() => onPage(page - 1)}
+          disabled={page <= 1}
+          aria-label="หน้าก่อน"
+          className={`${pageButton} border-slate-300 bg-white text-slate-700 disabled:opacity-40`}
+        >
+          <ChevronLeft size={18} />
+        </button>
+        {numbers.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onPage(n)}
+            aria-current={n === page ? "page" : undefined}
+            className={`${pageButton} ${n === page ? "border-blue-300 bg-blue-50 text-blue-800" : "border-slate-300 bg-white text-slate-700"}`}
+          >
+            {n}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onPage(page + 1)}
+          disabled={page >= pages}
+          aria-label="หน้าถัดไป"
+          className={`${pageButton} border-slate-300 bg-white text-slate-700 disabled:opacity-40`}
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+const CARD_STYLE = {
+  unchecked: { box: "bg-rose-50", pill: "bg-rose-100 text-rose-800", label: "ยังไม่ได้ตรวจ" },
+  checked: { box: "bg-emerald-50", pill: "bg-emerald-100 text-emerald-800", label: "ตรวจแล้ว" },
+  problem: { box: "bg-amber-50", pill: "bg-amber-100 text-amber-800", label: "ตรวจแล้ว" },
+};
+
+function CategoryIcon({ category }: { category: string }) {
+  if (category === "CAT-002") return <Monitor size={22} aria-hidden />;
+  if (category === "CAT-003") return <Printer size={22} aria-hidden />;
+  if (category === "CAT-004") return <Armchair size={22} aria-hidden />;
+  if (category === "CAT-005") return <Router size={22} aria-hidden />;
+  return <Laptop size={22} aria-hidden />;
+}
+
+function AssetCard({ asset, tone, person, time, note, hint, footer, onRemove }: {
+  asset: Asset;
+  tone: keyof typeof CARD_STYLE;
+  person: string;
+  time?: string;
+  note?: string;
+  hint?: string | null;
+  footer: ReactNode;
+  onRemove?: () => void;
+}) {
+  const style = CARD_STYLE[tone];
+  return (
+    <li className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className={`flex gap-3 p-4 ${style.box}`}>
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600">
+          <CategoryIcon category={asset.category} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-bold text-slate-900">{asset.name}</p>
+          <p className="text-sm text-slate-600">{asset.id}</p>
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm text-slate-600">{person}</span>
+            <span className={`rounded-full px-3 py-0.5 text-sm font-semibold ${style.pill}`}>{style.label}</span>
+          </div>
+          {time && <p className="mt-1 text-sm text-slate-500">{time}</p>}
+          {hint && <p className="mt-1 text-sm font-semibold text-amber-700">{hint}</p>}
+          {note && <p className="mt-1 text-sm text-slate-600">หมายเหตุ: {note}</p>}
+        </div>
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`ยกเลิกผลตรวจ ${asset.id}`}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-white"
+          >
+            <X size={20} />
+          </button>
+        )}
+      </div>
+      {footer && <div className="flex items-center gap-3 border-t border-slate-200 px-4 py-3">{footer}</div>}
+    </li>
+  );
+}
+
+function ConditionSelect({ value, onChange }: { value: Condition; onChange: (value: Condition) => void }) {
+  return (
+    <label className="flex min-w-0 flex-1 items-center gap-3 text-base text-slate-700">
+      <span className="shrink-0">สภาพทรัพย์สิน</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as Condition)}
+        className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        {CONDITIONS.map((c) => (
+          <option key={c.value} value={c.value}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button
       type="button"
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`min-h-11 rounded-xl text-base font-semibold ${
-        active ? "bg-white text-slate-900 shadow" : "text-slate-600"
-      }`}
+      className={`min-h-11 rounded-xl text-base font-semibold ${active ? "bg-white text-slate-900 shadow" : "text-slate-600"}`}
     >
       {children}
     </button>

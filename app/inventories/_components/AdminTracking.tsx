@@ -98,8 +98,7 @@ export default function AdminTracking() {
         ทั้งหมด: p.total,
         "ความคืบหน้า (%)": p.percent,
         ชำรุด: p.damaged,
-        ไม่พบ: p.missing,
-        ไม่ตรงทะเบียน: p.mismatch,
+        สูญหาย: p.lost,
       };
     });
     await exportExcel("ติดตามการตรวจนับ", [{ name: "รอบตรวจนับ", rows }]);
@@ -135,7 +134,7 @@ export default function AdminTracking() {
           <StatCard label="กำลังนับ" value={`${countOf("in_progress")} รอบ`} note={`สแกนแล้ว ${activeChecked}/${activeTotal} ชิ้น`} />
           <StatCard label="รอเริ่ม" value={`${countOf("planned")} รอบ`} note="เริ่มเองเมื่อถึงวันตรวจ" />
           <StatCard label="เสร็จสิ้น" value={`${countOf("completed")} รอบ`} note="ปิดรอบแล้ว" />
-          <StatCard label="พบปัญหา" value={`${issueCount} รายการ`} note="ชำรุด / ไม่พบ / ไม่ตรงทะเบียน" tone="warn" />
+          <StatCard label="พบปัญหา" value={`${issueCount} รายการ`} note="ชำรุด / สูญหาย" tone="warn" />
         </div>
 
         <div className="-mx-4 overflow-x-auto px-4">
@@ -189,9 +188,9 @@ export default function AdminTracking() {
                     </span>
                   </div>
 
-                  {(p.damaged > 0 || p.missing > 0 || p.mismatch > 0) && (
+                  {(p.damaged > 0 || p.lost > 0) && (
                     <p className="mt-2 text-sm font-semibold text-amber-700">
-                      ชำรุด {p.damaged} · ไม่พบ {p.missing} · ไม่ตรงทะเบียน {p.mismatch}
+                      ชำรุด {p.damaged} · สูญหาย {p.lost}
                     </p>
                   )}
 

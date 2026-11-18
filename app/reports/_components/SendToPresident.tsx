@@ -84,8 +84,7 @@ function buildFigures(period: Period, sessions: StoredSession[], checks: StoredC
   const assetValue = activeAssets.reduce((sum, a) => sum + a.purchasePrice, 0);
   const issues = inventory.reduce((sum, r) => sum + issueCount(r), 0);
   const damaged = inventory.reduce((sum, r) => sum + r.progress.damaged, 0);
-  const missing = inventory.reduce((sum, r) => sum + r.progress.missing, 0);
-  const mismatch = inventory.reduce((sum, r) => sum + r.progress.mismatch, 0);
+  const lost = inventory.reduce((sum, r) => sum + r.progress.lost, 0);
   const repairTotal = repairs.reduce((sum, r) => sum + repairCost(r), 0);
   const openRepairs = repairs.filter((r) => r.status === "pending" || r.status === "in_progress").length;
   const pendingMovements = movements.filter((r) => r.request.status === "pending").length;
@@ -97,8 +96,7 @@ function buildFigures(period: Period, sessions: StoredSession[], checks: StoredC
     assetValue,
     issues,
     damaged,
-    missing,
-    mismatch,
+    lost,
     repairTotal,
     openRepairs,
     pendingMovements,
@@ -120,7 +118,7 @@ function autoIssues(f: Figures) {
   return [
     {
       title: `เฝ้าระวัง · ผลตรวจนับพบปัญหา ${f.issues} รายการ`,
-      detail: `ชำรุด ${f.damaged} · ไม่พบ ${f.missing} · ไม่ตรงทะเบียน ${f.mismatch} รายการ\nข้อเสนอ: ให้สาขาตรวจสอบรายการที่ไม่พบ และส่งของชำรุดเข้ากระบวนการซ่อม`,
+      detail: `ชำรุด ${f.damaged} · สูญหาย ${f.lost} รายการ\nข้อเสนอ: ให้สาขาติดตามรายการที่สูญหาย และส่งของชำรุดเข้ากระบวนการซ่อม`,
     },
     {
       title: `ติดตามค่าใช้จ่ายซ่อม ${formatBaht(f.repairTotal)}`,
@@ -287,7 +285,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
           <Kpi
             label="พบปัญหาจากการตรวจนับ"
             value={`${figures.issues} รายการ`}
-            note={`ชำรุด ${figures.damaged} · ไม่พบ ${figures.missing} · ไม่ตรงทะเบียน ${figures.mismatch}`}
+            note={`ชำรุด ${figures.damaged} · สูญหาย ${figures.lost} · ${figures.inventory.length} รอบ`}
             icon={<CircleCheck size={24} />}
             tone="green"
           />
@@ -325,7 +323,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                   badge={<Badge tone={figures.issues > 0 ? "wait" : "good"}>พบปัญหา {figures.issues}</Badge>}
                   stats={[
                     ["รอบตรวจนับ", `${figures.inventory.length} รอบ (ปิดแล้ว ${figures.completedRounds})`],
-                    ["ชำรุด / ไม่พบ / ไม่ตรงทะเบียน", `${figures.damaged} / ${figures.missing} / ${figures.mismatch}`],
+                    ["ชำรุด / สูญหาย", `${figures.damaged} / ${figures.lost} รายการ`],
                   ]}
                 />
                 <SubReport
