@@ -14,6 +14,7 @@ import {
   completeSession,
   findAsset,
   formatDateRange,
+  formatThaiDate,
   formatThaiDateTime,
   getBranchName,
   getCategoryName,
@@ -200,7 +201,7 @@ export default function AuditBoard() {
           )}
           {(progress.damaged > 0 || progress.missing > 0 || progress.mismatch > 0) && (
             <p className="mt-3 text-base font-semibold text-amber-700">
-              พบปัญหา: ชำรุด {progress.damaged} · ไม่พบ {progress.missing} · ไม่ตรงสาขา {progress.mismatch}
+              พบปัญหา: ชำรุด {progress.damaged} · ไม่พบ {progress.missing} · ไม่ตรงทะเบียน {progress.mismatch}
             </p>
           )}
         </section>
@@ -208,7 +209,7 @@ export default function AuditBoard() {
         {session.status !== "in_progress" && (
           <p className="rounded-xl bg-slate-200 px-4 py-3 text-base text-slate-700">
             {session.status === "planned"
-              ? "รอบนี้ยังไม่เริ่ม ต้องให้ Admin เปิดรอบก่อนจึงจะสแกนได้"
+              ? `รอบนี้จะเริ่มให้ตรวจนับอัตโนมัติวันที่ ${formatThaiDate(session.startDate)}`
               : "รอบนี้ปิดแล้ว ดูผลได้อย่างเดียว"}
           </p>
         )}

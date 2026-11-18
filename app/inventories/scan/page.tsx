@@ -132,9 +132,12 @@ function ScanContent() {
       asset: outcome.asset,
       result: "mismatch",
       checker: credential,
-      note: `พบทรัพย์สินของ${getBranchName(outcome.asset.branchId)} ที่${getBranchName(session.branchId)}`,
+      note:
+        outcome.asset.status === "disposed"
+          ? "พบทรัพย์สินที่จำหน่ายแล้วแต่ยังอยู่ในสาขา"
+          : `พบทรัพย์สินของ${getBranchName(outcome.asset.branchId)} ที่${getBranchName(session.branchId)}`,
     });
-    toast.show(saved ? `บันทึก ${outcome.asset.id} ว่าพบต่างสาขาแล้ว` : "บันทึกไม่สำเร็จ");
+    toast.show(saved ? `บันทึก ${outcome.asset.id} ว่าไม่ตรงทะเบียนแล้ว` : "บันทึกไม่สำเร็จ");
     setOutcome(null);
   };
 
@@ -258,7 +261,18 @@ function ScanContent() {
           onPrimary={closeSheet}
         />
       )}
-      {outcome?.type === "mismatch" && (
+      {outcome?.type === "mismatch" && outcome.asset.status === "disposed" && (
+        <MessageSheet
+          tone="error"
+          title={translateText("ทรัพย์สินนี้จำหน่ายไปแล้ว")}
+          body={`${outcome.asset.name} (${outcome.asset.id}) ${translateText("ในทะเบียนจำหน่ายไปแล้ว แต่ยังพบอยู่ในสาขา")}`}
+          primaryLabel={translateText("บันทึกว่าไม่ตรงทะเบียน")}
+          onPrimary={handleRecordMismatch}
+          secondaryLabel={translateText("ไม่บันทึก")}
+          onSecondary={closeSheet}
+        />
+      )}
+      {outcome?.type === "mismatch" && outcome.asset.status !== "disposed" && (
         <MessageSheet
           tone="error"
           title={translateText("ทรัพย์สินนี้ไม่ได้อยู่ในสาขาที่ตรวจ")}

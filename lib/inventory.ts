@@ -123,21 +123,32 @@ export type StoredCheck = InventoryCheck & { checkerName?: string };
 type InventoryStore = { sessions: StoredSession[]; checks: StoredCheck[] };
 
 // เปลี่ยนชื่อ key เมื่อข้อมูลกลางเปลี่ยนรูปแบบ ข้อมูลเก่าในเบราว์เซอร์จะได้ไม่ปนกัน
-const STORE_KEY = "inventory-store-v2";
+const STORE_KEY = "inventory-store-v3";
 const STORE_EVENT = "inventorystorechange";
 
 function seedStore(): InventoryStore {
   return { sessions: [...inventorySessions], checks: [...inventoryChecks] };
 }
 
+// รอบที่ประกาศไว้ (รอเริ่ม) จะเปลี่ยนเป็น "กำลังนับ" เองเมื่อถึงวันเริ่ม ไม่ต้องให้ Admin กดเปิดรอบ
+function autoStart(store: InventoryStore): InventoryStore {
+  const today = toDateValue(new Date());
+  return {
+    ...store,
+    sessions: store.sessions.map((s) =>
+      s.status === "planned" && s.startDate <= today ? { ...s, status: "in_progress" } : s,
+    ),
+  };
+}
+
 function parseStore(raw: string | null): InventoryStore {
-  if (!raw) return seedStore();
+  if (!raw) return autoStart(seedStore());
   try {
     const data = JSON.parse(raw);
-    if (!Array.isArray(data.sessions) || !Array.isArray(data.checks)) return seedStore();
-    return { sessions: data.sessions, checks: data.checks };
+    if (!Array.isArray(data.sessions) || !Array.isArray(data.checks)) return autoStart(seedStore());
+    return autoStart({ sessions: data.sessions, checks: data.checks });
   } catch {
-    return seedStore();
+    return autoStart(seedStore());
   }
 }
 
@@ -250,7 +261,7 @@ export const RESULT_LABEL: Record<InventoryResult, string> = {
   found: "ปกติ",
   damaged: "ชำรุด",
   missing: "ไม่พบ",
-  mismatch: "ไม่ตรงสาขา",
+  mismatch: "ไม่ตรงทะเบียน",
 };
 
 export const ASSET_STATUS_LABEL: Record<AssetStatus, string> = {
@@ -388,10 +399,6 @@ export function deleteSession(sessionId: string): boolean {
   return true;
 }
 
-export function startSession(sessionId: string): boolean {
-  return updateStatus(sessionId, "planned", "in_progress");
-}
-
 export function cancelSession(sessionId: string): boolean {
   return updateStatus(sessionId, "planned", "cancelled");
 }
@@ -473,7 +480,8 @@ export function previewScan(
   if (!asset) return { type: "not_found", code: code.trim() };
   const existing = checks.find((c) => c.sessionId === session.id && c.assetId === asset.id);
   if (existing) return { type: "duplicate", asset, check: existing };
-  if (asset.branchId !== session.branchId) return { type: "mismatch", asset };
+  // ของผิดสาขา หรือของที่จำหน่ายไปแล้วแต่ยังเจอ = ข้อมูลไม่ตรงทะเบียน
+  if (asset.branchId !== session.branchId || asset.status === "disposed") return { type: "mismatch", asset };
   return { type: "ready", asset };
 }
 
