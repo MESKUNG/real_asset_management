@@ -1,4 +1,5 @@
-// เก็บรายการแจ้งเตือน และจำว่ารายการไหนถูกอ่านแล้ว ใช้ทั้งในกล่องและหน้าแจ้งเตือน
+// รวมข้อมูลแจ้งเตือนจากหลายส่วน แล้วเลือกว่าผู้ใช้แต่ละบทบาทควรเห็นรายการใด
+// ไฟล์นี้ยังจำรายการที่อ่านแล้ว และกำหนดว่ากดแจ้งเตือนแล้วจะเปิดหน้าไหน
 import { assets } from "@/data/asset";
 import { branches, HEAD_OFFICE_BRANCH_ID } from "@/data/branches";
 import {
@@ -206,6 +207,7 @@ type BorrowNotificationRequest = {
   actualReturnDate: string | null;
   createdAt: string;
   decidedAt?: string;
+  submittedByUser?: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -227,7 +229,9 @@ function isBorrowNotificationRequest(value: unknown): value is BorrowNotificatio
     ) &&
     typeof value.expectedReturnDate === "string" &&
     (typeof value.actualReturnDate === "string" || value.actualReturnDate === null) &&
-    typeof value.createdAt === "string"
+    typeof value.createdAt === "string" &&
+    (value.submittedByUser === undefined ||
+      typeof value.submittedByUser === "boolean")
   );
 }
 
@@ -241,7 +245,10 @@ function parseStoredValue(raw: string | null): unknown {
   }
 }
 
-function getBorrowNotifications(raw: string | null): NotificationItem[] {
+function getBorrowNotifications(
+  raw: string | null,
+  pendingOnly = false,
+): NotificationItem[] {
   const parsed = parseStoredValue(raw);
   // ถ้าไม่เคยบันทึกคำขอ ให้ใช้ข้อมูลตั้งต้นชุดเดียวกับหน้าเบิก/รับคืน
   const requests = raw === null
@@ -263,7 +270,14 @@ function getBorrowNotifications(raw: string | null): NotificationItem[] {
     overdue: "เกินกำหนดคืน",
   };
 
-  return requests.map((request) => {
+  const visibleRequests = pendingOnly
+    ? requests.filter(
+        (request) =>
+          request.status === "pending" && request.submittedByUser === true,
+      )
+    : requests;
+
+  return visibleRequests.map((request) => {
     const asset = assets.find((item) => item.id === request.assetId);
     const branch = branches.find((item) => item.id === request.branchId);
     const destinationBranch = request.toBranchId
@@ -477,28 +491,11 @@ export function getNotificationsForRole(
   sourceSnapshot = emptyNotificationSourcesSnapshot,
   staffId: number | null = null,
 ) {
+  // กรองรายการตามบทบาทของบัญชีที่กำลังใช้งาน
   const currentStaffId =
     staffId ?? (role === null ? null : getCurrentStaffId());
   const sources = parseNotificationSources(sourceSnapshot);
-  // รวมแจ้งเตือนทุกประเภทก่อนกรองสิทธิ์และเลือก 20 รายการล่าสุด
-  // รวมคำร้องจาก Local Storage กับข้อมูลตั้งต้น และใช้ ID กันรายการซ้ำ
-  const requestsById = new Map(
-    repairRequests.map((request) => [request.id, request]),
-  );
-  userRequests.forEach((request) => requestsById.set(request.id, request));
-  const repairNotifications = [...requestsById.values()]
-    .filter((request) => notificationStatuses.has(request.status))
-    .sort((a, b) =>
-      getNotificationDate(b).localeCompare(getNotificationDate(a)),
-    )
-    .map(toNotification);
-  const currentNotifications = [
-    ...repairNotifications,
-    ...getBorrowNotifications(sources.borrowRequests),
-    ...getInventoryNotifications(sources.inventoryStore),
-    ...getWarrantyNotifications(sources),
-  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const actionNotifications = isAdminRole(role) || currentStaffId === null
+  const actionNotifications = role !== "user" || currentStaffId === null
     ? []
     : parseUserActionNotifications(sources.userActionNotifications)
         .filter((notification) => notification.recipientId === currentStaffId)
@@ -518,26 +515,44 @@ export function getNotificationsForRole(
             href: notification.href,
           };
         });
+  if (isAdminRole(role)) {
+    // กล่อง Admin แสดงเฉพาะคำขอที่รอดำเนินการ ไม่แสดงการเปลี่ยนสถานะที่ Admin ทำเอง
+    return [
+      ...(role === "president"
+        ? []
+        : userRequests
+            .filter((request) => request.status === "pending")
+            .map(toNotification)),
+      ...getBorrowNotifications(sources.borrowRequests, true),
+    ]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 20);
+  }
+  if (role !== "user" || currentStaffId === null) return [];
+
+  // User เห็นแจ้งเตือนคำขอหลัง Admin ตอบกลับผ่าน actionNotifications เท่านั้น
+  const userNotifications = [
+    ...getInventoryNotifications(sources.inventoryStore),
+    ...getWarrantyNotifications(sources),
+  ];
   const actionEntityKeys = new Set(
     actionNotifications.map((notification) => notification.entityKey),
   );
-  const notificationsWithoutSupersededItems = currentNotifications.filter(
+  const notificationsWithoutSupersededItems = userNotifications.filter(
     (notification) => !notification.entityKey || !actionEntityKeys.has(notification.entityKey),
   );
-  const allNotificationsForRole = [
+  const scopedNotifications = [
     ...notificationsWithoutSupersededItems,
     ...actionNotifications,
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const scopedNotifications = isAdminRole(role)
-    ? allNotificationsForRole
-    : allNotificationsForRole.filter(
-        ({ branchId, recipientId }) =>
-          recipientId !== undefined
-            ? recipientId === currentStaffId
-            : branchId === HEAD_OFFICE_BRANCH_ID,
-      );
-
-  return scopedNotifications.slice(0, 20);
+  return scopedNotifications
+    .filter(
+      ({ branchId, recipientId }) =>
+        recipientId !== undefined
+          ? recipientId === currentStaffId
+          : branchId === HEAD_OFFICE_BRANCH_ID,
+    )
+    .slice(0, 20);
 }
 
 export const defaultReadNotifications = JSON.stringify(

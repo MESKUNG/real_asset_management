@@ -8,6 +8,7 @@ import {
   Search,
 } from "lucide-react";
 import { fetchLoginHistory, type LoginHistoryEntry } from "@/lib/loginHistory";
+import { useLanguage } from "@/lib/language";
 
 const PAGE_SIZE = 4;
 const UNKNOWN_VALUE = "ระบุไม่ได้";
@@ -39,24 +40,36 @@ function getStaffId() {
   return credential.staff_id;
 }
 
-function formatDate(value: string) {
+function formatDate(value: string, language: "th" | "en") {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return UNKNOWN_VALUE;
+  if (Number.isNaN(date.getTime())) return language === "en" ? "Unknown" : UNKNOWN_VALUE;
 
-  const datePart = new Intl.DateTimeFormat("th-TH", {
+  const datePart = new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
     day: "numeric",
     month: "short",
     year: "numeric",
     timeZone: "Asia/Bangkok",
   }).format(date);
-  const timePart = new Intl.DateTimeFormat("th-TH", {
+  const timePart = new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hourCycle: "h23",
     timeZone: "Asia/Bangkok",
   }).format(date);
-  return `${datePart} · ${timePart} น.`;
+  return language === "en" ? `${datePart} · ${timePart}` : `${datePart} · ${timePart} น.`;
+}
+
+function formatHistoryValue(value: string | undefined, language: "th" | "en") {
+  const normalizedValue = value?.trim();
+  if (
+    !normalizedValue ||
+    normalizedValue === UNKNOWN_VALUE ||
+    normalizedValue.toLocaleLowerCase() === "unknown"
+  ) {
+    return language === "en" ? "Unknown" : UNKNOWN_VALUE;
+  }
+  return normalizedValue;
 }
 
 function getBangkokDate(value: string) {
@@ -81,6 +94,9 @@ function getTimestamp(value: string) {
 }
 
 export default function LoginHistoryPage() {
+  const language = useLanguage();
+  const isEnglish = language === "en";
+  const t = (thai: string, english: string) => isEnglish ? english : thai;
   const [entries, setEntries] = useState<LoginHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -137,7 +153,7 @@ export default function LoginHistoryPage() {
 
     const query = search.trim().toLocaleLowerCase();
     return entries.filter((entry) => {
-      const ipAddress = (entry.ip_address || UNKNOWN_VALUE).toLocaleLowerCase();
+      const ipAddress = formatHistoryValue(entry.ip_address, language).toLocaleLowerCase();
       if (query && !ipAddress.includes(query)) return false;
 
       const loginDate = getBangkokDate(entry.login_time);
@@ -145,7 +161,7 @@ export default function LoginHistoryPage() {
       if (endDate && loginDate > endDate) return false;
       return true;
     });
-  }, [endDate, entries, invalidDateRange, search, startDate]);
+  }, [endDate, entries, invalidDateRange, search, startDate, language]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEntries.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -163,46 +179,46 @@ export default function LoginHistoryPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#f4f4f8] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-[#f4f4f8] px-4 dark:bg-slate-950 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
           <header className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">
-              ประวัติการเข้าสู่ระบบ
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+              {t("ประวัติการเข้าสู่ระบบ", "Login history")}
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              ตรวจสอบกิจกรรมการเข้าสู่ระบบของบัญชีคุณ
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {t("ตรวจสอบกิจกรรมการเข้าสู่ระบบของบัญชีคุณ", "Review sign-in activity for your account")}
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              แสดงวันและเวลาตามเวลาไทย (UTC+7)
+              {t("แสดงวันและเวลาตามเวลาไทย (UTC+7)", "Dates and times are shown in Thailand time (UTC+7)")}
             </p>
           </header>
 
           <section
-            aria-label="การเข้าสู่ระบบล่าสุด"
-            className="mb-4 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+            aria-label={t("การเข้าสู่ระบบล่าสุด", "Latest sign-in")}
+            className="mb-4 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
           >
             <div className="min-w-0">
-              <p className="text-xs text-slate-500">IP ล่าสุด</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("IP ล่าสุด", "Latest IP")}</p>
               {loading ? (
-                <p className="mt-1 text-sm text-slate-500">กำลังโหลดประวัติ...</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("กำลังโหลดประวัติ...", "Loading history...")}</p>
               ) : error ? (
-                <p className="mt-1 text-sm text-slate-500">โหลดข้อมูลไม่สำเร็จ</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("โหลดข้อมูลไม่สำเร็จ", "Could not load data")}</p>
               ) : latestEntry ? (
                 <>
-                  <p className="mt-1 text-lg font-semibold text-slate-800">
-                    {latestEntry.ip_address || UNKNOWN_VALUE}
+                  <p className="mt-1 text-lg font-semibold text-slate-800 dark:text-slate-100">
+                    {formatHistoryValue(latestEntry.ip_address, language)}
                     <span className="font-medium">
                       {" "}
-                      · {latestEntry.location || UNKNOWN_VALUE}
+                      · {formatHistoryValue(latestEntry.location, language)}
                     </span>
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    เข้าสู่ระบบ {formatDate(latestEntry.login_time)}
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {t("เข้าสู่ระบบ", "Signed in")} {formatDate(latestEntry.login_time, language)}
                   </p>
                 </>
               ) : (
-                <p className="mt-1 text-sm text-slate-500">
-                  ยังไม่มีประวัติการเข้าสู่ระบบ
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  {t("ยังไม่มีประวัติการเข้าสู่ระบบ", "No sign-in history yet")}
                 </p>
               )}
             </div>
@@ -212,22 +228,22 @@ export default function LoginHistoryPage() {
                   aria-hidden="true"
                   className="h-1.5 w-1.5 rounded-full bg-emerald-500"
                 />
-                เข้าสู่ระบบล่าสุด
+                {t("เข้าสู่ระบบล่าสุด", "Latest sign-in")}
               </span>
             )}
           </section>
 
           <section
-            aria-label="ตัวกรองประวัติ"
-            className="mb-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5"
+            aria-label={t("ตัวกรองประวัติ", "History filters")}
+            className="mb-4 rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 p-4 sm:p-5"
           >
             <div className="grid gap-3 md:grid-cols-[minmax(12rem,1fr)_minmax(18rem,0.9fr)] md:items-center">
-              <h2 className="text-sm font-semibold text-slate-800">
-                กรองประวัติของฉัน
+              <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {t("กรองประวัติของฉัน", "Filter my history")}
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="relative block">
-                  <span className="sr-only">ค้นหา IP address</span>
+                  <span className="sr-only">{t("ค้นหา IP address", "Search IP address")}</span>
                   <Search
                     aria-hidden="true"
                     className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -239,13 +255,13 @@ export default function LoginHistoryPage() {
                       setSearch(event.target.value);
                       resetPage();
                     }}
-                    placeholder="ค้นหา IP address"
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                    placeholder={t("ค้นหา IP address", "Search IP address")}
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 pl-10 pr-3 text-sm text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                   />
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="relative block">
-                    <span className="sr-only">ตั้งแต่วันที่</span>
+                    <span className="sr-only">{t("ตั้งแต่วันที่", "Start date")}</span>
                     <CalendarDays
                       aria-hidden="true"
                       className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -258,11 +274,11 @@ export default function LoginHistoryPage() {
                         setStartDate(event.target.value);
                         resetPage();
                       }}
-                      className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white pl-9 pr-2 text-xs text-slate-600 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                      className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 pl-9 pr-2 text-xs text-slate-600 dark:text-slate-300 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                     />
                   </label>
                   <label className="relative block">
-                    <span className="sr-only">ถึงวันที่</span>
+                    <span className="sr-only">{t("ถึงวันที่", "End date")}</span>
                     <CalendarDays
                       aria-hidden="true"
                       className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -275,7 +291,7 @@ export default function LoginHistoryPage() {
                         setEndDate(event.target.value);
                         resetPage();
                       }}
-                      className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white pl-9 pr-2 text-xs text-slate-600 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                      className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 pl-9 pr-2 text-xs text-slate-600 dark:text-slate-300 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                     />
                   </label>
                 </div>
@@ -283,14 +299,14 @@ export default function LoginHistoryPage() {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 p-4 sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-slate-800">
-                ประวัติของฉัน
+              <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {t("ประวัติของฉัน", "My history")}
               </h2>
               {!loading && !error && (
-                <p className="text-xs text-slate-500">
-                  {filteredEntries.length} รายการ · เรียงจากล่าสุด
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {filteredEntries.length} {t("รายการ", "items")} · {t("เรียงจากล่าสุด", "Newest first")}
                 </p>
               )}
             </div>
@@ -298,41 +314,41 @@ export default function LoginHistoryPage() {
             {loading ? (
               <p
                 aria-live="polite"
-                className="rounded-lg border border-slate-100 p-6 text-center text-sm text-slate-500"
+                className="rounded-lg border border-slate-100 p-6 dark:border-slate-700 text-center text-sm text-slate-500 dark:text-slate-400"
               >
-                กำลังโหลดประวัติ...
+                {t("กำลังโหลดประวัติ...", "Loading history...")}
               </p>
             ) : error ? (
               <div
                 role="alert"
                 className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-700"
               >
-                {error}
+                {isEnglish ? "Unable to load sign-in history. Please try again." : error}
               </div>
             ) : invalidDateRange ? (
-              <p className="rounded-lg border border-slate-100 p-6 text-center text-sm text-slate-500">
-                วันที่เริ่มต้นต้องไม่อยู่หลังวันที่สิ้นสุด
+              <p className="rounded-lg border border-slate-100 p-6 dark:border-slate-700 text-center text-sm text-slate-500 dark:text-slate-400">
+                {t("วันที่เริ่มต้นต้องไม่อยู่หลังวันที่สิ้นสุด", "Start date must be on or before end date")}
               </p>
             ) : visibleEntries.length === 0 ? (
-              <p className="rounded-lg border border-slate-100 p-6 text-center text-sm text-slate-500">
+              <p className="rounded-lg border border-slate-100 p-6 dark:border-slate-700 text-center text-sm text-slate-500 dark:text-slate-400">
                 {entries.length === 0
-                  ? "ยังไม่มีประวัติการเข้าสู่ระบบ"
-                  : "ไม่พบรายการที่ตรงกับตัวกรอง"}
+                  ? t("ยังไม่มีประวัติการเข้าสู่ระบบ", "No sign-in history yet")
+                  : t("ไม่พบรายการที่ตรงกับตัวกรอง", "No results match your filters")}
               </p>
             ) : (
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[42rem] border-separate border-spacing-y-1 text-left text-sm">
                     <thead>
-                      <tr className="text-xs text-slate-500">
-                        <th className="rounded-l-md bg-[#f3f3f8] px-3 py-2 font-medium">
-                          วันและเวลาที่เข้าสู่ระบบ
+                      <tr className="text-xs text-slate-500 dark:text-slate-400">
+                        <th className="rounded-l-md bg-[#f3f3f8] dark:bg-slate-700 px-3 py-2 font-medium">
+                          {t("วันและเวลาที่เข้าสู่ระบบ", "Sign-in date and time")}
                         </th>
-                        <th className="bg-[#f3f3f8] px-3 py-2 font-medium">
+                        <th className="bg-[#f3f3f8] dark:bg-slate-700 px-3 py-2 font-medium">
                           IP address
                         </th>
-                        <th className="rounded-r-md bg-[#f3f3f8] px-3 py-2 font-medium">
-                          ตำแหน่งโดยประมาณ
+                        <th className="rounded-r-md bg-[#f3f3f8] dark:bg-slate-700 px-3 py-2 font-medium">
+                          {t("ตำแหน่งโดยประมาณ", "Approximate location")}
                         </th>
                       </tr>
                     </thead>
@@ -345,18 +361,18 @@ export default function LoginHistoryPage() {
                           }
                           className={
                             index === 0
-                              ? "text-slate-700 [&>td]:border-violet-200 [&>td]:bg-violet-50"
-                              : "text-slate-700 [&>td]:border-slate-200 [&>td]:bg-white"
+                              ? "text-slate-700 dark:text-slate-200 [&>td]:border-violet-200 [&>td]:bg-violet-50 dark:[&>td]:border-violet-400 dark:[&>td]:bg-violet-950/50"
+                              : "text-slate-700 dark:text-slate-200 [&>td]:border-slate-200 [&>td]:bg-white dark:[&>td]:border-slate-700 dark:[&>td]:bg-slate-800"
                           }
                         >
                           <td className="rounded-l-md border-y border-l px-3 py-4 text-xs font-medium">
-                            {formatDate(entry.login_time)}
+                            {formatDate(entry.login_time, language)}
                           </td>
                           <td className="border-y px-3 py-4 font-semibold">
-                            {entry.ip_address || UNKNOWN_VALUE}
+                            {formatHistoryValue(entry.ip_address, language)}
                           </td>
-                          <td className="rounded-r-md border-y border-r px-3 py-4 text-xs text-slate-500">
-                            {entry.location || UNKNOWN_VALUE}
+                          <td className="rounded-r-md border-y border-r px-3 py-4 text-xs text-slate-500 dark:text-slate-400">
+                            {formatHistoryValue(entry.location, language)}
                           </td>
                         </tr>
                       ))}
@@ -364,20 +380,20 @@ export default function LoginHistoryPage() {
                   </table>
                 </div>
 
-                <div className="mt-4 flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-4 flex flex-col gap-3 text-xs text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
                   <p>
-                    แสดง {firstItem}–{lastItem} จาก {filteredEntries.length}{" "}
-                    รายการ · หน้า {currentPage} / {totalPages}
+                    {t("แสดง", "Showing")} {firstItem}–{lastItem} {t("จาก", "of")} {filteredEntries.length}{" "}
+                    {t("รายการ · หน้า", "items · Page")} {currentPage} / {totalPages}
                   </p>
                   <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => setPage((value) => Math.max(1, value - 1))}
                       disabled={currentPage === 1}
-                      className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-sm text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <ChevronLeft aria-hidden="true" className="h-4 w-4" />
-                      ก่อนหน้า
+                      {t("ก่อนหน้า", "Previous")}
                     </button>
                     <button
                       type="button"
@@ -385,9 +401,9 @@ export default function LoginHistoryPage() {
                         setPage((value) => Math.min(totalPages, value + 1))
                       }
                       disabled={currentPage === totalPages}
-                      className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      ถัดไป
+                      {t("ถัดไป", "Next")}
                       <ChevronRight aria-hidden="true" className="h-4 w-4" />
                     </button>
                   </div>

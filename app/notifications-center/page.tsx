@@ -1,9 +1,10 @@
 "use client";
 
-// หน้านี้เปิดจากปุ่ม "ดูการแจ้งเตือนทั้งหมด" ในกล่องกระดิ่ง
+// หน้ารวมการแจ้งเตือน ใช้ข้อมูลชุดเดียวกับกล่องกระดิ่ง
+// กดรายการเพื่อทำเครื่องหมายว่าอ่านแล้วและไปยังหน้ารายละเอียดที่เกี่ยวข้อง
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { useLanguage, useTranslate } from "@/lib/language";
+import { useLanguage, useTheme, useTranslate } from "@/lib/language";
 import {
   formatNotificationTime,
   getCredentialRoleSnapshot,
@@ -31,6 +32,7 @@ import {
 export default function NotificationsCenterPage() {
   const router = useRouter();
   const language = useLanguage();
+  const isDark = useTheme() === "dark";
   const translateText = useTranslate();
   const [error, setError] = useState("");
   // อ่าน role ล่าสุดจาก credential เพื่อใช้กำหนดว่าควรเห็นแจ้งเตือนชุดใด
@@ -94,9 +96,9 @@ export default function NotificationsCenterPage() {
 
   return (
     // ส่วนนี้กำหนดความกว้างและขอบของหน้า
-    <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <header className="mb-5 flex items-center justify-between gap-4">
+        <header className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div>
             <h1 className="text-xl font-semibold text-slate-900">
               {translateText("การแจ้งเตือน")}
@@ -109,7 +111,11 @@ export default function NotificationsCenterPage() {
             type="button"
             onClick={markAllAsRead}
             disabled={visibleNotifications.every(({ id }) => readIds.has(id))}
-            className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-default disabled:text-slate-400"
+            className={`w-full rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-default disabled:text-slate-400 sm:w-auto sm:shrink-0 sm:text-center ${
+              isDark
+                ? "text-indigo-300 hover:bg-slate-700 hover:text-indigo-200"
+                : "text-indigo-600 hover:bg-indigo-50"
+            }`}
           >
             {translateText("อ่านทั้งหมด")}
           </button>
@@ -136,11 +142,21 @@ export default function NotificationsCenterPage() {
                 type="button"
                 key={notification.id}
                 onClick={() => openNotification(notification)}
-                className={`flex w-full items-start gap-4 border-b border-slate-100 p-4 text-left transition last:border-b-0 hover:bg-indigo-50 sm:p-5 ${
-                  isUnread ? "bg-indigo-50/70" : "bg-white"
+                className={`flex w-full cursor-pointer items-start gap-3 border-b border-slate-100 border-l-2 border-l-transparent p-3 text-left transition-colors last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:gap-4 sm:p-5 ${
+                  isDark
+                    ? `hover:border-l-indigo-400 hover:bg-slate-700 active:bg-slate-600 ${
+                        isUnread ? "bg-indigo-950/40" : "bg-slate-800"
+                      }`
+                    : `hover:border-l-indigo-500 hover:bg-indigo-100 active:bg-indigo-200 ${
+                        isUnread ? "bg-indigo-50/70" : "bg-white"
+                      }`
                 }`}
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                <span className={`flex size-9 shrink-0 items-center justify-center rounded-full sm:size-10 ${
+                  isDark
+                    ? "bg-indigo-900/60 text-indigo-200"
+                    : "bg-indigo-50 text-indigo-600"
+                }`}>
                   <span className="text-sm font-semibold" aria-hidden="true">
                     {["completed", "returned", "warranty_expiring"].includes(notification.category)
                       ? "✓"
@@ -151,14 +167,14 @@ export default function NotificationsCenterPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-slate-800">
+                    <span className="min-w-0 break-words text-sm font-semibold text-slate-800">
                       {translateText(notification.title)}
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="shrink-0 text-xs text-slate-400">
                       {formatNotificationTime(notification.createdAt, language)}
                     </span>
                   </span>
-                  <span className="mt-1 block text-sm text-slate-600">
+                  <span className="mt-1 block break-words text-sm text-slate-600">
                     {translateText(notification.assetName)}
                     {notification.issue &&
                       ` · ${translateText(notification.issue)}`}

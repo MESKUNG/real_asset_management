@@ -8,11 +8,16 @@ import { Boxes, Calendar, CircleCheck, Download, MapPin, Plus, Search, Wrench } 
 import { branches } from "@/data/branches";
 import { exportExcel, type ExcelSheet } from "@/lib/exportExcel";
 import {
+  formatLocalizedDate,
+  useLanguage,
+  useTheme,
+  useTranslate,
+  type AppLanguage,
+} from "@/lib/language";
+import {
   ASSET_STATUS_LABEL,
   SESSION_STATUS_LABEL,
   formatBaht,
-  formatThaiDate,
-  formatThaiDateTime,
   getBranchName,
   toDateValue,
   useInventoryStore,
@@ -36,6 +41,7 @@ import {
   repairCost,
   repairSheet,
   sessionResultSheet,
+  type Period,
   type Tone,
 } from "@/lib/reports";
 import { Toast, useToast } from "@/app/inventories/_components/ui";
@@ -65,13 +71,72 @@ const ASSET_COLUMNS = [
 ];
 const DEFAULT_COLUMNS = ["รหัส", "ชื่อทรัพย์สิน", "หมวดหมู่", "สาขา", "สถานะ", "ราคาซื้อ (บาท)"];
 
-const fieldStyle =
-  "min-h-12 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500";
+function localizedPeriodLabel(period: Period, language: AppLanguage) {
+  if (language === "th") return period.label;
+  if (period.key === "all") return "All time";
+  if (period.key.startsWith("year-")) return `All year ${period.key.slice(5)}`;
+
+  const from = new Date(`${period.from.slice(0, 7)}-01T00:00:00`);
+  const to = new Date(`${period.to.slice(0, 7)}-01T00:00:00`);
+  const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "short" });
+  if (period.key === "last3") {
+    return `${monthFormatter.format(from)}–${monthFormatter.format(to)} ${to.getFullYear()}`;
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(from);
+}
+
+function localizedCount(count: number, thaiUnit: string, englishUnit: string, language: AppLanguage) {
+  if (language === "th") return `${count} ${thaiUnit}`;
+  return `${count} ${englishUnit}${count === 1 ? "" : "s"}`;
+}
+
+function localizedActivityText(value: string, translateText: (text: string) => string) {
+  const inventoryPrefix = "บันทึกผลตรวจนับ: ";
+  const repairPrefix = "แจ้งซ่อม: ";
+  if (value.startsWith(inventoryPrefix)) {
+    return `${translateText("บันทึกผลตรวจนับ")}: ${translateText(value.slice(inventoryPrefix.length))}`;
+  }
+  if (value.startsWith(repairPrefix)) {
+    return `${translateText("แจ้งซ่อม")}: ${translateText(value.slice(repairPrefix.length))}`;
+  }
+  const transferMatch = value.match(/^โอนทรัพย์สิน(กลับ)?จาก (BR-\d+) ไปยัง (BR-\d+)$/);
+  if (transferMatch) {
+    const [, isReturning, fromBranch, toBranch] = transferMatch;
+    return `Asset transferred${isReturning ? " back" : ""} from ${fromBranch} to ${toBranch}`;
+  }
+  if (value.startsWith("ขอ") && value.endsWith("ทรัพย์สิน")) {
+    return translateText(value);
+  }
+  return translateText(value);
+}
+function formatLocalizedDateTime(value: string, language: AppLanguage) {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Bangkok",
+  }).format(new Date(value));
+}
 
 export default function UserSummary() {
+  const language = useLanguage();
+  const isDark = useTheme() === "dark";
+  const translateText = useTranslate();
   const { sessions, checks } = useInventoryStore();
   const toast = useToast();
   const [periods] = useState(() => getPeriods());
+  const fieldStyle = `min-h-12 w-full rounded-xl border pl-10 pr-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+    isDark
+      ? "border-slate-600 bg-slate-800 text-slate-100"
+      : "border-slate-300 bg-white text-slate-800"
+  }`;
+  const secondaryButtonClass = `inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-4 text-base font-semibold transition-colors ${
+    isDark
+      ? "border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700"
+      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+  }`;
 
   const [branchId, setBranchId] = useState("all");
   const [periodKey, setPeriodKey] = useState(periods[0].key);
@@ -82,6 +147,8 @@ export default function UserSummary() {
   const [showColumns, setShowColumns] = useState(false);
 
   const period = periods.find((p) => p.key === periodKey) ?? periods[0];
+  const periodDisplayLabel = localizedPeriodLabel(period, language);
+  const countLocale = language === "en" ? "en-US" : "th-TH";
 
   // ทรัพย์สินดูตามสถานะปัจจุบัน ส่วนรายงานอื่นกรองตามช่วงเวลา
   const assetRows = getRegisterRows({ branchId, status, query });
@@ -112,7 +179,7 @@ export default function UserSummary() {
 
   const exportAll = async () => {
     await exportExcel(`สรุปรายงานทั้งหมด_${fileDate}`, (Object.keys(sheetOf) as ReportType[]).map((t) => sheetOf[t]()));
-    toast.show("ดาวน์โหลดรายงานรวม 4 ประเภทแล้ว");
+    toast.show(translateText("ดาวน์โหลดรายงานรวม 4 ประเภทแล้ว"));
   };
 
   // ส่งออกรายงาน Asset เฉพาะคอลัมน์ที่เลือกไว้ใน "ตั้งค่าข้อมูล"
@@ -120,18 +187,18 @@ export default function UserSummary() {
     const full = registerSheet(assetRows);
     const rows = full.rows.map((row) => Object.fromEntries(columns.map((c) => [c, row[c] ?? ""])));
     await exportExcel(`รายงาน Asset_${fileDate}`, [{ name: full.name, rows }]);
-    toast.show(`ดาวน์โหลดรายงาน Asset ${columns.length} คอลัมน์แล้ว`);
+    toast.show(`${translateText("ดาวน์โหลดรายงาน Asset")} ${columns.length} ${translateText("คอลัมน์")} ${translateText("แล้ว")}`);
   };
 
   const exportOne = async (type: ReportType) => {
-    await exportExcel(`${REPORT_NAME[type]}_${fileDate}`, [sheetOf[type]()]);
-    toast.show(`ดาวน์โหลด${REPORT_NAME[type]}แล้ว`);
+    await exportExcel(`${translateText(REPORT_NAME[type])}_${fileDate}`, [sheetOf[type]()]);
+    toast.show(`${translateText("ดาวน์โหลด")}${translateText(REPORT_NAME[type])}${translateText("แล้ว")}`);
   };
 
   const exportRound = async () => {
     if (!latestRound) return;
-    await exportExcel(`ผลตรวจนับ_${latestRound.id}`, [sessionResultSheet(latestRound, checks)]);
-    toast.show(`ดาวน์โหลดผลตรวจรอบ ${latestRound.id} แล้ว`);
+    await exportExcel(`${translateText("ผลตรวจนับ")}_${latestRound.id}`, [sessionResultSheet(latestRound, checks)]);
+    toast.show(`${translateText("ดาวน์โหลดผลตรวจรอบ")} ${latestRound.id} ${translateText("แล้ว")}`);
   };
 
   // เรียงคอลัมน์ตามลำดับเดิมเสมอ ไม่ว่าจะติ๊กอันไหนก่อน
@@ -141,29 +208,29 @@ export default function UserSummary() {
     );
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-12 text-slate-800">
+    <div className={`min-h-screen pb-12 ${isDark ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"}`}>
       <Toast message={toast.message} />
       <main className="mx-auto max-w-7xl space-y-4 px-4 pt-5 lg:space-y-5 lg:px-8 lg:pt-6">
-        <h1 className="text-xl font-bold text-slate-900 lg:text-2xl">สรุปรายงานทั้งหมด</h1>
+        <h1 className={`text-xl font-bold lg:text-2xl ${isDark ? "text-slate-100" : "text-slate-900"}`}>{translateText("สรุปรายงานทั้งหมด")}</h1>
 
         <div className="grid gap-3 md:grid-cols-3 lg:gap-4">
           <Kpi
-            label="มูลค่าทรัพย์สิน"
+            label={translateText("มูลค่าทรัพย์สิน")}
             value={formatBaht(assetValue)}
-            note={`${assetRows.length.toLocaleString("th-TH")} รายการในรายงาน Asset`}
+            note={`${assetRows.length.toLocaleString(countLocale)} ${translateText("รายการในรายงาน Asset")}`}
             icon={<Boxes size={24} />}
           />
           <Kpi
-            label="พบปัญหาจากการตรวจนับ"
-            value={`${inventoryIssues.toLocaleString("th-TH")} รายการ`}
-            note={`ชำรุด / สูญหาย · ${inventoryRows.length} รอบ`}
+            label={translateText("พบปัญหาจากการตรวจนับ")}
+            value={`${inventoryIssues.toLocaleString(countLocale)} ${translateText("รายการ")}`}
+            note={`${translateText("ชำรุด / สูญหาย")} · ${localizedCount(inventoryRows.length, "รอบ", "cycle", language)}`}
             icon={<CircleCheck size={24} />}
             tone="green"
           />
           <Kpi
-            label="ค่าใช้จ่ายซ่อม"
+            label={translateText("ค่าใช้จ่ายซ่อม")}
             value={formatBaht(repairTotal)}
-            note={`รวม ${repairRows.length} งานซ่อม · ${period.label}`}
+            note={`${translateText("รวม")} ${repairRows.length} ${translateText("งานซ่อม")} · ${periodDisplayLabel}`}
             icon={<Wrench size={24} />}
             tone="amber"
           />
@@ -172,30 +239,30 @@ export default function UserSummary() {
         {/* ตัวกรอง 4 ช่องเรียงแถวเดียวบนคอม 2 แถวบนแท็บเล็ต และเรียงลงบนมือถือ */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <IconField icon={<MapPin size={18} />}>
-            <select aria-label="สถานที่" value={branchId} onChange={(e) => setBranchId(e.target.value)} className={fieldStyle}>
-              <option value="all">ทุกสถานที่</option>
+            <select aria-label={translateText("สถานที่")} value={branchId} onChange={(e) => setBranchId(e.target.value)} className={fieldStyle} style={{ colorScheme: isDark ? "dark" : "light" }}>
+              <option value="all">{translateText("ทุกสถานที่")}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.name}
+                  {translateText(b.name)}
                 </option>
               ))}
             </select>
           </IconField>
           <IconField icon={<Calendar size={18} />}>
-            <select aria-label="ช่วงเวลา" value={periodKey} onChange={(e) => setPeriodKey(e.target.value)} className={fieldStyle}>
+            <select aria-label={translateText("ช่วงเวลา")} value={periodKey} onChange={(e) => setPeriodKey(e.target.value)} className={fieldStyle} style={{ colorScheme: isDark ? "dark" : "light" }}>
               {periods.map((p) => (
                 <option key={p.key} value={p.key}>
-                  {p.label}
+                  {localizedPeriodLabel(p, language)}
                 </option>
               ))}
             </select>
           </IconField>
           <IconField icon={<CircleCheck size={18} />}>
-            <select aria-label="สถานะทรัพย์สิน" value={status} onChange={(e) => setStatus(e.target.value)} className={fieldStyle}>
-              <option value="all">ทุกสถานะ</option>
+            <select aria-label={translateText("สถานะทรัพย์สิน")} value={status} onChange={(e) => setStatus(e.target.value)} className={fieldStyle} style={{ colorScheme: isDark ? "dark" : "light" }}>
+              <option value="all">{translateText("ทุกสถานะ")}</option>
               {(Object.keys(ASSET_STATUS_LABEL) as (keyof typeof ASSET_STATUS_LABEL)[]).map((s) => (
                 <option key={s} value={s}>
-                  {ASSET_STATUS_LABEL[s]}
+                  {translateText(ASSET_STATUS_LABEL[s])}
                 </option>
               ))}
             </select>
@@ -203,10 +270,10 @@ export default function UserSummary() {
           <IconField icon={<Search size={18} />}>
             <input
               type="search"
-              aria-label="ค้นหาทรัพย์สิน"
+              aria-label={translateText("ค้นหาทรัพย์สิน")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="ค้นหาชื่อ หรือรหัสทรัพย์สิน"
+              placeholder={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน")}
               className={fieldStyle}
             />
           </IconField>
@@ -215,51 +282,51 @@ export default function UserSummary() {
         <section className="rounded-2xl border border-slate-200 bg-white p-4 lg:p-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">รายงานรวม 4 ประเภท</h2>
-              <p className="text-sm text-slate-500">รวม Asset · Movement · Inventory · Repair พร้อมแอกชั่นการส่งออกเดียว</p>
+                  <h2 className={`text-lg font-bold ${isDark ? "text-slate-100" : "text-slate-900"}`}>{translateText("รายงานรวม 4 ประเภท")}</h2>
+                  <p className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>{translateText("รวม Asset · Movement · Inventory · Repair พร้อมแอกชั่นการส่งออกเดียว")}</p>
             </div>
             <button type="button" onClick={exportAll} className={`${reportButton.secondary} w-full sm:w-auto`}>
-              <Download size={18} /> ส่งออกรายงานทั้งหมด
+              <Download size={18} /> {translateText("ส่งออกรายงานทั้งหมด")}
             </button>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <ReportCard
-              title={REPORT_NAME.asset}
+              title={translateText(REPORT_NAME.asset)}
               tone="good"
-              badge="พร้อมใช้งาน"
+              badge={translateText("พร้อมใช้งาน")}
               stats={[
-                ["รายการ", `${assetRows.length} รายการ`],
-                ["มูลค่ารวม", formatBaht(assetValue)],
+                [translateText("รายการ"), `${assetRows.length} ${translateText("รายการ")}`],
+                [translateText("มูลค่ารวม"), formatBaht(assetValue)],
               ]}
               onClick={() => setPreview("asset")}
             />
             <ReportCard
-              title={REPORT_NAME.movement}
+              title={translateText(REPORT_NAME.movement)}
               tone={pendingMovements > 0 ? "wait" : "info"}
-              badge={pendingMovements > 0 ? `รออนุมัติ ${pendingMovements}` : "อนุมัติครบ"}
+              badge={pendingMovements > 0 ? `${translateText("รออนุมัติ")} ${pendingMovements}` : translateText("อนุมัติครบ")}
               stats={[
-                ["การเคลื่อนไหว", `${movementRows.length} รายการ`],
-                ["ช่วงเวลา", period.label],
+                [translateText("การเคลื่อนไหว"), `${movementRows.length} ${translateText("รายการ")}`],
+                [translateText("ช่วงเวลา"), periodDisplayLabel],
               ]}
               onClick={() => setPreview("movement")}
             />
             <ReportCard
-              title={REPORT_NAME.inventory}
+              title={translateText(REPORT_NAME.inventory)}
               tone={activeRounds > 0 ? "info" : "good"}
-              badge={activeRounds > 0 ? `กำลังนับ ${activeRounds} รอบ` : "พร้อมใช้งาน"}
+              badge={activeRounds > 0 ? `${translateText("กำลังนับ")} ${localizedCount(activeRounds, "รอบ", "cycle", language)}` : translateText("พร้อมใช้งาน")}
               stats={[
-                ["รอบที่เสร็จแล้ว", `${completedRounds} รอบ`],
-                ["พบปัญหา", `${inventoryIssues} รายการ`],
+                [translateText("รอบที่เสร็จแล้ว"), `${localizedCount(completedRounds, "รอบ", "cycle", language)}`],
+                [translateText("พบปัญหา"), `${inventoryIssues} ${translateText("รายการ")}`],
               ]}
               onClick={() => setPreview("inventory")}
             />
             <ReportCard
-              title={REPORT_NAME.repair}
+              title={translateText(REPORT_NAME.repair)}
               tone={openRepairs > 0 ? "wait" : "good"}
-              badge={openRepairs > 0 ? `ซ่อมค้าง ${openRepairs}` : "ซ่อมครบ"}
+              badge={openRepairs > 0 ? `${translateText("ซ่อมค้าง")} ${openRepairs}` : translateText("ซ่อมครบ")}
               stats={[
-                ["งานซ่อม", `${repairRows.length} รายการ`],
-                ["ค่าใช้จ่ายรวม", formatBaht(repairTotal)],
+                [translateText("งานซ่อม"), `${repairRows.length} ${translateText("รายการ")}`],
+                [translateText("ค่าใช้จ่ายรวม"), formatBaht(repairTotal)],
               ]}
               onClick={() => setPreview("repair")}
             />
@@ -267,67 +334,67 @@ export default function UserSummary() {
         </section>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Export Excel" badge={<Badge tone="good">พร้อมใช้งาน</Badge>}>
+          <Card title={translateText("ส่งออก Excel")} badge={<Badge tone="good">{translateText("พร้อมใช้งาน")}</Badge>}>
             <div className="grid grid-cols-2 gap-3">
-              <Stat label="คอลัมน์" value={`${columns.length} คอลัมน์`} />
-              <Stat label="รูปแบบ" value=".xlsx" />
+              <Stat label={translateText("คอลัมน์")} value={`${columns.length} ${translateText("คอลัมน์")}`} />
+              <Stat label={translateText("รูปแบบ")} value=".xlsx" />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <button type="button" onClick={exportColumns} disabled={columns.length === 0} className={`${reportButton.secondary} px-2 disabled:opacity-50`}>
-                <Download size={18} /> ส่งออก Excel
+              <button type="button" onClick={exportColumns} disabled={columns.length === 0} className={`${secondaryButtonClass} px-2 disabled:opacity-50`}>
+                <Download size={18} /> {translateText("ส่งออก Excel")}
               </button>
               <button type="button" onClick={() => setShowColumns(true)} className={`${reportButton.primary} px-2`}>
-                <Plus size={18} /> ตั้งค่าข้อมูล
+                <Plus size={18} /> {translateText("ตั้งค่าข้อมูล")}
               </button>
             </div>
           </Card>
 
-          <Card title="ประวัติตรวจนับ" badge={<Badge tone={latestRound ? "good" : "plain"}>{latestRound ? "พร้อมใช้งาน" : "ยังไม่มีข้อมูล"}</Badge>}>
+          <Card title={translateText("ประวัติตรวจนับ")} badge={<Badge tone={latestRound ? "good" : "plain"}>{translateText(latestRound ? "พร้อมใช้งาน" : "ยังไม่มีข้อมูล")}</Badge>}>
             <div className="grid grid-cols-2 gap-3">
-              <Stat label="รอบล่าสุด" value={latestRound ? monthText(latestRound.startDate) : "-"} />
-              <Stat label="สถานะ" value={latestRound ? "ปิดรอบแล้ว" : "-"} />
+              <Stat label={translateText("รอบล่าสุด")} value={latestRound ? monthText(latestRound.startDate, language) : "-"} />
+              <Stat label={translateText("สถานะ")} value={latestRound ? translateText("ปิดรอบแล้ว") : "-"} />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <button type="button" onClick={exportRound} disabled={!latestRound} className={`${reportButton.secondary} px-2 disabled:opacity-50`}>
-                <Download size={18} /> ส่งออก Excel
+              <button type="button" onClick={exportRound} disabled={!latestRound} className={`${secondaryButtonClass} px-2 disabled:opacity-50`}>
+                <Download size={18} /> {translateText("ส่งออก Excel")}
               </button>
               {latestRound ? (
                 <Link href={`/inventories/audit?session=${latestRound.id}`} className={`${reportButton.primary} px-2`}>
-                  <Plus size={18} /> ดูรายละเอียด
+                  <Plus size={18} /> {translateText("ดูรายละเอียด")}
                 </Link>
               ) : (
-                <span className={`${reportButton.primary} cursor-not-allowed px-2 opacity-50`}>ดูรายละเอียด</span>
+                <span className={`${reportButton.primary} cursor-not-allowed px-2 opacity-50`}>{translateText("ดูรายละเอียด")}</span>
               )}
             </div>
             {latestRound && (
               <p className="mt-2 text-sm text-slate-500">
-                {latestRound.id} · {getBranchName(latestRound.branchId)} · {formatThaiDate(latestRound.startDate)}
+                {latestRound.id} · {translateText(getBranchName(latestRound.branchId))} · {formatLocalizedDate(latestRound.startDate, language)}
               </p>
             )}
           </Card>
         </div>
 
-        <Card title="กิจกรรมล่าสุด" badge={<Badge tone="wait">{activities.length} กิจกรรม</Badge>}>
+        <Card title={translateText("กิจกรรมล่าสุด")} badge={<Badge tone="wait">{activities.length} {translateText("กิจกรรม")}</Badge>}>
           {activities.length === 0 ? (
-            <p className="py-6 text-center text-base text-slate-500">ไม่พบรายการกิจกรรมที่ตรงกับตัวกรอง</p>
+            <p className="py-6 text-center text-base text-slate-500">{translateText("ไม่พบรายการกิจกรรมที่ตรงกับตัวกรอง")}</p>
           ) : (
             <>
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-left text-base">
-                  <thead className="bg-indigo-50 text-sm text-slate-600">
+                  <thead className={`text-sm ${isDark ? "bg-indigo-950/50 text-slate-300" : "bg-indigo-50 text-slate-600"}`}>
                     <tr>
-                      <th className="px-3 py-2.5 font-semibold">เวลา</th>
-                      <th className="px-3 py-2.5 font-semibold">ผู้ดำเนินการ</th>
-                      <th className="px-3 py-2.5 font-semibold">กิจกรรม</th>
-                      <th className="px-3 py-2.5 font-semibold">รายการที่เกี่ยวข้อง</th>
+                      <th className="px-3 py-2.5 font-semibold">{translateText("เวลา")}</th>
+                      <th className="px-3 py-2.5 font-semibold">{translateText("ผู้ดำเนินการ")}</th>
+                      <th className="px-3 py-2.5 font-semibold">{translateText("กิจกรรม")}</th>
+                      <th className="px-3 py-2.5 font-semibold">{translateText("รายการที่เกี่ยวข้อง")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {activities.map((a) => (
                       <tr key={a.id}>
-                        <td className="whitespace-nowrap px-3 py-3">{formatThaiDateTime(a.at)}</td>
+                        <td className="whitespace-nowrap px-3 py-3">{formatLocalizedDateTime(a.at, language)}</td>
                         <td className="px-3 py-3">{a.who}</td>
-                        <td className="px-3 py-3">{a.text}</td>
+                        <td className="px-3 py-3">{localizedActivityText(a.text, translateText)}</td>
                         <td className="px-3 py-3">{a.ref}</td>
                       </tr>
                     ))}
@@ -338,8 +405,8 @@ export default function UserSummary() {
               <ul className="space-y-3 md:hidden">
                 {activities.map((a) => (
                   <li key={a.id} className="rounded-xl border border-slate-200 p-3">
-                    <p className="text-sm text-slate-500">{formatThaiDateTime(a.at)}</p>
-                    <p className="text-base font-semibold text-slate-900">{a.text}</p>
+                    <p className="text-sm text-slate-500">{formatLocalizedDateTime(a.at, language)}</p>
+                    <p className="text-base font-semibold text-slate-900">{localizedActivityText(a.text, translateText)}</p>
                     <p className="text-sm text-slate-600">
                       {a.who} · {a.ref}
                     </p>
@@ -353,30 +420,30 @@ export default function UserSummary() {
 
       {showColumns && (
         <DetailDialog
-          title="ตั้งค่าข้อมูลที่จะส่งออก"
+          title={translateText("ตั้งค่าข้อมูลที่จะส่งออก")}
           onClose={() => setShowColumns(false)}
           footer={
             <>
-              <button type="button" onClick={() => setColumns(DEFAULT_COLUMNS)} className={reportButton.secondary}>
-                ค่าเริ่มต้น
+              <button type="button" onClick={() => setColumns(DEFAULT_COLUMNS)} className={secondaryButtonClass}>
+                {translateText("ค่าเริ่มต้น")}
               </button>
               <button type="button" onClick={() => setShowColumns(false)} className={reportButton.primary}>
-                เสร็จ ({columns.length} คอลัมน์)
+                {translateText("เสร็จ")} ({columns.length} {translateText("คอลัมน์")})
               </button>
             </>
           }
         >
-          <p className="mb-3 text-base text-slate-600">เลือกคอลัมน์ของรายงาน Asset ที่ต้องการในไฟล์ Excel</p>
+          <p className="mb-3 text-base text-slate-600">{translateText("เลือกคอลัมน์ของรายงาน Asset ที่ต้องการในไฟล์ Excel")}</p>
           <div className="grid gap-1 sm:grid-cols-2">
             {ASSET_COLUMNS.map((column) => (
-              <label key={column} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-base hover:bg-slate-100">
+              <label key={column} className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-base ${isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}>
                 <input
                   type="checkbox"
                   checked={columns.includes(column)}
                   onChange={() => toggleColumn(column)}
                   className="h-5 w-5 accent-indigo-600"
                 />
-                {column}
+                {translateText(column)}
               </label>
             ))}
           </div>
@@ -385,15 +452,15 @@ export default function UserSummary() {
 
       {preview && (
         <DetailDialog
-          title={`${REPORT_NAME[preview]} · ตัวอย่าง 10 รายการแรก`}
+          title={`${translateText(REPORT_NAME[preview])} · ${translateText("ตัวอย่าง 10 รายการแรก")}`}
           onClose={() => setPreview(null)}
           footer={
             <>
-              <button type="button" onClick={() => setPreview(null)} className={reportButton.secondary}>
-                ปิด
+              <button type="button" onClick={() => setPreview(null)} className={secondaryButtonClass}>
+                {translateText("ปิด")}
               </button>
               <button type="button" onClick={() => exportOne(preview)} className={reportButton.primary}>
-                <Download size={18} /> ส่งออกชีตนี้
+                <Download size={18} /> {translateText("ส่งออกชีตนี้")}
               </button>
             </>
           }
@@ -404,6 +471,7 @@ export default function UserSummary() {
             movementRows={movementRows}
             inventoryRows={inventoryRows}
             repairRows={repairRows}
+            language={language}
           />
         </DetailDialog>
       )}
@@ -411,8 +479,11 @@ export default function UserSummary() {
   );
 }
 
-function monthText(date: string) {
-  return new Date(`${date.slice(0, 10)}T00:00:00`).toLocaleDateString("th-TH", { month: "short", year: "numeric" });
+function monthText(date: string, language: AppLanguage) {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "th-TH", {
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${date.slice(0, 10)}T00:00:00`));
 }
 
 function IconField({ icon, children }: { icon: ReactNode; children: ReactNode }) {
@@ -432,14 +503,19 @@ function ReportCard({ title, tone, badge, stats, onClick }: {
   stats: [string, string][];
   onClick: () => void;
 }) {
+  const isDark = useTheme() === "dark";
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className={`rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+        isDark
+          ? "border-slate-700 bg-slate-900 hover:border-indigo-400"
+          : "border-slate-200 bg-white hover:border-indigo-300"
+      }`}
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-bold text-slate-900">{title}</h3>
+        <h3 className={`text-base font-bold ${isDark ? "text-slate-100" : "text-slate-900"}`}>{title}</h3>
         <Badge tone={tone}>{badge}</Badge>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -451,13 +527,16 @@ function ReportCard({ title, tone, badge, stats, onClick }: {
   );
 }
 
-function PreviewList({ type, assetRows, movementRows, inventoryRows, repairRows }: {
+function PreviewList({ type, assetRows, movementRows, inventoryRows, repairRows, language }: {
   type: ReportType;
   assetRows: ReturnType<typeof getRegisterRows>;
   movementRows: ReturnType<typeof getMovementRows>;
   inventoryRows: ReturnType<typeof getInventoryRows>;
   repairRows: ReturnType<typeof getRepairRows>;
+  language: AppLanguage;
 }) {
+  const translateText = useTranslate();
+  const isDark = useTheme() === "dark";
   type Item = { key: string; title: string; sub: string; badge: ReactNode };
   const items: Item[] =
     type === "asset"
@@ -465,36 +544,36 @@ function PreviewList({ type, assetRows, movementRows, inventoryRows, repairRows 
           key: a.id,
           title: `${a.id} · ${a.name}`,
           sub: `${getBranchName(a.branchId)} · ${formatBaht(a.purchasePrice)}`,
-          badge: <Badge tone={ASSET_TONE[a.status]}>{ASSET_STATUS_LABEL[a.status]}</Badge>,
+          badge: <Badge tone={ASSET_TONE[a.status]}>{translateText(ASSET_STATUS_LABEL[a.status])}</Badge>,
         }))
       : type === "movement"
         ? movementRows.slice(0, 10).map(({ request: r, from, to }) => ({
             key: r.id,
-            title: `${r.id} · ${BORROW_TYPE_LABEL[r.type]}`,
-            sub: `${from} → ${to} · ${formatThaiDate(r.createdAt)}`,
-            badge: <Badge tone={BORROW_TONE[r.status]}>{BORROW_STATUS_LABEL[r.status]}</Badge>,
+            title: `${r.id} · ${translateText(BORROW_TYPE_LABEL[r.type])}`,
+            sub: `${translateText(from)} → ${translateText(to)} · ${formatLocalizedDate(r.createdAt, language)}`,
+            badge: <Badge tone={BORROW_TONE[r.status]}>{translateText(BORROW_STATUS_LABEL[r.status])}</Badge>,
           }))
         : type === "inventory"
           ? inventoryRows.slice(0, 10).map(({ session: s, progress: p }) => ({
               key: s.id,
-              title: `${s.id} · ${getBranchName(s.branchId)}`,
-              sub: `ตรวจแล้ว ${p.checked}/${p.total} · ชำรุด ${p.damaged} · สูญหาย ${p.lost}`,
-              badge: <Badge tone={s.status === "completed" ? "good" : "info"}>{SESSION_STATUS_LABEL[s.status]}</Badge>,
+              title: `${s.id} · ${translateText(getBranchName(s.branchId))}`,
+              sub: `${translateText("ตรวจแล้ว")} ${p.checked}/${p.total} · ${translateText("ชำรุด")} ${p.damaged} · ${translateText("สูญหาย")} ${p.lost}`,
+              badge: <Badge tone={s.status === "completed" ? "good" : "info"}>{translateText(SESSION_STATUS_LABEL[s.status])}</Badge>,
             }))
           : repairRows.slice(0, 10).map((r) => ({
               key: r.id,
-              title: `${r.id} · ${r.issue}`,
-              sub: `${getBranchName(r.branchId)} · ${formatBaht(repairCost(r))}`,
+                title: `${r.id} · ${translateText(r.issue)}`,
+                sub: `${translateText(getBranchName(r.branchId))} · ${formatBaht(repairCost(r))}`,
               badge: (
                 <Badge tone={r.status === "completed" ? "good" : r.status === "rejected" ? "bad" : "wait"}>
-                  {REPAIR_STATUS_LABEL[r.status]}
+                    {translateText(REPAIR_STATUS_LABEL[r.status])}
                 </Badge>
               ),
             }));
 
-  if (items.length === 0) return <p className="py-6 text-center text-base text-slate-500">ไม่มีข้อมูลตามตัวกรองที่เลือก</p>;
+  if (items.length === 0) return <p className="py-6 text-center text-base text-slate-500">{translateText("ไม่มีข้อมูลตามตัวกรองที่เลือก")}</p>;
   return (
-    <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+    <ul className={`divide-y rounded-xl border ${isDark ? "divide-slate-700 border-slate-700" : "divide-slate-100 border-slate-200"}`}>
       {items.map((item) => (
         <li key={item.key} className="flex items-start justify-between gap-3 px-4 py-3">
           <div className="min-w-0">

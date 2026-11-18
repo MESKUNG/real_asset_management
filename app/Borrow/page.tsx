@@ -49,32 +49,49 @@ type NewRequest = {
 
 type AssetOption = { value: string; label: string };
 
-// สไตล์ให้ react-select หน้าตาเหมือนช่อง input อื่นในฟอร์ม
-const assetSelectStyles: StylesConfig<AssetOption, false> = {
+// สไตล์ช่องทรัพย์สินให้ปรับตาม theme ของ modal
+const getAssetSelectStyles = (isDark: boolean): StylesConfig<AssetOption, false> => ({
   control: (base, state) => ({
     ...base,
     minHeight: 40,
     borderRadius: 8,
-    borderColor: state.isFocused ? "#172554" : "#94a3b8", // slate-400
+    backgroundColor: isDark ? "#1e293b" : "#ffffff",
+    borderColor: state.isFocused
+      ? isDark
+        ? "#818cf8"
+        : "#172554"
+      : isDark
+        ? "#475569"
+        : "#94a3b8",
     boxShadow: "none",
     fontSize: 14,
-    "&:hover": { borderColor: "#172554" },
+    "&:hover": { borderColor: isDark ? "#818cf8" : "#172554" },
   }),
-  singleValue: (base) => ({ ...base, color: "#0f172a" }),
-  placeholder: (base) => ({ ...base, color: "#475569" }),
+  input: (base) => ({ ...base, color: isDark ? "#f1f5f9" : "#0f172a" }),
+  singleValue: (base) => ({ ...base, color: isDark ? "#f1f5f9" : "#0f172a" }),
+  placeholder: (base) => ({ ...base, color: isDark ? "#94a3b8" : "#475569" }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: isDark ? "#1e293b" : "#ffffff",
+    color: isDark ? "#f1f5f9" : "#0f172a",
+  }),
   option: (base, state) => ({
     ...base,
     fontSize: 14,
-    color: state.isSelected ? "#ffffff" : "#0f172a",
+    color: state.isSelected ? "#ffffff" : isDark ? "#f1f5f9" : "#0f172a",
     backgroundColor: state.isSelected
-      ? "#172554"
+      ? isDark
+        ? "#4338ca"
+        : "#172554"
       : state.isFocused
-        ? "#e0e7ff"
+        ? isDark
+          ? "#334155"
+          : "#e0e7ff"
         : "transparent",
   }),
   // เมนูแสดงเป็น portal นอก modal จึงต้องมี z-index สูงกว่า modal (z-50)
   menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-};
+});
 
 type StatusFilter = "all" | BorrowStatus;
 type TypeFilter = "all" | RequestType;
@@ -600,6 +617,7 @@ function BorrowPageContent() {
       status: "pending",
       note: "",
       createdAt: new Date().toISOString(),
+      submittedByUser: true,
     };
     if (!saveRequests([next, ...requests])) {
       window.alert("บันทึกคำขอไม่สำเร็จ กรุณาลองอีกครั้ง");
@@ -617,6 +635,7 @@ function BorrowPageContent() {
       branchId: asset?.branchId ?? "",
       status: "pending",
       note: "",
+      submittedByUser: true,
     });
     return saved ? id : "";
   }
@@ -1229,7 +1248,7 @@ function RequestModal({
                   placeholder={translateText("พิมพ์เพื่อค้นหาทรัพย์สิน...")}
                   noOptionsMessage={() => translateText("ไม่พบทรัพย์สิน")}
                   isSearchable
-                  styles={assetSelectStyles}
+                  styles={getAssetSelectStyles(isDark)}
                   // แสดงเมนูนอก modal กันโดน overflow ของ modal ตัด
                   menuPortalTarget={
                     typeof document !== "undefined" ? document.body : null
@@ -1245,12 +1264,17 @@ function RequestModal({
                 </div>
                 <label
                   title="สแกน QR Code"
-                  aria-label="สแกน QR Code"
-                  className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-400 bg-white text-blue-950 hover:bg-indigo-50"
+                  aria-label={translateText("สแกน QR Code")}
+                  className={`inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-500 ${
+                    isDark
+                      ? "border-slate-500 bg-slate-800 text-indigo-200 hover:bg-slate-700"
+                      : "border-slate-400 bg-white text-blue-950 hover:bg-indigo-50"
+                  }`}
                 >
-                  <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v2M14 20h2M19 19h2v2h-2z" />
                   </svg>
+                  <span className="whitespace-nowrap">{translateText("สแกน QR Code")}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -1353,7 +1377,18 @@ function RequestModal({
                 </label>
                 </div>
               )}
-              {qrMessage && <p className="mt-1 text-xs text-slate-700">{qrMessage}</p>}
+              {qrMessage && (
+                <p
+                  role="status"
+                  className={`mt-2 rounded-md px-2 py-1 text-xs font-medium ${
+                    isDark
+                      ? "bg-slate-800 text-slate-100"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {qrMessage}
+                </p>
+              )}
             </div>
 
             {type === "return" && (
@@ -1396,11 +1431,33 @@ function RequestModal({
                   <select
                     value={toBranch}
                     onChange={(e) => setToBranchId(e.target.value)}
-                    className={field}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm ${
+                      isDark
+                        ? "border-slate-500 bg-slate-800 text-slate-100"
+                        : "border-slate-400 bg-white text-slate-900"
+                    }`}
+                    style={{ colorScheme: isDark ? "dark" : "light" }}
                   >
-                    <option value="">{translateText("เลือกสาขาปลายทาง")}</option>
+                    <option
+                      value=""
+                      className={
+                        isDark
+                          ? "bg-slate-800 text-slate-100"
+                          : "bg-white text-slate-900"
+                      }
+                    >
+                      {translateText("เลือกสาขาปลายทาง")}
+                    </option>
                     {destinations.map((b) => (
-                      <option key={b.id} value={b.id}>
+                      <option
+                        key={b.id}
+                        value={b.id}
+                        className={
+                          isDark
+                            ? "bg-slate-800 text-slate-100"
+                            : "bg-white text-slate-900"
+                        }
+                      >
                         {b.name}
                       </option>
                     ))}

@@ -1,5 +1,5 @@
 "use client";
-import { useTranslate } from "@/lib/language";
+import { useTheme, useTranslate } from "@/lib/language";
 
 import Link from "next/link";
 import { useState, type FormEventHandler } from "react";
@@ -8,6 +8,7 @@ import { ScanQrCode } from "lucide-react";
 import { assets } from "@/data/asset";
 const CHIANG_MAI_BRANCH_ID = "BR-002";
 
+// หน้าต่างนี้รับข้อมูลคำร้องใหม่; หน้าแม่เป็นคนบันทึกหลังจากกดส่ง
 type CreateRepairModalProps = {
   // ปุ่มปิดหน้าต่างและปุ่มส่งคำร้องถูกจัดการจากหน้า repairsuser/page.tsx
   onClose: () => void;
@@ -21,6 +22,15 @@ export default function CreateRepairModal({
   error,
 }: CreateRepairModalProps) {
   const translateText = useTranslate();
+  const isDark = useTheme() === "dark";
+  const primaryTextClass = isDark ? "text-slate-100" : "text-slate-900";
+  const secondaryTextClass = isDark ? "text-slate-300" : "text-slate-700";
+  const fieldClass = isDark
+    ? "border-slate-600 bg-slate-800 text-slate-100 placeholder:text-slate-400"
+    : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400";
+  const surfaceClass = isDark
+    ? "border-slate-700 bg-slate-900"
+    : "border-slate-200 bg-white";
   const [assetQuery, setAssetQuery] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [isAssetListOpen, setIsAssetListOpen] = useState(false);
@@ -36,6 +46,7 @@ export default function CreateRepairModal({
     )
     .slice(0, 8);
 
+  // เก็บรหัสทรัพย์สินที่เลือกจริง ไม่ใช้แค่ข้อความที่พิมพ์ในช่องค้นหา
   const selectAsset = (asset: (typeof assets)[number]) => {
     setSelectedAssetId(asset.id);
     setAssetQuery(`${asset.name} (${asset.id})`);
@@ -43,6 +54,7 @@ export default function CreateRepairModal({
     setAssetError("");
   };
 
+  // ตรวจว่ามีการเลือกทรัพย์สินจากรายการก่อนส่งข้อมูลให้หน้าแม่
   const handleSubmit:
   FormEventHandler<HTMLFormElement> = (event) => {
     // ต้องเลือกจากคำแนะนำเพื่อให้ assetId ที่ส่งไปเป็นรหัสจริง ไม่ใช่ข้อความที่พิมพ์
@@ -64,12 +76,12 @@ export default function CreateRepairModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-repair-title"
-        className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl"
+        className={`w-full max-w-lg rounded-xl p-5 shadow-xl ${isDark ? "bg-slate-900 text-slate-100" : "bg-white text-slate-900"}`}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <h2
             id="create-repair-title"
-            className="text-lg font-semibold text-slate-900"
+            className={`text-lg font-semibold ${primaryTextClass}`}
           >
             
             {translateText("สร้างคำร้องแจ้งซ่อม")}
@@ -78,14 +90,14 @@ export default function CreateRepairModal({
             type="button"
             onClick={onClose}
             aria-label={translateText("ปิดหน้าต่าง")}
-            className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className={`rounded-md px-2 py-1 text-xl leading-none transition ${isDark ? "text-slate-400 hover:bg-slate-800 hover:text-slate-100" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"}`}
           >
             ×
           </button>
         </div>
 
         {error && (
-          <p role="alert" className="mb-4 text-sm text-rose-600">
+          <p role="alert" className={`mb-4 rounded-md px-3 py-2 text-sm ${isDark ? "bg-rose-950/50 text-rose-200" : "bg-rose-50 text-rose-600"}`}>
             {translateText(error)}
           </p>
         )}
@@ -96,7 +108,7 @@ export default function CreateRepairModal({
           <div>
             <label
               htmlFor="repair-asset-search"
-              className="block text-sm font-medium text-slate-700"
+              className={`block text-sm font-medium ${secondaryTextClass}`}
             >
               {translateText("ทรัพย์สิน")}
             </label>
@@ -135,7 +147,7 @@ export default function CreateRepairModal({
                     }
                   }}
                   placeholder={translateText("พิมพ์ชื่อหรือรหัสทรัพย์สิน")}
-                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  className={`h-10 w-full rounded-md border px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${fieldClass}`}
                 />
                 <input
                   type="hidden"
@@ -147,7 +159,7 @@ export default function CreateRepairModal({
                   <ul
                     id="repair-asset-options"
                     role="listbox"
-                    className="absolute left-0 right-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                    className={`absolute left-0 right-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-md border py-1 shadow-lg ${surfaceClass}`}
                   >
                     {matchingAssets.length > 0 ? (
                       matchingAssets.map((asset) => (
@@ -158,19 +170,19 @@ export default function CreateRepairModal({
                             aria-selected={asset.id === selectedAssetId}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => selectAsset(asset)}
-                            className="flex w-full flex-col px-3 py-2 text-left text-sm hover:bg-slate-100"
+                            className={`flex w-full flex-col px-3 py-2 text-left text-sm transition ${isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
                           >
-                            <span className="font-medium text-slate-800">
+                            <span className={`font-medium ${primaryTextClass}`}>
                               {asset.name}
                             </span>
-                            <span className="text-xs text-slate-500">
+                            <span className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                               {asset.id} · {asset.serialNumber}
                             </span>
                           </button>
                         </li>
                       ))
                     ) : (
-                      <li className="px-3 py-2 text-sm text-slate-500">
+                      <li className={`px-3 py-2 text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                         {translateText("ไม่พบทรัพย์สินที่ตรงกัน")}
                       </li>
                     )}
@@ -200,7 +212,7 @@ export default function CreateRepairModal({
             )}
           </div>
           {/* คำร้องจากหน้า User ถูกกำหนดให้เป็นสาขาเชียงใหม่เท่านั้น */}
-          <label className="block text-sm font-medium text-slate-700">
+          <label className={`block text-sm font-medium ${secondaryTextClass}`}>
             {translateText("สาขา")}
             <input
               type="hidden"
@@ -208,12 +220,12 @@ export default function CreateRepairModal({
               value={CHIANG_MAI_BRANCH_ID}
               readOnly
             />
-            <span className="mt-1.5 flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-normal text-slate-700">
+            <span className={`mt-1.5 flex h-10 items-center rounded-md border px-3 text-sm font-normal ${isDark ? "border-slate-600 bg-slate-800 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
               {translateText("              สาขาเชียงใหม่")}
             </span>
           </label>
           {/* ต้องกรอกอาการก่อนส่งคำร้อง */}
-          <label className="block text-sm font-medium text-slate-700">
+          <label className={`block text-sm font-medium ${secondaryTextClass}`}>
             
             {translateText("อาการที่พบ")}
             <textarea
@@ -221,29 +233,30 @@ export default function CreateRepairModal({
               required
               rows={3}
               placeholder={translateText("อธิบายอาการหรือปัญหาที่พบ")}
-              className="mt-1.5 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm font-normal outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              className={`mt-1.5 w-full resize-y rounded-md border px-3 py-2 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${fieldClass}`}
             />
           </label>
           {/* เลือกระดับความเร่งด่วนของงานซ่อม */}
-          <label className="block text-sm font-medium text-slate-700">
+          <label className={`block text-sm font-medium ${secondaryTextClass}`}>
             
             {translateText("ระดับความเร่งด่วน")}
             <select
               name="priority"
               defaultValue="medium"
-              className="mt-1.5 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              className={`mt-1.5 h-10 w-full rounded-md border px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${fieldClass}`}
+              style={{ colorScheme: isDark ? "dark" : "light" }}
             >
-              <option value="low">{translateText("ต่ำ")}</option>
-              <option value="medium">{translateText("ปกติ")}</option>
-              <option value="high">{translateText("สูง")}</option>
-              <option value="urgent">{translateText("เร่งด่วน")}</option>
+              <option value="low" className={isDark ? "bg-slate-800 text-slate-100" : "bg-white text-slate-900"}>{translateText("ต่ำ")}</option>
+              <option value="medium" className={isDark ? "bg-slate-800 text-slate-100" : "bg-white text-slate-900"}>{translateText("ปกติ")}</option>
+              <option value="high" className={isDark ? "bg-slate-800 text-slate-100" : "bg-white text-slate-900"}>{translateText("สูง")}</option>
+              <option value="urgent" className={isDark ? "bg-slate-800 text-slate-100" : "bg-white text-slate-900"}>{translateText("เร่งด่วน")}</option>
             </select>
           </label>
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              className={`rounded-md border px-4 py-2 text-sm transition ${isDark ? "border-slate-600 text-slate-200 hover:bg-slate-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
             >
               
               {translateText("ยกเลิก")}
