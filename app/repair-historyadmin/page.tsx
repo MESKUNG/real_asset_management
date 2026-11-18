@@ -2,6 +2,7 @@
 import {
   formatLocalizedDate,
   useLanguage,
+  useTheme,
   useTranslate,
 } from "@/lib/language";
 
@@ -47,6 +48,7 @@ function RepairHistoryAdminPageContent() {
   const searchParams = useSearchParams();
   const requestId = searchParams.get("requestId");
   const language = useLanguage();
+  const isDark = useTheme() === "dark";
   const translateText = useTranslate();
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,6 +64,7 @@ function RepairHistoryAdminPageContent() {
     [],
   );
 
+  // ถ้าเปิดมาจากลิงก์แจ้งเตือน ให้ requestId ใน URL มาก่อนรายการที่คลิกในหน้า
   const selectedRequest =
     completedRequests.find((request) => request.id === requestId) ??
     manuallySelectedRequest;
@@ -225,7 +228,9 @@ function RepairHistoryAdminPageContent() {
                   return (
                     <tr
                       key={request.id}
-                      className="text-xs text-slate-700 transition hover:bg-slate-50/70"
+                      className={`text-xs text-slate-700 transition ${
+                        isDark ? "hover:bg-slate-700" : "hover:bg-slate-50/70"
+                      }`}
                     >
                       <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-800">
                         {request.id}

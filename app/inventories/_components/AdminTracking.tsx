@@ -15,7 +15,6 @@ import {
   getSessionProgress,
   getStaffName,
   resetInventoryStore,
-  startSession,
   useCredential,
   useInventoryStore,
   type StoredSession,
@@ -66,9 +65,6 @@ export default function AdminTracking() {
   const activeTotal = activeProgress.reduce((sum, p) => sum + p.total, 0);
   const issueCount = checks.filter((c) => c.result !== "found").length;
 
-  const handleStart = (session: StoredSession) => {
-    toast.show(startSession(session.id) ? `เปิดรอบ ${session.id} แล้ว ผู้ใช้เริ่มสแกนได้` : "เปิดรอบไม่สำเร็จ");
-  };
 
   const handleCancel = (session: StoredSession) => {
     if (!window.confirm(`ยกเลิกรอบ ${session.id} ใช่ไหม?`)) return;
@@ -96,14 +92,13 @@ export default function AdminTracking() {
         สาขา: getBranchName(s.branchId),
         วันเริ่ม: formatThaiDate(s.startDate),
         วันสิ้นสุด: formatThaiDate(s.endDate),
-        ผู้รับผิดชอบ: getStaffName(s.assigneeId),
+        ผู้รับผิดชอบ: s.assigneeId ? getStaffName(s.assigneeId) : "-",
         สถานะ: SESSION_STATUS_LABEL[s.status],
         ตรวจแล้ว: p.checked,
         ทั้งหมด: p.total,
         "ความคืบหน้า (%)": p.percent,
         ชำรุด: p.damaged,
-        ไม่พบ: p.missing,
-        ไม่ตรงสาขา: p.mismatch,
+        สูญหาย: p.lost,
       };
     });
     await exportExcel("ติดตามการตรวจนับ", [{ name: "รอบตรวจนับ", rows }]);
@@ -137,9 +132,9 @@ export default function AdminTracking() {
       <main className="mx-auto max-w-6xl space-y-6 px-4 pt-5 lg:px-8">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label="กำลังนับ" value={`${countOf("in_progress")} รอบ`} note={`สแกนแล้ว ${activeChecked}/${activeTotal} ชิ้น`} />
-          <StatCard label="รอเริ่ม" value={`${countOf("planned")} รอบ`} note="รอ Admin เปิดรอบ" />
+          <StatCard label="รอเริ่ม" value={`${countOf("planned")} รอบ`} note="เริ่มเองเมื่อถึงวันตรวจ" />
           <StatCard label="เสร็จสิ้น" value={`${countOf("completed")} รอบ`} note="ปิดรอบแล้ว" />
-          <StatCard label="พบปัญหา" value={`${issueCount} รายการ`} note="ชำรุด / ไม่พบ / ผิดสาขา" tone="warn" />
+          <StatCard label="พบปัญหา" value={`${issueCount} รายการ`} note="ชำรุด / สูญหาย" tone="warn" />
         </div>
 
         <div className="-mx-4 overflow-x-auto px-4">
@@ -177,8 +172,8 @@ export default function AdminTracking() {
                       <h3 className="text-lg font-bold text-slate-900">{session.name}</h3>
                       <p className="text-base text-slate-600">
                         {getBranchName(session.branchId)} ·{" "}
-                        {formatDateRange(session.startDate, session.endDate)} · ผู้รับผิดชอบ{" "}
-                        {getStaffName(session.assigneeId)}
+                        {formatDateRange(session.startDate, session.endDate)}
+                        {session.assigneeId ? ` · ผู้รับผิดชอบ ${getStaffName(session.assigneeId)}` : ""}
                       </p>
                     </div>
                     <StatusPill status={session.status} />
@@ -193,9 +188,9 @@ export default function AdminTracking() {
                     </span>
                   </div>
 
-                  {(p.damaged > 0 || p.missing > 0 || p.mismatch > 0) && (
+                  {(p.damaged > 0 || p.lost > 0) && (
                     <p className="mt-2 text-sm font-semibold text-amber-700">
-                      ชำรุด {p.damaged} · ไม่พบ {p.missing} · ไม่ตรงสาขา {p.mismatch}
+                      ชำรุด {p.damaged} · สูญหาย {p.lost}
                     </p>
                   )}
 
@@ -205,9 +200,9 @@ export default function AdminTracking() {
                     </Link>
                     {session.status === "planned" && (
                       <>
-                        <button type="button" onClick={() => handleStart(session)} className={buttonStyle.primary}>
-                          เปิดรอบให้เริ่มนับ
-                        </button>
+                        <span className="inline-flex min-h-11 items-center rounded-xl bg-violet-50 px-4 text-base font-semibold text-violet-800">
+                          เริ่มตรวจนับอัตโนมัติ {formatThaiDate(session.startDate)}
+                        </span>
                         <button type="button" onClick={() => handleCancel(session)} className={buttonStyle.danger}>
                           ยกเลิกรอบ
                         </button>

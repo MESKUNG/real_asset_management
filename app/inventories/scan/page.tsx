@@ -11,17 +11,19 @@ import { Suspense, useState, type FormEvent } from "react";
 import type { IDetectedBarcode, IScannerError } from "@yudiel/react-qr-scanner";
 import {
   RESULT_LABEL,
+  findAsset,
   formatThaiDateTime,
   getBranchName,
   getCheckerName,
   getSessionProgress,
   previewScan,
+  removeCheck,
   saveCheck,
+  updateCheck,
   useCredential,
   useInventoryStore,
   type ScanOutcome,
 } from "@/lib/inventory";
-import ConfirmCheckSheet from "../_components/ConfirmCheckSheet";
 import {
   EmptyState,
   Loading,
@@ -80,6 +82,8 @@ function ScanContent() {
   const [manualCode, setManualCode] = useState("");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [cameraError, setCameraError] = useState<string | null>(null);
+  // ผลที่เพิ่งสแกน เก็บ id ไว้ให้เปลี่ยนสภาพหรือยกเลิกได้ทันที
+  const [lastCheckId, setLastCheckId] = useState<string | null>(null);
 
   if (!ready) return <Loading />;
 
@@ -103,8 +107,16 @@ function ScanContent() {
 
   const handleCode = (rawCode: string) => {
     const code = rawCode.trim();
-    if (!code || outcome) return;
-    setOutcome(previewScan(session, code, checks));
+    if (!code || outcome || !credential) return;
+    const result = previewScan(session, code, checks);
+    // เจอของในรอบนี้ = บันทึกเป็น "ปกติ" ทันที (ค่าเริ่มต้น) แล้วสแกนชิ้นต่อไปได้เลย
+    if (result.type === "ready") {
+      const saved = saveCheck({ sessionId: session.id, asset: result.asset, result: "found", checker: credential, note: "สแกน QR" });
+      setLastCheckId(saved?.id ?? null);
+      toast.show(saved ? `บันทึก ${result.asset.id}: ปกติ` : "บันทึกไม่สำเร็จ");
+      return;
+    }
+    setOutcome(result);
   };
 
   // ไลบรารีจะไม่ส่งโค้ดเดิมซ้ำติดกัน จึงไม่ต้องกันการอ่านซ้ำเอง
@@ -118,11 +130,18 @@ function ScanContent() {
     setManualCode("");
   };
 
-  const handleConfirm = (result: "found" | "damaged", note: string) => {
-    if (outcome?.type !== "ready" || !credential) return;
-    const saved = saveCheck({ sessionId: session.id, asset: outcome.asset, result, checker: credential, note });
-    toast.show(saved ? `บันทึก ${outcome.asset.id} (${RESULT_LABEL[result]}) แล้ว` : "บันทึกไม่สำเร็จ");
-    setOutcome(null);
+  const lastCheck = checks.find((c) => c.id === lastCheckId);
+  const lastAsset = lastCheck ? findAsset(lastCheck.assetId) : undefined;
+
+  const handleChangeLast = (result: "found" | "damaged" | "missing") => {
+    if (!lastCheck || !credential) return;
+    toast.show(updateCheck(lastCheck.id, result, credential) ? `เปลี่ยน ${lastCheck.assetId} เป็น ${RESULT_LABEL[result]}` : "เปลี่ยนไม่สำเร็จ");
+  };
+
+  const handleUndoLast = () => {
+    if (!lastCheck) return;
+    toast.show(removeCheck(lastCheck.id) ? `ยกเลิกผล ${lastCheck.assetId} แล้ว` : "ยกเลิกไม่สำเร็จ");
+    setLastCheckId(null);
   };
 
   const handleRecordMismatch = () => {
@@ -132,9 +151,12 @@ function ScanContent() {
       asset: outcome.asset,
       result: "mismatch",
       checker: credential,
-      note: `พบทรัพย์สินของ${getBranchName(outcome.asset.branchId)} ที่${getBranchName(session.branchId)}`,
+      note:
+        outcome.asset.status === "disposed"
+          ? "พบทรัพย์สินที่จำหน่ายแล้วแต่ยังอยู่ในสาขา"
+          : `พบทรัพย์สินของ${getBranchName(outcome.asset.branchId)} ที่${getBranchName(session.branchId)}`,
     });
-    toast.show(saved ? `บันทึก ${outcome.asset.id} ว่าพบต่างสาขาแล้ว` : "บันทึกไม่สำเร็จ");
+    toast.show(saved ? `บันทึก ${outcome.asset.id} ว่าสูญหาย (ไม่ตรงทะเบียน) แล้ว` : "บันทึกไม่สำเร็จ");
     setOutcome(null);
   };
 
@@ -203,6 +225,31 @@ function ScanContent() {
               {translateText("เล็งกล้องไปที่ QR Code บนทรัพย์สิน ระบบจะอ่านให้อัตโนมัติ")}
             </p>
 
+            {lastCheck && lastAsset && (
+              <section aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-sm font-semibold text-emerald-800">{translateText("สแกนล่าสุด")}</p>
+                <p className="text-base font-bold text-slate-900">{lastAsset.name}</p>
+                <p className="text-sm text-slate-600">
+                  {lastAsset.id} · {formatThaiDateTime(lastCheck.checkedAt)}
+                </p>
+                <label className="mt-3 flex items-center gap-3 text-base text-slate-700">
+                  <span className="shrink-0">{translateText("สภาพทรัพย์สิน")}</span>
+                  <select
+                    value={lastCheck.result}
+                    onChange={(e) => handleChangeLast(e.target.value as "found" | "damaged" | "missing")}
+                    className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-base"
+                  >
+                    <option value="found">{translateText("ปกติ")}</option>
+                    <option value="damaged">{translateText("ชำรุด")}</option>
+                    <option value="missing">{translateText("สูญหาย")}</option>
+                  </select>
+                </label>
+                <button type="button" onClick={handleUndoLast} className="mt-2 text-sm font-semibold text-slate-600 underline">
+                  {translateText("สแกนผิดชิ้น? ยกเลิกผลนี้")}
+                </button>
+              </section>
+            )}
+
             <button
               type="button"
               onClick={() => {
@@ -241,14 +288,6 @@ function ScanContent() {
         </Link>
       </main>
 
-      {outcome?.type === "ready" && (
-        <ConfirmCheckSheet
-          asset={outcome.asset}
-          title={translateText("พบทรัพย์สินในรอบนี้")}
-          onConfirm={handleConfirm}
-          onCancel={closeSheet}
-        />
-      )}
       {outcome?.type === "duplicate" && (
         <MessageSheet
           tone="warn"
@@ -258,7 +297,18 @@ function ScanContent() {
           onPrimary={closeSheet}
         />
       )}
-      {outcome?.type === "mismatch" && (
+      {outcome?.type === "mismatch" && outcome.asset.status === "disposed" && (
+        <MessageSheet
+          tone="error"
+          title={translateText("ทรัพย์สินนี้จำหน่ายไปแล้ว")}
+          body={`${outcome.asset.name} (${outcome.asset.id}) ${translateText("ในทะเบียนจำหน่ายไปแล้ว แต่ยังพบอยู่ในสาขา")}`}
+          primaryLabel={translateText("บันทึกผล")}
+          onPrimary={handleRecordMismatch}
+          secondaryLabel={translateText("ไม่บันทึก")}
+          onSecondary={closeSheet}
+        />
+      )}
+      {outcome?.type === "mismatch" && outcome.asset.status !== "disposed" && (
         <MessageSheet
           tone="error"
           title={translateText("ทรัพย์สินนี้ไม่ได้อยู่ในสาขาที่ตรวจ")}

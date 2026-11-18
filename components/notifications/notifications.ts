@@ -1,5 +1,6 @@
 // เก็บรายการแจ้งเตือน และจำว่ารายการไหนถูกอ่านแล้ว ใช้ทั้งในกล่องและหน้าแจ้งเตือน
 import { assets } from "@/data/asset";
+import { branches, HEAD_OFFICE_BRANCH_ID } from "@/data/branches";
 import {
   repairRequests,
   type RepairRequest,
@@ -9,7 +10,10 @@ export type NotificationItem = {
   // ข้อมูลที่จะแสดงในแต่ละแจ้งเตือน และคำร้องที่แจ้งเตือนนั้นเกี่ยวข้อง
   id: string;
   title: string;
-  description: string;
+  assetName: string;
+  branchName: string;
+  branchCode: string;
+  issue: string;
   reference: string;
   createdAt: string;
   category: "new" | "updated" | "completed" | "rejected";
@@ -19,54 +23,88 @@ export type NotificationItem = {
 export const notificationsStorageKey = "asset-management-read-notifications";
 export const notificationsChangedEvent = "asset-management-notifications-change";
 
-// ตอนนี้ตัวอย่างแจ้งเตือนสร้างจากรายการซ่อมใน data/repairRequests.ts
-const latestRequests = [...repairRequests]
-  .filter((request) =>
-    ["pending", "in_progress", "completed", "rejected"].includes(request.status),
+function getNotificationDate(request: RepairRequest) {
+  return request.completedAt ?? request.startedAt ?? request.reportedAt;
+}
+
+function toNotification(request: RepairRequest): NotificationItem {
+  // หาชื่ออุปกรณ์และสาขาจากรหัส เพื่อให้แจ้งเตือนอ่านได้เข้าใจง่าย
+  const asset = assets.find((item) => item.id === request.assetId);
+  const branch = branches.find((item) => item.id === request.branchId);
+  const category: NotificationItem["category"] =
+    request.status === "pending"
+      ? "new"
+      : request.status === "in_progress"
+        ? "updated"
+        : request.status;
+  const titleByCategory: Record<NotificationItem["category"], string> = {
+    new: "มีคำขอแจ้งซ่อมใหม่",
+    updated: "สถานะคำขอได้รับการอัปเดต",
+    completed: "ดำเนินการซ่อมเสร็จสิ้น",
+    rejected: "คำขอแจ้งซ่อมไม่ได้รับอนุมัติ",
+  };
+
+  return {
+    id: request.id,
+    title: titleByCategory[category],
+    assetName: asset?.name ?? request.assetId,
+    branchName: branch?.name ?? "ไม่ระบุสาขา",
+    branchCode: branch?.code ?? request.branchId,
+    issue: request.issue,
+    reference: request.id,
+    createdAt: getNotificationDate(request),
+    category,
+    request,
+  };
+}
+
+const notificationStatuses = new Set([
+  "pending",
+  "in_progress",
+  "completed",
+  "rejected",
+]);
+const allNotifications = [...repairRequests]
+  .filter((request) => notificationStatuses.has(request.status))
+  .sort((a, b) =>
+    getNotificationDate(b).localeCompare(getNotificationDate(a)),
   )
-  .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
+  .map(toNotification);
 
-const notificationRequests = [
-  // เลือกอย่างละหนึ่งรายการของแต่ละสถานะ เพื่อให้เห็นแจ้งเตือนหลายแบบ
-  ...latestRequests.filter((request) => request.status === "pending").slice(0, 1),
-  ...latestRequests.filter((request) => request.status === "in_progress").slice(0, 1),
-  ...latestRequests.filter((request) => request.status === "completed").slice(0, 1),
-  ...latestRequests.filter((request) => request.status === "rejected").slice(0, 1),
-];
+export const notifications = allNotifications.slice(0, 20);
 
-export const notifications: NotificationItem[] = notificationRequests.map(
-  (request) => {
-    // หาชื่ออุปกรณ์จากรหัส เพื่อแสดงชื่อให้อ่านง่ายขึ้น
-    const asset = assets.find((item) => item.id === request.assetId);
-    const category =
-      request.status === "pending"
-        ? "new"
-        : request.status === "in_progress"
-          ? "updated"
-          : request.status;
+function isAdminRole(role: unknown) {
+  return ["admin", "president", "superadmin"].includes(
+    typeof role === "string" ? role : "",
+  );
+}
 
-    const titleByCategory: Record<NotificationItem["category"], string> = {
-      new: "มีคำขอแจ้งซ่อมใหม่",
-      updated: "สถานะคำขอได้รับการอัปเดต",
-      completed: "ดำเนินการซ่อมเสร็จสิ้น",
-      rejected: "คำขอแจ้งซ่อมไม่ได้รับอนุมัติ",
-    };
+export function getNotificationsForRole(
+  role: unknown,
+  userRequests: RepairRequest[] = [],
+) {
+  // รวมคำร้องจาก Local Storage กับข้อมูลตั้งต้น และใช้ ID กันรายการซ้ำ
+  const requestsById = new Map(
+    repairRequests.map((request) => [request.id, request]),
+  );
+  userRequests.forEach((request) => requestsById.set(request.id, request));
+  const currentNotifications = [...requestsById.values()]
+    .filter((request) => notificationStatuses.has(request.status))
+    .sort((a, b) =>
+      getNotificationDate(b).localeCompare(getNotificationDate(a)),
+    )
+    .map(toNotification);
+  const scopedNotifications = isAdminRole(role)
+    ? currentNotifications
+    : currentNotifications.filter(
+        ({ request }) => request.branchId === HEAD_OFFICE_BRANCH_ID,
+      );
 
-    return {
-      id: request.id,
-      title: titleByCategory[category],
-      description: `${asset?.name ?? request.assetId} · ${request.issue}`,
-      reference: request.id,
-      createdAt:
-        request.completedAt ?? request.startedAt ?? request.reportedAt,
-      category,
-      request,
-    };
-  },
-);
+  return scopedNotifications.slice(0, 20);
+}
 
 export const defaultReadNotifications = JSON.stringify(
-  // ตอนเปิดครั้งแรก จะมีสองรายการแรกที่ยังไม่อ่าน
+  // ตอนเปิดครั้งแรก จำลองให้สองรายการล่าสุดยังไม่อ่าน ส่วนที่เหลืออ่านแล้ว
   notifications.slice(2).map(({ id }) => id),
 );
 
@@ -93,6 +131,41 @@ export function subscribeToNotificationChanges(onChange: () => void) {
   return () => {
     window.removeEventListener("storage", onChange);
     window.removeEventListener(notificationsChangedEvent, onChange);
+  };
+}
+
+export function getCredentialRoleSnapshot(): string | null {
+  try {
+    const rawCredential = localStorage.getItem("credential");
+    if (!rawCredential) return null;
+
+    const credential: unknown = JSON.parse(rawCredential);
+    if (
+      typeof credential === "object" &&
+      credential !== null &&
+      "role" in credential &&
+      typeof credential.role === "string"
+    ) {
+      return credential.role;
+    }
+  } catch (error) {
+    console.error("อ่านข้อมูลบัญชีไม่สำเร็จ:", error);
+  }
+
+  return null;
+}
+
+export function getServerCredentialRoleSnapshot() {
+  return null;
+}
+
+export function subscribeToCredentialChanges(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener("credentialchange", onChange);
+
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener("credentialchange", onChange);
   };
 }
 
@@ -136,12 +209,9 @@ export function getNotificationsPath(
   requestId: string,
 ) {
   // เลือกหน้าให้ตรงกับผู้ใช้: Admin ไปหน้าของ Admin, User ไปหน้าของ User
-  const isAdmin = ["admin", "president", "superadmin"].includes(
-    typeof role === "string" ? role : "",
-  );
   const isCompleted = status === "completed";
 
-  const path = isAdmin
+  const path = isAdminRole(role)
     ? isCompleted
       ? "/repair-historyadmin"
       : "/repairsadmin"
@@ -150,7 +220,10 @@ export function getNotificationsPath(
   return `${path}?requestId=${encodeURIComponent(requestId)}`;
 }
 
-export function formatNotificationTime(value: string) {
+export function formatNotificationTime(
+  value: string,
+  language: "th" | "en" = "th",
+) {
   // แสดงเวลาให้อ่านง่าย เช่น "เมื่อ 5 นาทีที่แล้ว"
   const timestamp = new Date(value).getTime();
   if (Number.isNaN(timestamp)) return "ไม่ทราบเวลา";
@@ -163,7 +236,10 @@ export function formatNotificationTime(value: string) {
     ["hour", 60 * 60],
     ["minute", 60],
   ];
-  const formatter = new Intl.RelativeTimeFormat("th", { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(
+    language === "en" ? "en" : "th",
+    { numeric: "auto" },
+  );
 
   for (const [unit, secondsPerUnit] of units) {
     if (Math.abs(elapsedSeconds) >= secondsPerUnit) {
@@ -174,5 +250,5 @@ export function formatNotificationTime(value: string) {
     }
   }
 
-  return "เมื่อสักครู่";
+  return language === "en" ? "Just now" : "เมื่อสักครู่";
 }
