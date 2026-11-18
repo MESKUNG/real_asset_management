@@ -19,6 +19,7 @@ type Settings = {
   language: "th" | "en";
 };
 
+// ค่าตั้งต้นใช้ตอนเปิดเว็บครั้งแรกหรือยังไม่มีข้อมูลที่บันทึกไว้
 const defaultSettings: Settings = {
   notificationsEnabled: true,
   darkMode: false,
@@ -53,6 +54,7 @@ function parseSettings(snapshot: string): Settings {
   try {
     const parsed: unknown = JSON.parse(snapshot);
     if (!isRecord(parsed)) return defaultSettings;
+    // รองรับทั้งค่า darkMode แบบเดิมและ theme แบบใหม่
     return {
       notificationsEnabled:
         typeof parsed.notificationsEnabled === "boolean"
@@ -112,6 +114,7 @@ export default function SettingsPage() {
   const settings = parseSettings(snapshot);
   const isDark = theme === "dark";
 
+  // บันทึกค่าที่เปลี่ยนและส่งสัญญาณให้ hook อัปเดตหน้าจอทันที
   const updateSetting = <Key extends keyof Settings>(
     key: Key,
     value: Settings[Key],
@@ -181,6 +184,7 @@ export default function SettingsPage() {
         </header>
 
         <div className="space-y-4">
+          {/* การ์ดแรกควบคุมการรับแจ้งเตือน */}
           <section className={cardClass} aria-labelledby="notification-heading">
             <h2 id="notification-heading" className={headingClass}>
               {translateText("การแจ้งเตือน")}
@@ -205,6 +209,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          {/* การ์ดนี้ใช้เปลี่ยนธีมและภาษาของระบบ */}
           <section className={cardClass} aria-labelledby="display-heading">
             <h2 id="display-heading" className={headingClass}>
               {translateText("การแสดงผลและภาษา")}

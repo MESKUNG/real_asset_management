@@ -1,3 +1,4 @@
+// ใช้ข้อความภาษาไทยเป็น key และเก็บคำแปลภาษาอังกฤษไว้ให้ translate() ค้นหา
 export const englishTranslations: Record<string, string> = {
   "ภาพรวม": "Overview",
   "จัดการ Asset": "Manage Assets",
@@ -87,6 +88,7 @@ export const englishTranslations: Record<string, string> = {
   "จัดการการแจ้งเตือนและรูปแบบการแสดงผลของคุณ": "Manage your notifications and display preferences",
   "เปิดการแจ้งเตือน": "Enable notifications",
   "รับการแจ้งเตือนเกี่ยวกับกิจกรรมในระบบ": "Receive updates about activity in the system",
+  "บันทึกคำร้องไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บในเบราว์เซอร์แล้วลองอีกครั้ง": "Could not save your repair request. Check your browser storage and try again.",
   "การแสดงผลและภาษา": "Display and language",
   "โหมดมืด (Dark Mode)": "Dark mode",
   "ปรับโทนสีของหน้าตั้งค่า": "Change the settings page color theme",
@@ -276,11 +278,15 @@ export const englishTranslations: Record<string, string> = {
   "ทั้งหมด": "All",
   "สร้างคำร้องแจ้งซ่อม": "Create a repair request",
   "แสดงรายการแจ้งซ่อมทั้งหมดในระบบ": "Showing all repair requests",
+  "แสดงรายการแจ้งซ่อมของสำนักงานใหญ่เท่านั้น":
+    "Showing repair requests for the head office only",
   "ค้นหาคำร้อง, อุปกรณ์, ผู้แจ้ง...": "Search requests, assets, or reporter...",
   "กรองตามสถานะ": "Filter by status",
   "แสดงรายการตั้งแต่วันที่": "Show requests from date",
   "กรองตามสาขา": "Filter by branch",
   "ผู้ใช้งาน #": "User #",
+  "โหลดชื่อผู้แจ้งจาก API ไม่สำเร็จ":
+    "Could not load reporter names from the API.",
   "ผู้จัดจำหน่าย": "Vendor",
   "ไม่ระบุผู้จัดจำหน่าย": "Vendor not specified",
   "ช่องทางติดต่อ Vendor": "Vendor contact",
@@ -319,6 +325,7 @@ export const englishTranslations: Record<string, string> = {
   "สถานะคำขอได้รับการอัปเดต": "Request status updated",
   "ดำเนินการซ่อมเสร็จสิ้น": "Repair completed",
   "คำขอแจ้งซ่อมไม่ได้รับอนุมัติ": "Repair request rejected",
+  "รายการใหม่": "new",
   "ไม่ทราบเวลา": "Unknown time",
   "พร้อมใช้": "Ready",
   "พร้อมสำหรับการมอบหมาย": "Ready to assign",
@@ -359,8 +366,31 @@ export const englishTranslations: Record<string, string> = {
     "Could not save the status. Please try again.",
   "ติดตามความเคลื่อนไหวของรายการแจ้งซ่อม":
     "Track repair request activity",
+  "พัดลมระบายความร้อนมีเสียงดังผิดปกติ":
+    "The cooling fan is unusually loud",
+  "เครื่องเปิดไม่ติด": "The device will not turn on",
+  "เครื่องพิมพ์ไม่สามารถดึงกระดาษได้": "The printer cannot feed paper",
+  "Adapter ชาร์จไฟไม่เข้า": "The adapter is not charging",
+  "หน้าจอมีเส้นแนวตั้งและภาพกระพริบ":
+    "The screen has vertical lines and flickers",
+  "แบตเตอรี่เสื่อม ใช้งานได้ไม่นาน":
+    "The battery is degraded and does not last long",
+  "คีย์บอร์ดบางปุ่มกดไม่ติด": "Some keyboard keys are unresponsive",
+  "ตรวจพบความผิดปกติระหว่างใช้งาน":
+    "An issue was detected during use",
   "บันทึกไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าเบราว์เซอร์":
     "Could not save. Check your browser settings.",
+  "พิมพ์ชื่อหรือรหัสทรัพย์สิน": "Type an asset name or ID",
+  "ไม่พบทรัพย์สินที่ตรงกัน": "No matching assets found",
+  "เลือกทรัพย์สินจากรายการ": "Select an asset from the list",
+  "สแกน QR": "Scan QR",
+  "กำลังเปิดกล้อง...": "Opening camera...",
+  "ไม่พบทรัพย์สินจาก QR Code": "No asset matches this QR code",
+  "กรุณาอนุญาตให้ใช้กล้อง": "Please allow camera access",
+  "ไม่พบกล้องในอุปกรณ์นี้": "No camera found on this device",
+  "สแกน QR ไม่สำเร็จ": "Could not scan the QR code",
+  "เล็งกล้องไปที่ QR Code ของทรัพย์สิน":
+    "Point the camera at the asset's QR code",
   "อธิบายอาการหรือปัญหาที่พบ": "Describe the issue",
   "เลือกทรัพย์สิน": "Select an asset",
   "เลือกสาขา": "Select a branch",

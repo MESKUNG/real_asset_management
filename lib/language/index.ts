@@ -1,5 +1,6 @@
 "use client";
 
+// รวมการอ่าน/บันทึกภาษาและธีม พร้อม hook ให้ทุกหน้าติดตามค่าที่เปลี่ยนได้
 import { useSyncExternalStore } from "react";
 import { englishTranslations } from "./dictionary";
 
@@ -10,6 +11,7 @@ export const SETTINGS_STORAGE_KEY = "asset-management-settings";
 export const LANGUAGE_CHANGE_EVENT = "asset-management-settings-change";
 
 function getSettingsSnapshot(): Record<string, unknown> {
+  // อ่านค่าจากเบราว์เซอร์ และใช้ค่าตั้งต้นถ้าข้อมูลใน storage เสียหรืออ่านไม่ได้
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) return {};
@@ -42,6 +44,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function subscribeToLanguage(onChange: () => void) {
+  // storage ใช้รับการเปลี่ยนจากแท็บอื่น; event นี้ใช้แจ้งการเปลี่ยนในแท็บปัจจุบัน
   window.addEventListener("storage", onChange);
   window.addEventListener(LANGUAGE_CHANGE_EVENT, onChange);
 
@@ -76,6 +79,7 @@ export function translate(text: string, language: AppLanguage) {
   const exactTranslation = englishTranslations[text];
   if (exactTranslation) return exactTranslation;
 
+  // แปลจำนวนที่มีรูปแบบมาตรฐานได้ แม้ไม่ได้ระบุไว้ทีละจำนวนใน dictionary
   const count = text.match(/^(\d+)\s*(รายการ|ชิ้น|งาน|รอบ)$/);
   if (count) {
     const units: Record<string, string> = {
@@ -120,6 +124,7 @@ export function saveTheme(theme: AppTheme) {
 }
 
 function saveSetting(key: "language" | "theme", value: AppLanguage | AppTheme) {
+  // เก็บค่าใหม่โดยรักษาการตั้งค่าอย่างอื่นไว้ แล้วแจ้งทุกหน้าที่กำลังแสดงผล
   const rawSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
   let settings: Record<string, unknown> = {};
   if (rawSettings) {

@@ -1,5 +1,5 @@
 "use client";
-import { useTranslate } from "@/lib/language";
+import { useTheme, useTranslate } from "@/lib/language";
 
 import React from 'react'
 import Select, { type StylesConfig } from "react-select";
@@ -433,6 +433,7 @@ function exportPdf(list: Request[], subtitle: string) {
 
 export default function Page() {
   const translateText = useTranslate();
+  const isDark = useTheme() === "dark";
   const role = useSyncExternalStore(subscribe, getRole, () => null);
   // สิทธิ์ตาม role
   const isAdmin = role === "admin" || role === "superadmin";
@@ -569,14 +570,16 @@ export default function Page() {
     `rounded-full border px-4 py-1.5 text-sm font-semibold ${
       active
         ? "border-blue-950 bg-blue-950 text-white"
-        : "border-slate-400 bg-white text-slate-900 hover:bg-indigo-100"
+        : `border-slate-400 bg-white text-slate-900 ${
+            isDark ? "hover:bg-slate-700" : "hover:bg-indigo-100"
+          }`
     }`;
 
   return (
     <div className="flex flex-col gap-5 p-6 text-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-blue-950">
+          <h1 className={`text-2xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>
             
             {translateText("เบิก / ยืมคืน / ขอโอนย้ายทรัพย์สิน")}
           </h1>
@@ -627,13 +630,15 @@ export default function Page() {
               <button
                 key={t}
                 onClick={() => setTypeFilter(t)}
-                className="rounded-xl border border-slate-300 bg-white p-4 text-left hover:bg-indigo-50"
+                className={`rounded-xl border border-slate-300 bg-white p-4 text-left ${
+                  isDark ? "hover:bg-slate-700" : "hover:bg-indigo-50"
+                }`}
               >
                 <div className="text-sm font-semibold text-slate-900">
                   
                   {translateText("คำขอ")}{translateText(TYPES[t].label)}
                 </div>
-                <div className="my-1 text-3xl font-bold text-blue-950">
+                <div className={`my-1 text-3xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>
                   {list.length}
                   <span className="ml-1 text-sm font-medium text-slate-800">
                     
@@ -726,9 +731,13 @@ export default function Page() {
                     }
                   }}
                   title="คลิกเพื่อดูรายละเอียด"
-                  className="cursor-pointer border-t border-slate-200 align-top hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none"
+                  className={`cursor-pointer border-t border-slate-200 align-top focus:outline-none ${
+                    isDark
+                      ? "hover:bg-slate-700 focus:bg-slate-700"
+                      : "hover:bg-indigo-50 focus:bg-indigo-50"
+                  }`}
                 >
-                  <td className="p-3 font-semibold text-blue-950">{r.id}</td>
+                  <td className={`p-3 font-semibold ${isDark ? "text-slate-200" : "text-blue-950"}`}>{r.id}</td>
                   <td className="p-3 font-medium">{translateText(TYPES[r.type].label)}</td>
                   <td className="p-3">
                     <div className="font-semibold">{assetName(r.assetId)}</div>
@@ -947,6 +956,7 @@ function RequestModal({
   onClose: () => void;
 }) {
   const translateText = useTranslate();
+  const isDark = useTheme() === "dark";
   const [type, setType] = useState<RequestType>(editing?.type ?? "withdraw");
   const [assetId, setAssetId] = useState(editing?.assetId ?? "");
   const [borrowDate, setBorrowDate] = useState(editing?.borrowDate ?? "");
@@ -1048,7 +1058,7 @@ function RequestModal({
                 <path d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-blue-950">
+            <h2 className={`text-xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>
               {editing ? "ส่งคำขอแก้ไขเรียบร้อย" : "ส่งคำขอเรียบร้อย"}
             </h2>
             <p className="text-sm text-slate-800">
@@ -1066,13 +1076,15 @@ function RequestModal({
         ) : (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-blue-950">
+              <h2 className={`text-xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>
                 {editing ? "แก้ไขคำขอ" : "สร้างคำขอ"}
               </h2>
               <button
                 onClick={onClose}
                 aria-label={translateText("ปิด")}
-                className="rounded-md px-2 py-1 text-xl leading-none text-slate-800 hover:bg-slate-100"
+                className={`rounded-md px-2 py-1 text-xl leading-none text-slate-800 ${
+                  isDark ? "hover:bg-slate-700" : "hover:bg-slate-100"
+                }`}
               >
                 ×
               </button>
@@ -1100,7 +1112,9 @@ function RequestModal({
                     className={`rounded-lg border p-3 text-left ${
                       type === t
                         ? "border-blue-950 bg-blue-950 text-white"
-                        : "border-slate-400 bg-white text-slate-900 hover:bg-indigo-100"
+                        : `border-slate-400 bg-white text-slate-900 ${
+                            isDark ? "hover:bg-slate-700" : "hover:bg-indigo-100"
+                          }`
                     }`}
                   >
                     <div className="text-sm font-bold">{translateText(TYPES[t].label)}</div>
@@ -1314,6 +1328,7 @@ function ReasonModal({
   onClose: () => void;
 }) {
   const translateText = useTranslate();
+  const isDark = useTheme() === "dark";
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -1333,7 +1348,7 @@ function ReasonModal({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md rounded-2xl bg-white p-6 text-slate-900 shadow-xl"
       >
-        <h2 className="text-xl font-bold text-blue-950">{translateText("ส่งกลับแก้ไข")}</h2>
+        <h2 className={`text-xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>{translateText("ส่งกลับแก้ไข")}</h2>
         <p className="mt-1 text-sm text-slate-800">
           
           {translateText("ระบุสิ่งที่ผู้ขอต้องแก้ไข คำขอจะถูกส่งกลับให้ผู้ขอแก้ไขแล้วส่งใหม่")}
@@ -1430,6 +1445,7 @@ function DetailModal({
   request: Request;
   onClose: () => void;
 }) {
+  const isDark = useTheme() === "dark";
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -1493,7 +1509,7 @@ function DetailModal({
         className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 text-slate-900 shadow-xl"
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-xl font-bold text-blue-950">รายละเอียดคำขอ</h2>
+          <h2 className={`text-xl font-bold ${isDark ? "text-slate-100" : "text-blue-950"}`}>รายละเอียดคำขอ</h2>
           <div className="flex items-center gap-2">
             <span
               className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS[s].className}`}
@@ -1503,14 +1519,16 @@ function DetailModal({
             <button
               onClick={onClose}
               aria-label="ปิด"
-              className="rounded-md px-2 py-1 text-xl leading-none text-slate-800 hover:bg-slate-100"
+              className={`rounded-md px-2 py-1 text-xl leading-none text-slate-800 ${
+                isDark ? "hover:bg-slate-700" : "hover:bg-slate-100"
+              }`}
             >
               ×
             </button>
           </div>
         </div>
 
-        <p className="mt-4 text-2xl font-bold text-blue-950">{r.id}</p>
+        <p className={`mt-4 text-2xl font-bold ${isDark ? "text-slate-200" : "text-blue-950"}`}>{r.id}</p>
 
         <div className="mt-4 flex flex-col gap-3">
           {info.map((row) => (

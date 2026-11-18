@@ -8,6 +8,9 @@ export type Branch = {
   createdAt: string;
 };
 
+// ใช้ล็อกคำร้องของ User และกรองรายการให้เห็นเฉพาะสำนักงานใหญ่
+export const HEAD_OFFICE_BRANCH_ID = "BR-001";
+
 export const branches: Branch[] = [
   {
     id: "BR-001",

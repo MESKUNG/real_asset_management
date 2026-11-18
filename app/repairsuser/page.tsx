@@ -2,14 +2,22 @@
 import {
   formatLocalizedDate,
   useLanguage,
+  useTheme,
   useTranslate,
 } from "@/lib/language";
 
 
 // หน้านี้ให้ User ค้นหา ดูรายละเอียด และส่งคำร้องแจ้งซ่อม
-// ตอนนี้แก้รายการได้ชั่วคราว ถ้ารีเฟรชหน้ารายการที่สร้างใหม่จะหายไป
-import { Suspense, useMemo, useState, type FormEvent } from "react";
+// คำร้องที่ User สร้างจะถูกเก็บไว้ใน localStorage
+import {
+  Suspense,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAccountNames } from "@/lib/accounts";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,13 +27,20 @@ import {
   Search1,
 } from "@tailgrids/icons";
 import { assets } from "@/data/asset";
-import { branches } from "@/data/branches";
+import { branches, HEAD_OFFICE_BRANCH_ID } from "@/data/branches";
 import CreateRepairModal from "./modal";
 import {
   repairRequests as initialRepairRequests,
   type RepairRequest,
   type RepairStatus,
 } from "@/data/repairRequests";
+import {
+  getServerUserRepairRequestsSnapshot,
+  getUserRepairRequestsSnapshot,
+  parseUserRepairRequestsSnapshot,
+  saveUserRepairRequest,
+  subscribeToUserRepairRequests,
+} from "@/lib/userRepairRequests";
 
 const pageSize = 5;
 
@@ -59,11 +74,39 @@ function RepairsPageContent() {
   const searchParams = useSearchParams();
   const requestId = searchParams.get("requestId");
   const language = useLanguage();
+  const isDark = useTheme() === "dark";
   const translateText = useTranslate();
-  const [requests, setRequests] = useState(initialRepairRequests);
+  const { accountNames, error: accountNamesError } = useAccountNames();
+  // ใช้ username จาก API แทนรหัสผู้แจ้ง; ถ้าไม่พบข้อมูลจึงแสดงรหัสเดิม
+  const getReporterName = (reporterId: number) =>
+    accountNames.get(String(reporterId)) ??
+    `${translateText("ผู้ใช้งาน #")}${reporterId}`;
+  const [saveError, setSaveError] = useState("");
+  // อ่าน Local Storage ที่ใช้ร่วมกับหน้า Admin และรับ event เมื่อมีคำร้องใหม่
+  const storedRequestsSnapshot = useSyncExternalStore(
+    subscribeToUserRepairRequests,
+    getUserRepairRequestsSnapshot,
+    getServerUserRepairRequestsSnapshot,
+  );
+  // แปลง JSON ใน snapshot เป็นรายการที่มีชนิดข้อมูลถูกต้อง
+  const createdRequests = useMemo(
+    () => parseUserRepairRequestsSnapshot(storedRequestsSnapshot),
+    [storedRequestsSnapshot],
+  );
+  // รวมคำร้องที่สร้างเองกับข้อมูลตั้งต้น ก่อนกรองให้เหลือเฉพาะสำนักงานใหญ่
+  const allRequests = useMemo(
+    () => [...createdRequests, ...initialRepairRequests],
+    [createdRequests],
+  );
+  const requests = useMemo(
+    () =>
+      allRequests.filter(
+        (request) => request.branchId === HEAD_OFFICE_BRANCH_ID,
+      ),
+    [allRequests],
+  );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [branchFilter, setBranchFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [manuallySelectedRequest, setManuallySelectedRequest] = useState<RepairRequest | null>(
@@ -73,13 +116,14 @@ function RepairsPageContent() {
   const selectedRequest =
     requests.find((request) => request.id === requestId) ??
     manuallySelectedRequest;
+  const headOffice = getBranch(HEAD_OFFICE_BRANCH_ID);
 
   const closeDetails = () => {
     setManuallySelectedRequest(null);
     if (requestId) router.replace("/repairsuser", { scroll: false });
   };
 
-  // แสดงเฉพาะรายการที่ตรงกับคำค้นหา สถานะ สาขา และวันที่
+  // แสดงเฉพาะคำร้องสำนักงานใหญ่ที่ตรงกับคำค้นหา สถานะ และวันที่
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
 
@@ -95,18 +139,18 @@ function RepairsPageContent() {
             asset?.name,
             request.issue,
             branch?.name,
+            accountNames.get(String(request.reporterId)),
             String(request.reporterId),
           ].some((value) => value?.toLocaleLowerCase("th").includes(query));
 
         return (
           matchesSearch &&
           (statusFilter === "all" || request.status === statusFilter) &&
-          (branchFilter === "all" || request.branchId === branchFilter) &&
           (!dateFrom || request.reportedAt.slice(0, 10) >= dateFrom)
         );
       })
       .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
-  }, [requests, search, statusFilter, branchFilter, dateFrom]);
+  }, [requests, search, statusFilter, dateFrom, accountNames]);
 
   // เลือกรายการที่จะเห็นในหน้านี้; เปลี่ยนจำนวนต่อหน้าได้ที่ pageSize ด้านบน
   const pageCount = Math.max(1, Math.ceil(filteredRequests.length / pageSize));
@@ -122,7 +166,7 @@ function RepairsPageContent() {
   };
 
   const handleCreateRequest = (event: FormEvent<HTMLFormElement>) => {
-    // อ่านข้อมูลที่กรอกจากหน้าต่างสร้างคำร้อง
+    // อ่านเฉพาะค่าจากฟอร์ม แล้วตรวจให้มีทรัพย์สิน สาขา และอาการก่อนบันทึก
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const assetId = String(formData.get("assetId") ?? "");
@@ -136,11 +180,11 @@ function RepairsPageContent() {
 
     if (!assetId || !branchId || !issue) return;
 
-    // สร้างเลขคำร้องถัดไปจากรายการที่มีอยู่
+    // ใช้ทุกสาขาตรวจเลขคำร้องซ้ำ แม้หน้านี้จะแสดงเฉพาะสำนักงานใหญ่
     const nextNumber =
       Math.max(
         0,
-        ...requests.map((request) => Number(request.id.split("-")[1]) || 0),
+        ...allRequests.map((request) => Number(request.id.split("-")[1]) || 0),
       ) + 1;
     // คำร้องที่เพิ่งส่งจะมีสถานะ "รอดำเนินการ"
     const newRequest: RepairRequest = {
@@ -161,7 +205,17 @@ function RepairsPageContent() {
       adminNote: "",
     };
 
-    setRequests((current) => [newRequest, ...current]);
+    try {
+      // บันทึกลง Local Storage แล้วแจ้งหน้า User/Admin ให้รีเฟรชรายการ
+      saveUserRepairRequest(newRequest);
+      setSaveError("");
+    } catch {
+      setSaveError(
+        "บันทึกคำร้องไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บในเบราว์เซอร์แล้วลองอีกครั้ง",
+      );
+      return;
+    }
+
     setCurrentPage(1);
     setIsCreateOpen(false);
     event.currentTarget.reset();
@@ -170,6 +224,11 @@ function RepairsPageContent() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
+        {accountNamesError && (
+          <p role="alert" className="mb-4 text-sm text-rose-600">
+            {translateText(accountNamesError)}
+          </p>
+        )}
         {/* หัวข้อหน้าและปุ่มเปิดหน้าต่างสร้างคำร้อง */}
         <header className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
@@ -184,7 +243,10 @@ function RepairsPageContent() {
           </div>
           <button
             type="button"
-            onClick={() => setIsCreateOpen(true)}
+            onClick={() => {
+              setSaveError("");
+              setIsCreateOpen(true);
+            }}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 sm:w-auto"
           >
             <FileText className="size-4" />
@@ -193,20 +255,19 @@ function RepairsPageContent() {
           </button>
         </header>
 
-        {/* แสดงสาขาที่กำลังเลือกดู */}
+        {/* หน้าผู้ใช้แสดงข้อมูลสำนักงานใหญ่เท่านั้น */}
         <section className="mb-5 flex flex-col items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
           <div className="flex items-center gap-2 text-sm text-slate-700">
             <FileText className="size-4 text-slate-500" />
             <span>{translateText("สาขาที่ดูแล")}</span>
             <span className="font-semibold text-slate-900">
-              {branchFilter === "all"
-                ? translateText("ทุกสาขา")
-                : `${translateText(getBranch(branchFilter)?.name ?? "ไม่ระบุสาขา")} · ${getBranch(branchFilter)?.code}`}
+              {translateText(headOffice?.name ?? "สำนักงานใหญ่")}
+              {headOffice?.code ? ` · ${headOffice.code}` : ""}
             </span>
           </div>
           <p className="text-xs text-slate-400">
             
-            {translateText("แสดงรายการแจ้งซ่อมทั้งหมดในระบบ")}
+            {translateText("แสดงรายการแจ้งซ่อมของสำนักงานใหญ่เท่านั้น")}
           </p>
         </section>
 
@@ -259,24 +320,6 @@ function RepairsPageContent() {
               />
             </label>
 
-            <label className="relative">
-              <span className="sr-only">{translateText("กรองตามสาขา")}</span>
-              <select
-                value={branchFilter}
-                onChange={(event) =>
-                  updateFilter(() => setBranchFilter(event.target.value))
-                }
-                className="h-10 w-full appearance-none rounded-md border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 sm:w-44"
-              >
-                <option value="all">{translateText("ทุกสาขา")}</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {translateText(branch.name)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            </label>
           </div>
 
           {/* หน้าจอมือถือแสดงรายการเป็นการ์ด */}
@@ -310,7 +353,7 @@ function RepairsPageContent() {
                       <p className="text-[10px] text-slate-400">{translateText("ผู้แจ้ง")}</p>
                       <p className="mt-1 break-words text-slate-700">
                         
-                        {translateText("ผู้ใช้งาน #")}{request.reporterId}
+                        {getReporterName(request.reporterId)}
                       </p>
                     </div>
                     <div className="min-w-0">
@@ -367,7 +410,9 @@ function RepairsPageContent() {
                   return (
                     <tr
                       key={request.id}
-                      className="text-xs text-slate-700 transition hover:bg-slate-50/70"
+                      className={`text-xs text-slate-700 transition ${
+                        isDark ? "hover:bg-slate-700" : "hover:bg-slate-50/70"
+                      }`}
                     >
                       <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-slate-800">
                         {request.id}
@@ -382,7 +427,7 @@ function RepairsPageContent() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5">
                         
-                        {translateText("ผู้ใช้งาน #")}{request.reporterId}
+                        {getReporterName(request.reporterId)}
                       </td>
                       <td className="px-4 py-3.5">
                         <p className="font-medium text-slate-700">
@@ -529,7 +574,7 @@ function RepairsPageContent() {
                 <dt className="text-xs text-slate-500">{translateText("ผู้แจ้ง")}</dt>
                 <dd className="mt-1 font-medium text-slate-800">
                   
-                  {translateText("ผู้ใช้งาน #")}{selectedRequest.reporterId}
+                  {getReporterName(selectedRequest.reporterId)}
                 </dd>
               </div>
               <div>
@@ -571,8 +616,12 @@ function RepairsPageContent() {
       {/* หน้าต่างนี้เปิดจากปุ่ม "สร้างคำร้องแจ้งซ่อม" ด้านบน */}
       {isCreateOpen && (
         <CreateRepairModal
-          onClose={() => setIsCreateOpen(false)}
+          onClose={() => {
+            setSaveError("");
+            setIsCreateOpen(false);
+          }}
           onSubmit={handleCreateRequest}
+          error={saveError}
         />
       )}
     </div>
