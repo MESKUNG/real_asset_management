@@ -30,6 +30,7 @@ type RequestType = BorrowRequestType;
 
 type Request = BorrowRequest & {
   decidedAt?: string; // เวลาที่แอดมิน/ประธานดำเนินการล่าสุด (ใช้แสดงใน timeline)
+  attachmentDataUrl?: string; // รูปประกอบคำขอรับคืน
 };
 
 type NewRequest = {
@@ -39,6 +40,7 @@ type NewRequest = {
   expectedReturnDate: string;
   toBranchId?: string;
   purpose: string;
+  attachmentDataUrl?: string;
 };
 
 type AssetOption = { value: string; label: string };
@@ -955,6 +957,8 @@ function RequestModal({
   const [purpose, setPurpose] = useState(editing?.purpose ?? "");
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [assetMenuOpen, setAssetMenuOpen] = useState(false);
+  const [attachmentDataUrl, setAttachmentDataUrl] = useState(editing?.attachmentDataUrl ?? "");
+  const [qrMessage, setQrMessage] = useState("");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -1008,6 +1012,8 @@ function RequestModal({
       expectedReturnDate: type === "return" ? expectedReturnDate : "",
       toBranchId: type === "transfer" ? toBranch : undefined,
       purpose: purpose.trim(),
+      // แนบรูปเฉพาะคำขอรับคืนเท่านั้น
+      attachmentDataUrl: type === "return" ? attachmentDataUrl : undefined,
     });
     setSubmittedId(id);
   }
@@ -1114,6 +1120,8 @@ function RequestModal({
                     : "ตอนนี้ไม่มีทรัพย์สินที่พร้อมใช้งาน"}
                 </p>
               ) : (
+                <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
                 <Select<AssetOption, false>
                   inputId="asset-select"
                   options={assetOptions}
@@ -1135,8 +1143,89 @@ function RequestModal({
                     if (e.key === "Escape" && assetMenuOpen) e.stopPropagation();
                   }}
                 />
+                </div>
+                <label
+                  title="สแกน QR Code"
+                  aria-label="สแกน QR Code"
+                  className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-400 bg-white text-blue-950 hover:bg-indigo-50"
+                >
+                  <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v2M14 20h2M19 19h2v2h-2z" />
+                  </svg>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      const Detector = (window as Window & { BarcodeDetector?: new (options?: { formats: string[] }) => { detect: (source: ImageBitmap) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
+                      if (!Detector || typeof createImageBitmap === "undefined") {
+                        setQrMessage("เบราว์เซอร์นี้ไม่รองรับการอ่าน QR Code กรุณาเลือกทรัพย์สินจากรายการ");
+                        return;
+                      }
+                      try {
+                        const bitmap = await createImageBitmap(file);
+                        const detector = new Detector({ formats: ["qr_code"] });
+                        const codes = await detector.detect(bitmap);
+                        bitmap.close();
+                        const rawValue = codes[0]?.rawValue?.trim();
+                        if (!rawValue) {
+                          setQrMessage("ไม่พบ QR Code ในภาพ กรุณาลองสแกนอีกครั้ง");
+                          return;
+                        }
+                        let code = rawValue;
+                        try {
+                          const parsed = JSON.parse(rawValue) as { assetId?: string; id?: string; serialNumber?: string };
+                          code = parsed.assetId ?? parsed.id ?? parsed.serialNumber ?? rawValue;
+                        } catch { /* QR อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา */ }
+                        const matched = assets.find((a) => a.id === code || a.serialNumber === code || rawValue.includes(a.id));
+                        if (!matched) {
+                          setQrMessage(`ไม่พบทรัพย์สินรหัส ${code} ในระบบ`);
+                          return;
+                        }
+                        if (!options.some((a) => a.id === matched.id)) {
+                          setQrMessage("ทรัพย์สินนี้ไม่อยู่ในสถานะที่เลือกได้สำหรับคำขอประเภทนี้");
+                          return;
+                        }
+                        setAssetId(matched.id);
+                        setQrMessage(`สแกนสำเร็จ: ${matched.name} (${matched.id})`);
+                      } catch {
+                        setQrMessage("อ่าน QR Code ไม่สำเร็จ กรุณาลองใหม่");
+                      }
+                    }}
+                  />
+                </label>
+                </div>
               )}
+              {qrMessage && <p className="mt-1 text-xs text-slate-700">{qrMessage}</p>}
             </div>
+
+            {type === "return" && (
+              <div>
+                <label className={label}>รูปภาพประกอบการรับคืน</label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50">
+                    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3"/></svg>
+                    แนบรูปภาพ
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!file.type.startsWith("image/")) return;
+                      const reader = new FileReader();
+                      reader.onload = () => setAttachmentDataUrl(typeof reader.result === "string" ? reader.result : "");
+                      reader.readAsDataURL(file);
+                      e.target.value = "";
+                    }} />
+                  </label>
+                  {attachmentDataUrl && <button type="button" onClick={() => setAttachmentDataUrl("")} className="text-sm font-semibold text-red-700">ลบรูป</button>}
+                </div>
+                {attachmentDataUrl && <img src={attachmentDataUrl} alt="รูปภาพประกอบการรับคืน" className="mt-3 max-h-48 rounded-lg border border-slate-300 object-contain" />}
+                <p className="mt-1 text-xs text-slate-600">แนบรูปสภาพทรัพย์สินขณะรับคืน (ไม่บังคับ)</p>
+              </div>
+            )}
 
             {type === "transfer" && (
               <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
@@ -1169,7 +1258,7 @@ function RequestModal({
 
             <div>
               <label className={label}>
-                {type === "return" ? "วันที่คาดว่าจะคืน" : dateLabel}
+                {type === "return" ? "วันที่รับคืน" : dateLabel}
               </label>
               <input
                 type="date"
@@ -1432,6 +1521,13 @@ function DetailModal({
             </div>
           ))}
         </div>
+
+        {r.type === "return" && r.attachmentDataUrl && (
+          <div className="mt-5">
+            <h3 className="text-sm font-bold text-slate-900">รูปภาพประกอบการรับคืน</h3>
+            <img src={r.attachmentDataUrl} alt="รูปภาพประกอบการรับคืน" className="mt-2 max-h-72 rounded-lg border border-slate-300 object-contain" />
+          </div>
+        )}
 
         <div className="mt-5">
           <h3 className="text-sm font-bold text-slate-900">รายละเอียด</h3>
