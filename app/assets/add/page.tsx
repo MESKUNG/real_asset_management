@@ -3,8 +3,13 @@
 import { useState, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { assets as initialAssets, Asset } from "@/data/asset";
+import { Asset } from "@/data/asset";
 import { branches } from "@/data/branches";
+import {
+  getMergedAssets,
+  getServerAssets,
+  subscribeAssets,
+} from "@/lib/assetStorage";
 import {
   LayoutGrid,
   Building2,
@@ -70,6 +75,13 @@ function getClientCredential(): CredentialData {
 
 export default function AddAssetPage() {
   const router = useRouter();
+
+  const allAssets = useSyncExternalStore(
+    subscribeAssets,
+    getMergedAssets,
+    getServerAssets
+  );
+
   const credential = useSyncExternalStore(
     subscribeCredential,
     getClientCredential,
@@ -79,18 +91,18 @@ export default function AddAssetPage() {
   const canManageAsset =
     credential.role === "admin" || credential.role === "superadmin";
 
-  // สร้างรหัสทรัพย์สินถัดไปอัตโนมัติ (เช่น AST-0439)
+  // สร้างรหัสทรัพย์สินถัดไปอัตโนมัติ (นับรวมรายการที่เพิ่งเพิ่มใหม่ด้วย)
   const nextAssetId = useMemo(() => {
-    const maxNum = initialAssets.reduce((max, item) => {
+    const maxNum = allAssets.reduce((max, item) => {
       const num = parseInt(item.id.replace(/\D/g, ""), 10);
       return Number.isNaN(num) ? max : Math.max(max, num);
     }, 0);
     return `AST-${String(maxNum + 1).padStart(4, "0")}`;
-  }, []);
+  }, [allAssets]);
 
   // ดึงหมวดหมู่จากข้อมูลที่มีอยู่ (พร้อมค่าเริ่มต้น)
   const categoryOptions = useMemo(() => {
-    const fromData = Array.from(new Set(initialAssets.map((a) => a.category)));
+    const fromData = Array.from(new Set(allAssets.map((a) => a.category)));
     const defaults = [
       "คอมพิวเตอร์และอุปกรณ์ IT",
       "อุปกรณ์สำนักงาน",
@@ -99,7 +111,7 @@ export default function AddAssetPage() {
       "ยานพาหนะ",
     ];
     return Array.from(new Set([...defaults, ...fromData]));
-  }, []);
+  }, [allAssets]);
 
   // รายชื่อสาขา
   const branchOptions = useMemo(() => {
@@ -184,13 +196,13 @@ export default function AddAssetPage() {
       updatedBy: credential.staff_id || 1,
     };
 
-    // เก็บลง localStorage ชั่วคราวเผื่อหน้าอื่นดึงไปแสดง
     try {
       const saved = JSON.parse(localStorage.getItem("custom_assets") || "[]");
       localStorage.setItem(
         "custom_assets",
         JSON.stringify([newAsset, ...saved])
       );
+      window.dispatchEvent(new Event("assetchange"));
     } catch {
       // ignore storage error
     }
@@ -350,10 +362,9 @@ export default function AddAssetPage() {
                 />
                 <select
                   required
-                  disabled={credential.role === "admin"}
                   value={branchId}
                   onChange={(e) => setBranchId(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {branchOptions.map((b) => (
                     <option key={b.id} value={b.id}>

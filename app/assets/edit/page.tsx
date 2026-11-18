@@ -3,8 +3,13 @@
 import { useState, useMemo, useSyncExternalStore, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { assets as initialAssets, Asset } from "@/data/asset";
+import { Asset } from "@/data/asset";
 import { branches } from "@/data/branches";
+import {
+  getMergedAssets,
+  getServerAssets,
+  subscribeAssets,
+} from "@/lib/assetStorage";
 import {
   LayoutGrid,
   Building2,
@@ -22,7 +27,6 @@ type CredentialData = {
   staff_id?: number | null;
 };
 
-// --- อ่านสิทธิ์จาก localStorage ---
 function subscribeCredential(onChange: () => void) {
   window.addEventListener("storage", onChange);
   window.addEventListener("credentialchange", onChange);
@@ -68,7 +72,6 @@ function getClientCredential(): CredentialData {
   }
 }
 
-// แปลงวันที่ให้รองรับ <input type="date"> (YYYY-MM-DD)
 function toInputDate(dateStr?: string) {
   if (!dateStr) return "";
   if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
@@ -84,6 +87,12 @@ function EditAssetForm() {
   const searchParams = useSearchParams();
   const assetId = searchParams.get("id") || "";
 
+  const allAssets = useSyncExternalStore(
+    subscribeAssets,
+    getMergedAssets,
+    getServerAssets
+  );
+
   const credential = useSyncExternalStore(
     subscribeCredential,
     getClientCredential,
@@ -93,13 +102,12 @@ function EditAssetForm() {
   const canManageAsset =
     credential.role === "admin" || credential.role === "superadmin";
 
-  // ค้นหาทรัพย์สินที่จะแก้ไขจาก ID
   const targetAsset = useMemo(() => {
-    return initialAssets.find((item) => item.id === assetId);
-  }, [assetId]);
+    return allAssets.find((item) => item.id === assetId);
+  }, [allAssets, assetId]);
 
   const categoryOptions = useMemo(() => {
-    const fromData = Array.from(new Set(initialAssets.map((a) => a.category)));
+    const fromData = Array.from(new Set(allAssets.map((a) => a.category)));
     const defaults = [
       "คอมพิวเตอร์และอุปกรณ์ IT",
       "อุปกรณ์สำนักงาน",
@@ -108,7 +116,7 @@ function EditAssetForm() {
       "ยานพาหนะ",
     ];
     return Array.from(new Set([...defaults, ...fromData]));
-  }, []);
+  }, [allAssets]);
 
   const branchOptions = useMemo(() => {
     return (branches as Record<string, string>[]).map((b) => ({
@@ -117,7 +125,6 @@ function EditAssetForm() {
     }));
   }, []);
 
-  // Form States (ดึงค่าเริ่มต้นจาก targetAsset)
   const [name, setName] = useState(targetAsset?.name || "");
   const [category, setCategory] = useState(
     targetAsset?.category || categoryOptions[0] || ""
@@ -158,7 +165,6 @@ function EditAssetForm() {
     targetAsset?.qrCode || targetAsset?.id || ""
   );
 
-  // ป้องกันสิทธิ์ User / President
   if (!canManageAsset) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] p-8 flex flex-col items-center justify-center text-center">
@@ -228,6 +234,7 @@ function EditAssetForm() {
       const saved = JSON.parse(localStorage.getItem("updated_assets") || "{}");
       saved[updatedAsset.id] = updatedAsset;
       localStorage.setItem("updated_assets", JSON.stringify(saved));
+      window.dispatchEvent(new Event("assetchange"));
     } catch {
       // ignore storage error
     }
@@ -239,7 +246,6 @@ function EditAssetForm() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 text-slate-800">
       <form onSubmit={handleSubmit} className="max-w-6xl mx-auto space-y-6">
-        {/* Page Header */}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">แก้ไขทรัพย์สิน</h1>
           <p className="text-xs text-slate-400 mt-1">
@@ -247,13 +253,11 @@ function EditAssetForm() {
           </p>
         </div>
 
-        {/* Card 1: ข้อมูลทั่วไป */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             ข้อมูลทั่วไป
           </h2>
 
-          {/* แถว 1: รหัสทรัพย์สิน & ชื่อทรัพย์สิน */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
@@ -284,7 +288,6 @@ function EditAssetForm() {
             </div>
           </div>
 
-          {/* แถว 2: หมวดหมู่ & สถานะ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
@@ -333,7 +336,6 @@ function EditAssetForm() {
             </div>
           </div>
 
-          {/* แถว 3: ยี่ห้อ, รุ่น, Serial number */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
@@ -373,7 +375,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Card 2: สาขาและตำแหน่งจัดเก็บ */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             สาขาและตำแหน่งจัดเก็บ
@@ -391,10 +392,9 @@ function EditAssetForm() {
                 />
                 <select
                   required
-                  disabled={credential.role === "admin"}
                   value={branchId}
                   onChange={(e) => setBranchId(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {branchOptions.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -430,7 +430,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Card 3: การรับประกัน / และค่าเสื่อมราคา */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             การรับประกัน / และค่าเสื่อมราคา
@@ -477,7 +476,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Card 4: ผู้จำหน่าย */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             ผู้จำหน่าย
@@ -539,7 +537,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Card 5: QR Code / Barcode */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-4">
             QR Code / Barcode
@@ -558,7 +555,6 @@ function EditAssetForm() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* QR Code Box */}
             <div className="border border-slate-200 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-semibold text-slate-800">
@@ -583,7 +579,6 @@ function EditAssetForm() {
               </div>
             </div>
 
-            {/* Barcode Box */}
             <div className="border border-slate-200 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-semibold text-slate-800">
@@ -636,7 +631,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Bottom Action Buttons */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
           <Link
             href={`/assets/${targetAsset.id}`}

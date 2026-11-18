@@ -3,8 +3,13 @@
 import { useState, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { assets as initialAssets, Asset, AssetStatus } from "@/data/asset";
+import { Asset, AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
+import {
+  getMergedAssets,
+  getServerAssets,
+  subscribeAssets,
+} from "@/lib/assetStorage";
 import {
   Search,
   Plus,
@@ -74,6 +79,13 @@ function getClientCredential(): CredentialData {
 }
 
 export default function AssetListPage() {
+  // ดึงข้อมูลรวมจาก data/asset.ts + รายการที่เพิ่ม/แก้ไข/ลบ
+  const allAssets = useSyncExternalStore(
+    subscribeAssets,
+    getMergedAssets,
+    getServerAssets
+  );
+
   const credential = useSyncExternalStore(
     subscribeCredential,
     getClientCredential,
@@ -82,8 +94,9 @@ export default function AssetListPage() {
 
   const { role, branch_id: userBranchId } = credential;
 
-  // สิทธิ์ตาม Role
-  const canViewAllBranches = role === "president" || role === "superadmin";
+  // สิทธิ์ตาม Role: Admin, President, Superadmin ดูได้ทุกสาขา (User ดูได้เฉพาะสาขาตัวเอง)
+  const canViewAllBranches =
+    role === "admin" || role === "president" || role === "superadmin";
   const canManageAsset = role === "admin" || role === "superadmin";
 
   // Filter States
@@ -103,27 +116,52 @@ export default function AssetListPage() {
 
   // รายชื่อสาขาสำหรับ Dropdown
   const branchOptions = useMemo(() => {
-    const ids = Array.from(new Set(initialAssets.map((a) => a.branchId)));
+    const ids = Array.from(new Set(allAssets.map((a) => a.branchId)));
     return ids.map((id) => ({ id, name: getBranchName(id) }));
-  }, []);
+  }, [allAssets]);
+
+  // ข้อมูลตั้งต้นทั้งหมดตามสิทธิ์ (ใช้คำนวณการ์ดสรุปด้านบน ไม่เปลี่ยนตามช่องค้นหา/ตัวกรอง)
+  const scopedAssets = useMemo(() => {
+    return allAssets.filter((item) => {
+      if (!canViewAllBranches && userBranchId && item.branchId !== userBranchId) {
+        return false;
+      }
+      return true;
+    });
+  }, [allAssets, canViewAllBranches, userBranchId]);
+
+  // คำนวณสถิติสำหรับ Summary Card (ค่าคงที่ ไม่เปลี่ยนเวลาค้นหาหรือกรองสถานะ)
+  const stats = useMemo(() => {
+    const total = scopedAssets.length;
+    const ready = scopedAssets.filter(
+      (a) => a.status === "available" || a.status === "borrowed"
+    ).length;
+    const repair = scopedAssets.filter((a) => a.status === "repair").length;
+    const damaged = scopedAssets.filter(
+      (a) => a.status === "damaged" || a.status === "disposed"
+    ).length;
+
+    return {
+      total,
+      ready,
+      repair,
+      damaged,
+      readyPct: total ? (ready / total) * 100 : 0,
+      repairPct: total ? (repair / total) * 100 : 0,
+      damagedPct: total ? (damaged / total) * 100 : 0,
+    };
+  }, [scopedAssets]);
 
   // กรองข้อมูลตามสิทธิ์ Role + Search + Branch + Status
   const filteredAssets = useMemo(() => {
-    return initialAssets
+    return scopedAssets
       .filter((item) => {
-        // 1. User / Admin เห็นเฉพาะสาขาของตัวเอง
-        if (!canViewAllBranches && userBranchId && item.branchId !== userBranchId) {
-          return false;
-        }
-        // 2. President / Superadmin กรองตาม Dropdown สาขาได้
         if (canViewAllBranches && selectedBranch !== "all" && item.branchId !== selectedBranch) {
           return false;
         }
-        // 3. กรองตามสถานะ
         if (selectedStatus !== "all" && item.status !== selectedStatus) {
           return false;
         }
-        // 4. ค้นหาจากชื่อ, รหัส, ยี่ห้อ, รุ่น, Serial Number
         if (search.trim() !== "") {
           const q = search.toLowerCase();
           return (
@@ -137,29 +175,7 @@ export default function AssetListPage() {
         return true;
       })
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }, [canViewAllBranches, userBranchId, selectedBranch, selectedStatus, search]);
-
-  // คำนวณสถิติสำหรับ Summary Card (จากข้อมูลที่กรองตามสิทธิ์แล้ว)
-  const stats = useMemo(() => {
-    const total = filteredAssets.length;
-    const ready = filteredAssets.filter(
-      (a) => a.status === "available" || a.status === "borrowed"
-    ).length;
-    const repair = filteredAssets.filter((a) => a.status === "repair").length;
-    const damaged = filteredAssets.filter(
-      (a) => a.status === "damaged" || a.status === "disposed"
-    ).length;
-
-    return {
-      total,
-      ready,
-      repair,
-      damaged,
-      readyPct: total ? (ready / total) * 100 : 0,
-      repairPct: total ? (repair / total) * 100 : 0,
-      damagedPct: total ? (damaged / total) * 100 : 0,
-    };
-  }, [filteredAssets]);
+  }, [scopedAssets, canViewAllBranches, selectedBranch, selectedStatus, search]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredAssets.length / ITEMS_PER_PAGE));
@@ -243,7 +259,7 @@ export default function AssetListPage() {
           )}
         </div>
 
-        {/* Summary Card */}
+        {/* Summary Card (แสดงยอดคงที่ ไม่เปลี่ยนตามตัวกรอง) */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -401,7 +417,14 @@ export default function AssetListPage() {
                 <div className="col-span-4 flex items-center gap-3.5">
                   <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 overflow-hidden">
                     {asset.assetImage ? (
-                      <Image src={asset.assetImage} alt={asset.name} width={80} height={80} unoptimized className="h-full w-full object-cover" />
+                      <Image
+                        src={asset.assetImage}
+                        alt={asset.name}
+                        width={80}
+                        height={80}
+                        unoptimized
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <Laptop size={18} />
                     )}
