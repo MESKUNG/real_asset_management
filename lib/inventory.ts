@@ -1,21 +1,21 @@
+import { tx, localized, dateLocale, inThai } from "@/lib/i18n";
+import { assets, borrowRequests, branches, categories, repairRequests, vendors } from "@/lib/localizedData";
 // ข้อมูลและฟังก์ชันกลางของระบบตรวจนับ ใช้ร่วมกันทุกหน้าใน /inventories และ /reports
 import { useMemo, useSyncExternalStore } from "react";
-import { assets, type Asset, type AssetStatus } from "@/data/asset";
-import { branches } from "@/data/branches";
-import { categories } from "@/data/catagories";
+import { type Asset, type AssetStatus } from "@/data/asset";
 import {
   inventorySessions,
   type InventorySession,
   type InventorySessionStatus,
 } from "@/data/inventorySessions";
+
 import {
   inventoryChecks,
   type InventoryCheck,
   type InventoryResult,
 } from "@/data/inventoryCheck";
-import { borrowRequests } from "@/data/borrowRequests";
-import { repairRequests } from "@/data/repairRequests";
-import { vendors } from "@/data/vendor";
+
+import { PLACEHOLDER_FIRST_NAMES, staffDirectory } from "@/lib/staffDirectory";
 
 /* ---------------- ผู้ใช้ที่ login อยู่ ---------------- */
 
@@ -38,7 +38,7 @@ function parseCredential(raw: string | null): Credential | null {
     if (!ROLES.includes(data?.role)) return null;
     return {
       id: Number(data.id) || 0,
-      username: data.username ?? "ผู้ใช้",
+      username: data.username ?? tx("ผู้ใช้"),
       role: data.role,
       branchId: data.branch_id ?? null,
     };
@@ -71,11 +71,16 @@ export function useCredential() {
 
 /* ---------------- ชื่อพนักงานจาก Account บน MockAPI ---------------- */
 // ไฟล์ใน data/ เก็บแค่รหัสพนักงาน (101, 102, ...) ชื่อจริงอยู่ใน Account (ช่อง staff_id)
-// โหลดครั้งเดียวแล้วเก็บไว้ ถ้าโหลดไม่ได้จะแสดงเป็น "พนักงาน #รหัส"
+// เริ่มจากรายชื่อสำรองใน lib/staffDirectory.ts (เปิดเว็บแล้วมีชื่อทันที แม้ยังโหลด MockAPI ไม่เสร็จหรือเน็ตหลุด)
+// แล้วอัปเดตด้วยชื่อจาก MockAPI ยกเว้นบัญชีที่ยังเป็นชื่อตัวอย่าง (Employee / Manager / Director)
 
 const staffNames: Record<number, string> = {};
 // ชื่อตามรหัสบัญชี (id ของ Account) ใช้เป็นชื่อผู้ตรวจ เพราะบัญชีที่ล็อกอินเก็บ id ไม่ใช่ staff_id
 const accountNames: Record<number, string> = {};
+for (const entry of staffDirectory) {
+  staffNames[entry.staffId] = entry.name;
+  accountNames[entry.accountId] = entry.name;
+}
 let staffLoadStarted = false;
 let staffVersion = 0;
 
@@ -90,6 +95,8 @@ function loadStaffNames() {
     .then((accounts) => {
       if (!Array.isArray(accounts)) return;
       for (const account of accounts) {
+        // ชื่อตัวอย่าง เช่น "Manager SixtyOne" ไม่เอามาแสดง ใช้ชื่อจากรายชื่อสำรองแทน
+        if (PLACEHOLDER_FIRST_NAMES.includes(account.first_name)) continue;
         const staffId = Number(account.staff_id);
         const fullName = [account.first_name, account.last_name].filter(Boolean).join(" ") || account.username;
         if (staffId) staffNames[staffId] = fullName;
@@ -113,8 +120,9 @@ export function useStaffNames() {
 }
 
 export function getStaffName(id?: number | null): string {
-  if (id === undefined || id === null) return "ยังไม่มอบหมาย";
-  return staffNames[id] ?? `พนักงาน #${id}`;
+  if (id === undefined || id === null) return tx("ยังไม่มอบหมาย");
+  const name = staffNames[id];
+  return name ? tx(name) : tx("พนักงาน #{0}", id);
 }
 
 // ชื่อจริงของคนที่ล็อกอินอยู่ (จาก MockAPI) ถ้ายังโหลดไม่ได้ใช้ username แทน
@@ -177,7 +185,8 @@ export function useInventoryStore() {
     () => undefined,
   );
   const store = useMemo(() => parseStore(raw ?? null), [raw]);
-  return { sessions: store.sessions, checks: store.checks, ready: raw !== undefined };
+  // ห่อด้วย localized() ให้ชื่อรอบ / หมายเหตุ แปลตามภาษาที่เลือกตอนแสดงผล
+  return { sessions: localized(store.sessions), checks: localized(store.checks), ready: raw !== undefined };
 }
 
 function readStore(): InventoryStore {
@@ -247,43 +256,43 @@ export function getAwayReason(asset: Asset): AwayReason | null {
         r.type === "withdraw" &&
         (r.status === "approved" || r.status === "overdue"),
     );
-    return { text: "ถูกเบิก/ยืมอยู่", documentId: borrow?.id ?? null };
+    return { text: tx("ถูกเบิก/ยืมอยู่"), documentId: borrow?.id ?? null };
   }
   // สถานะซ่อมที่มีใบแจ้งซ่อม = ส่งออกไปซ่อมแล้ว ไม่อยู่ในสาขา
   const repair = asset.status === "repair" ? activeRepair(asset) : undefined;
   if (repair) {
-    return { text: `ส่งซ่อมที่ ${getVendorName(repair.vendorId)}`, documentId: repair.id };
+    return { text: tx("ส่งซ่อมที่ {0}", getVendorName(repair.vendorId)), documentId: repair.id };
   }
   return null;
 }
 
 // สถานะซ่อมแต่ยังไม่มีใบแจ้งซ่อม = ของยังอยู่ในสาขา ต้องตรวจนับ แต่บอกผู้ตรวจไว้ก่อน
 export function getConditionHint(asset: Asset): string | null {
-  if (asset.status === "repair" && !activeRepair(asset)) return "ชำรุดแต่ยังไม่ได้ส่งซ่อม";
+  if (asset.status === "repair" && !activeRepair(asset)) return tx("ชำรุดแต่ยังไม่ได้ส่งซ่อม");
   return null;
 }
 
-export const SESSION_STATUS_LABEL: Record<InventorySessionStatus, string> = {
+export const SESSION_STATUS_LABEL: Record<InventorySessionStatus, string> = localized({
   planned: "รอเริ่ม",
   in_progress: "กำลังนับ",
   completed: "เสร็จสิ้น",
   cancelled: "ยกเลิก",
-};
+});
 
-export const RESULT_LABEL: Record<InventoryResult, string> = {
+export const RESULT_LABEL: Record<InventoryResult, string> = localized({
   found: "ปกติ",
   damaged: "ชำรุด",
   missing: "สูญหาย",
   mismatch: "สูญหาย",
-};
+});
 
-export const ASSET_STATUS_LABEL: Record<AssetStatus, string> = {
+export const ASSET_STATUS_LABEL: Record<AssetStatus, string> = localized({
   available: "พร้อมใช้งาน",
   borrowed: "ถูกยืม",
   repair: "ซ่อมบำรุง",
   damaged: "ชำรุด",
   disposed: "จำหน่ายแล้ว",
-};
+});
 
 /* ---------------- วันที่และตัวเลข ---------------- */
 
@@ -307,7 +316,7 @@ function parseDate(value: string): Date {
 export function formatThaiDate(value: string, withYear = true): string {
   const d = parseDate(value);
   if (isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("th-TH", {
+  return d.toLocaleDateString(dateLocale(), {
     day: "numeric",
     month: "short",
     ...(withYear ? { year: "numeric" } : {}),
@@ -317,7 +326,7 @@ export function formatThaiDate(value: string, withYear = true): string {
 export function formatThaiDateTime(value: string): string {
   const d = parseDate(value);
   if (isNaN(d.getTime())) return "-";
-  return d.toLocaleString("th-TH", {
+  return d.toLocaleString(dateLocale(), {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -336,7 +345,7 @@ export function daysFromToday(value: string): number {
 }
 
 export function formatBaht(n: number): string {
-  return `฿${n.toLocaleString("th-TH")}`;
+  return tx("฿{0}", n.toLocaleString("th-TH"));
 }
 
 /* ---------------- ความคืบหน้าของรอบ ---------------- */
@@ -456,9 +465,12 @@ export function completeSession(sessionId: string, by: Credential): boolean {
       checkerName: checkerNameOf(by),
       result: away ? "found" : "missing",
       checkedAt: now,
-      note: away
-        ? `ไม่อยู่ในสาขาขณะตรวจ: ${away.text}${away.documentId ? ` (${away.documentId})` : ""}`
-        : "ไม่พบระหว่างตรวจนับ (บันทึกอัตโนมัติตอนปิดรอบ)",
+      // เก็บหมายเหตุเป็นภาษาไทยเสมอ ตอนแสดงผลจะแปลตามภาษาที่เลือก
+      note: inThai(() =>
+        away
+          ? tx("ไม่อยู่ในสาขาขณะตรวจ: {0}{1}", getAwayReason(asset)?.text ?? "", away.documentId ? ` (${away.documentId})` : "")
+          : tx("ไม่พบระหว่างตรวจนับ (บันทึกอัตโนมัติตอนปิดรอบ)"),
+      ),
     });
   }
 

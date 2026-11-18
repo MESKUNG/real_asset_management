@@ -1,7 +1,7 @@
 "use client";
-import { useTranslate } from "@/lib/language";
 
 
+import { useT } from "@/lib/i18n";
 // เมนูตรวจนับของ User และ Admin ลิงก์มาที่ URL เดียวกัน
 // หน้านี้อ่าน role แล้วเลือกว่าจะแสดงหน้าไหน
 import { useCredential } from "@/lib/inventory";
@@ -10,7 +10,7 @@ import UserSchedulePage from "./_components/userSchedulePage";
 import { Loading, NoAccess } from "./_components/ui";
 
 export default function InventoriesPage() {
-  const translateText = useTranslate();
+  const translateText = useT();
   const { credential, ready } = useCredential();
 
   if (!ready) return <Loading />;

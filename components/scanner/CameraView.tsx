@@ -1,5 +1,6 @@
 "use client";
 
+import { tx, useT, localized } from "@/lib/i18n";
 // ส่วนกล้องของตัวสแกนกลาง (ใช้ไลบรารี @yudiel/react-qr-scanner)
 // เลือกกล้องเองได้ เพราะคอมบางเครื่องมีกล้องเสมือนหลายตัว เช่น OBS Virtual Camera หรือ Iriun Webcam
 import { useState } from "react";
@@ -36,7 +37,7 @@ const FORMATS = [
 
 const CAMERA_KEY = "scanner-camera";
 
-const ERROR_TEXT: Record<IScannerError["kind"], string> = {
+const ERROR_TEXT: Record<IScannerError["kind"], string> = localized({
   "permission-denied": "ยังไม่ได้อนุญาตให้ใช้กล้อง กดรูปกุญแจที่แถบที่อยู่เว็บ แล้วเลือกอนุญาตกล้อง",
   "no-camera": "ไม่พบกล้องในเครื่องนี้",
   "in-use": "กล้องถูกโปรแกรมอื่นใช้อยู่ ปิดโปรแกรมนั้นก่อน หรือเลือกกล้องตัวอื่น",
@@ -47,7 +48,7 @@ const ERROR_TEXT: Record<IScannerError["kind"], string> = {
   security: "เบราว์เซอร์ไม่อนุญาตให้ใช้กล้อง",
   "type-error": "เปิดกล้องไม่สำเร็จ",
   unknown: "เปิดกล้องไม่สำเร็จ",
-};
+});
 
 function readSavedCamera() {
   try {
@@ -61,6 +62,7 @@ export default function CameraView({ onScan, paused }: {
   onScan: (code: string, format: string) => void;
   paused: boolean;
 }) {
+  useT();
   const devices = useDevices();
   const [deviceId, setDeviceId] = useState(readSavedCamera);
   const [error, setError] = useState<string | null>(null);
@@ -88,16 +90,16 @@ export default function CameraView({ onScan, paused }: {
     <div className="space-y-3">
       {devices.length > 1 && (
         <label className="block text-base font-medium text-slate-700">
-          เลือกกล้อง
+          {tx("เลือกกล้อง")}
           <select
             value={selected}
             onChange={(e) => chooseCamera(e.target.value)}
             className="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">กล้องหลัง (ค่าเริ่มต้น)</option>
+            <option value="">{tx("กล้องหลัง (ค่าเริ่มต้น)")}</option>
             {devices.map((d, i) => (
               <option key={d.deviceId} value={d.deviceId}>
-                {d.label || `กล้อง ${i + 1}`}
+                {d.label || tx("กล้อง {0}", i + 1)}
               </option>
             ))}
           </select>
@@ -107,20 +109,20 @@ export default function CameraView({ onScan, paused }: {
       <div className="overflow-hidden rounded-3xl bg-slate-900">
         {error ? (
           <div className="flex aspect-square flex-col items-center justify-center gap-3 p-6 text-center text-base text-white">
-            <p>{error}</p>
+            <p>{ERROR_TEXT[error as IScannerError["kind"]] ?? error}</p>
             <button
               type="button"
               onClick={() => setError(null)}
               className="min-h-11 rounded-xl bg-white px-4 text-base font-semibold text-slate-900"
             >
-              ลองเปิดกล้องอีกครั้ง
+              {tx("ลองเปิดกล้องอีกครั้ง")}
             </button>
           </div>
         ) : (
           <Scanner
             key={selected || "default"}
             onScan={handleScan}
-            onError={(e) => setError(ERROR_TEXT[e.kind] ?? e.message)}
+            onError={(e) => setError(e.kind ?? e.message)}
             paused={paused}
             constraints={{
               ...(selected ? { deviceId: { exact: selected } } : { facingMode: "environment" }),

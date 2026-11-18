@@ -1,16 +1,12 @@
+import { tx, localized, dateLocale, isEnglish } from "@/lib/i18n";
+import { approvals, assetHistories, assets, borrowRequests, repairRequests } from "@/lib/localizedData";
 // ข้อมูลกลางของหน้ารายงานทั้ง 3 แบบ (User สรุปรายงาน / Admin-President รับรายงาน / Admin ส่งรายงาน)
 // ทุกตัวเลขคำนวณจากไฟล์ใน data/ และผลตรวจนับใน lib/inventory.ts ไม่มีตัวเลขพิมพ์ตายตัว
 import { useMemo, useSyncExternalStore } from "react";
-import { assets, type Asset, type AssetStatus } from "@/data/asset";
-import { approvals, type ApprovalStatus } from "@/data/approvals";
-import { assetHistories } from "@/data/assetHistories";
-import {
-  borrowRequests,
-  type BorrowRequest,
-  type BorrowRequestType,
-  type BorrowStatus,
-} from "@/data/borrowRequests";
-import { repairRequests, type RepairRequest, type RepairStatus } from "@/data/repairRequests";
+import { type Asset, type AssetStatus } from "@/data/asset";
+import { type ApprovalStatus } from "@/data/approvals";
+import { type BorrowRequest, type BorrowRequestType, type BorrowStatus } from "@/data/borrowRequests";
+import { type RepairRequest, type RepairStatus } from "@/data/repairRequests";
 import {
   ASSET_STATUS_LABEL,
   RESULT_LABEL,
@@ -38,7 +34,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const lastDayOfMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
 function monthLabel(year: number, month: number) {
-  return new Date(year, month - 1, 1).toLocaleDateString("th-TH", { month: "short", year: "numeric" });
+  return new Date(year, month - 1, 1).toLocaleDateString(dateLocale(), { month: "short", year: "numeric" });
 }
 
 function monthPeriod(year: number, month: number): Period {
@@ -61,7 +57,7 @@ export function getPeriods(today = new Date()): Period[] {
   const start3 = back(2);
   const months = Array.from({ length: 6 }, (_, i) => back(i)).map((b) => monthPeriod(b.year, b.month));
   const shortMonth = (year: number, month: number) =>
-    new Date(year, month - 1, 1).toLocaleDateString("th-TH", { month: "short" });
+    new Date(year, month - 1, 1).toLocaleDateString(dateLocale(), { month: "short" });
   return [
     {
       key: "last3",
@@ -70,8 +66,8 @@ export function getPeriods(today = new Date()): Period[] {
       to: `${y}-${pad(m)}-${pad(lastDayOfMonth(y, m))}`,
     },
     ...months,
-    { key: `year-${y}`, label: `ทั้งปี ${y + 543}`, from: `${y}-01-01`, to: `${y}-12-31` },
-    { key: "all", label: "ทุกช่วงเวลา", from: "0000-01-01", to: "9999-12-31" },
+    { key: `year-${y}`, label: tx("ทั้งปี {0}", isEnglish() ? y : y + 543), from: `${y}-01-01`, to: `${y}-12-31` },
+    { key: "all", label: tx("ทุกช่วงเวลา"), from: "0000-01-01", to: "9999-12-31" },
   ];
 }
 
@@ -83,33 +79,33 @@ export function inPeriod(value: string | null | undefined, period: Period) {
 
 /* ---------------- ป้ายสถานะ ---------------- */
 
-export const BORROW_TYPE_LABEL: Record<BorrowRequestType, string> = {
+export const BORROW_TYPE_LABEL: Record<BorrowRequestType, string> = localized({
   withdraw: "เบิก",
   return: "คืน",
   transfer: "โอนย้าย",
-};
+});
 
-export const BORROW_STATUS_LABEL: Record<BorrowStatus, string> = {
+export const BORROW_STATUS_LABEL: Record<BorrowStatus, string> = localized({
   pending: "รออนุมัติ",
   revision: "ส่งกลับแก้ไข",
   approved: "อนุมัติแล้ว",
   returned: "คืนแล้ว",
   rejected: "ไม่อนุมัติ",
   overdue: "เกินกำหนดคืน",
-};
+});
 
-export const APPROVAL_STATUS_LABEL: Record<ApprovalStatus, string> = {
+export const APPROVAL_STATUS_LABEL: Record<ApprovalStatus, string> = localized({
   pending: "รอพิจารณา",
   approved: "อนุมัติ",
   rejected: "ไม่อนุมัติ",
-};
+});
 
-export const REPAIR_STATUS_LABEL: Record<RepairStatus, string> = {
+export const REPAIR_STATUS_LABEL: Record<RepairStatus, string> = localized({
   pending: "รอดำเนินการ",
   in_progress: "กำลังซ่อม",
   completed: "ซ่อมเสร็จ",
   rejected: "ไม่อนุมัติซ่อม",
-};
+});
 
 // สีของป้าย: เขียว = จบดี, เหลือง = รออยู่, แดง = ไม่ผ่าน, ฟ้า = กำลังทำ
 export type Tone = "good" | "wait" | "bad" | "info" | "plain";
@@ -159,13 +155,13 @@ export function repairCost(r: RepairRequest) {
 
 // ระยะเวลาจากยื่นคำขอถึงวันที่พิจารณา เป็นข้อความอ่านง่าย
 export function durationText(from: string, to: string | null) {
-  if (!to) return "ยังไม่พิจารณา";
+  if (!to) return tx("ยังไม่พิจารณา");
   const minutes = Math.max(0, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60000));
   const days = Math.floor(minutes / 1440);
   const hours = Math.floor((minutes % 1440) / 60);
-  if (days > 0) return `${days} วัน ${hours} ชม.`;
-  if (hours > 0) return `${hours} ชม. ${minutes % 60} นาที`;
-  return `${minutes} นาที`;
+  if (days > 0) return tx("{0} วัน {1} ชม.", days, hours);
+  if (hours > 0) return tx("{0} ชม. {1} นาที", hours, minutes % 60);
+  return tx("{0} นาที", minutes);
 }
 
 /* ---------------- การเคลื่อนไหว (เบิก / คืน / โอนย้าย) ---------------- */
@@ -201,7 +197,7 @@ export function getMovementRows(options: { period: Period; branchId: string; sta
 
 export function movementSheet(rows: MovementRow[]): ExcelSheet {
   return {
-    name: "การโยกย้าย",
+    name: tx("การโยกย้าย"),
     rows: rows.map(({ request: r, from, to }) => ({
       เลขที่คำขอ: r.id,
       ประเภท: BORROW_TYPE_LABEL[r.type],
@@ -232,7 +228,7 @@ export function getRegisterRows(options: { branchId: string; status: string; cat
 
 export function registerSheet(rows: Asset[]): ExcelSheet {
   return {
-    name: "ทะเบียนทรัพย์สิน",
+    name: tx("ทะเบียนทรัพย์สิน"),
     rows: rows.map((a) => ({
       รหัส: a.id,
       ชื่อทรัพย์สิน: a.name,
@@ -277,7 +273,7 @@ export function getApprovalRows(options: { period: Period; branchId: string; sta
 
 export function approvalSheet(rows: ApprovalRow[]): ExcelSheet {
   return {
-    name: "สรุปการอนุมัติ",
+    name: tx("สรุปการอนุมัติ"),
     rows: rows.map(({ approval: a, request, from, to }) => ({
       เลขที่อนุมัติ: a.id,
       เลขที่คำขอ: a.requestId,
@@ -309,7 +305,7 @@ export function getRepairRows(options: { period: Period; branchId: string }) {
 
 export function repairSheet(rows: RepairRequest[]): ExcelSheet {
   return {
-    name: "งานซ่อม",
+    name: tx("งานซ่อม"),
     rows: rows.map((r) => ({
       เลขที่: r.id,
       ทรัพย์สิน: assetLabel(r.assetId),
@@ -348,7 +344,7 @@ export const issueCount = (row: InventoryRow) =>
 
 export function inventorySheet(rows: InventoryRow[]): ExcelSheet {
   return {
-    name: "ตรวจนับ",
+    name: tx("ตรวจนับ"),
     rows: rows.map(({ session: s, progress: p }) => ({
       รหัสรอบ: s.id,
       ชื่อรอบ: s.name,
@@ -397,7 +393,7 @@ export function getActivities(checks: StoredCheck[], options: { period: Period; 
       id: c.id,
       at: c.checkedAt,
       who: getCheckerName(c),
-      text: `บันทึกผลตรวจนับ: ${RESULT_LABEL[c.result]}`,
+      text: tx("บันทึกผลตรวจนับ: {0}", RESULT_LABEL[c.result]),
       ref: `${c.sessionId} · ${c.assetId}`,
       branchId: c.branchId,
     })),
@@ -405,7 +401,7 @@ export function getActivities(checks: StoredCheck[], options: { period: Period; 
       id: r.id,
       at: r.reportedAt,
       who: getStaffName(r.reporterId),
-      text: `แจ้งซ่อม: ${r.issue}`,
+      text: tx("แจ้งซ่อม: {0}", r.issue),
       ref: `${r.id} · ${r.assetId}`,
       branchId: r.branchId,
     })),
@@ -413,7 +409,7 @@ export function getActivities(checks: StoredCheck[], options: { period: Period; 
       id: r.id,
       at: r.createdAt,
       who: getStaffName(r.borrowerId),
-      text: `ขอ${BORROW_TYPE_LABEL[r.type]}ทรัพย์สิน`,
+      text: tx("ขอ{0}ทรัพย์สิน", BORROW_TYPE_LABEL[r.type]),
       ref: `${r.id} · ${r.assetId}`,
       branchId: r.branchId,
     })),
@@ -447,10 +443,10 @@ export type SentReport = {
   readAt: string | null;
 };
 
-export const PURPOSE_LABEL: Record<ReportPurpose, string> = {
+export const PURPOSE_LABEL: Record<ReportPurpose, string> = localized({
   inform: "เพื่อทราบ",
   approve: "ขออนุมัติ",
-};
+});
 
 const REPORT_KEY = "report-outbox-v1";
 const REPORT_EVENT = "reportoutboxchange";
@@ -538,16 +534,16 @@ function nextReportId(list: SentReport[]) {
 
 export function reportSheet(report: SentReport): ExcelSheet {
   return {
-    name: "รายงานเสนอ President",
+    name: tx("รายงานเสนอ President"),
     rows: [
-      { หัวข้อ: "ชื่อรายงาน", รายละเอียด: report.title },
-      { หัวข้อ: "รอบรายงาน", รายละเอียด: report.periodLabel },
-      { หัวข้อ: "วัตถุประสงค์", รายละเอียด: PURPOSE_LABEL[report.purpose] },
-      { หัวข้อ: "ผู้จัดทำ", รายละเอียด: report.createdByName },
-      { หัวข้อ: "สรุปผู้บริหาร", รายละเอียด: report.summary },
+      { หัวข้อ: tx("ชื่อรายงาน"), รายละเอียด: report.title },
+      { หัวข้อ: tx("รอบรายงาน"), รายละเอียด: report.periodLabel },
+      { หัวข้อ: tx("วัตถุประสงค์"), รายละเอียด: PURPOSE_LABEL[report.purpose] },
+      { หัวข้อ: tx("ผู้จัดทำ"), รายละเอียด: report.createdByName },
+      { หัวข้อ: tx("สรุปผู้บริหาร"), รายละเอียด: report.summary },
       ...report.sections.map((s) => ({ หัวข้อ: s.label, รายละเอียด: s.value })),
-      ...report.issues.map((i, n) => ({ หัวข้อ: `ประเด็นที่ ${n + 1}: ${i.title}`, รายละเอียด: i.detail })),
-      { หัวข้อ: "ข้อความถึง President", รายละเอียด: report.message },
+      ...report.issues.map((i, n) => ({ หัวข้อ: tx("ประเด็นที่ {0}: {1}", n + 1, i.title), รายละเอียด: i.detail })),
+      { หัวข้อ: tx("ข้อความถึง President"), รายละเอียด: report.message },
     ],
   };
 }

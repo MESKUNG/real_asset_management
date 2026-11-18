@@ -1,5 +1,6 @@
 "use client";
 
+import { tx, useT } from "@/lib/i18n";
 // ชิ้นส่วนหน้าจอที่ใช้ซ้ำในหน้าตรวจนับและหน้ารายงาน
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
@@ -23,6 +24,7 @@ export function PageHeader({
   backHref?: string;
   actions?: ReactNode;
 }) {
+  useT();
   return (
     <div className="border-b border-slate-200 bg-white px-4 py-4 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
@@ -30,7 +32,7 @@ export function PageHeader({
           {backHref && (
             <Link
               href={backHref}
-              aria-label="ย้อนกลับ"
+              aria-label={tx("ย้อนกลับ")}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-2xl text-slate-700 hover:bg-slate-100"
             >
               ‹
@@ -99,7 +101,8 @@ export function ProgressBar({ percent }: { percent: number }) {
 }
 
 export function Loading() {
-  return <div className="p-10 text-center text-base text-slate-500">กำลังโหลด...</div>;
+  useT();
+  return <div className="p-10 text-center text-base text-slate-500">{tx("กำลังโหลด...")}</div>;
 }
 
 export function EmptyState({ text, children }: { text: string; children?: ReactNode }) {
@@ -120,10 +123,11 @@ const DASHBOARD_PATH: Record<Role, string> = {
 };
 
 export function NoAccess({ message }: { message: string }) {
+  useT();
   const { credential } = useCredential();
   // ยังไม่ล็อกอิน → กลับหน้าเข้าสู่ระบบ, ล็อกอินแล้ว → กลับหน้าภาพรวมของ role ตัวเอง
   const backHref = credential ? DASHBOARD_PATH[credential.role] : "/";
-  const backText = credential ? "กลับหน้าภาพรวม" : "ไปหน้าเข้าสู่ระบบ";
+  const backText = credential ? tx("กลับหน้าภาพรวม") : tx("ไปหน้าเข้าสู่ระบบ");
 
   return (
     <div className="mx-auto max-w-md p-6 pt-16">
@@ -138,11 +142,12 @@ export function NoAccess({ message }: { message: string }) {
 
 // ครอบหน้าที่ต้องเช็คสิทธิ์ แสดงเนื้อหาเฉพาะ role ที่อนุญาต
 export function RoleGate({ allow, children }: { allow: Role[]; children: ReactNode }) {
+  useT();
   const { credential, ready } = useCredential();
   if (!ready) return <Loading />;
-  if (!credential) return <NoAccess message="กรุณาเข้าสู่ระบบก่อนใช้งานหน้านี้" />;
+  if (!credential) return <NoAccess message={tx("กรุณาเข้าสู่ระบบก่อนใช้งานหน้านี้")} />;
   if (!allow.includes(credential.role)) {
-    return <NoAccess message="บัญชีของคุณไม่มีสิทธิ์เข้าถึงหน้านี้" />;
+    return <NoAccess message={tx("บัญชีของคุณไม่มีสิทธิ์เข้าถึงหน้านี้")} />;
   }
   return <>{children}</>;
 }

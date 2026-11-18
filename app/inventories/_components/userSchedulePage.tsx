@@ -1,7 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
-import { useTranslate } from "@/lib/language";
 import type { StoredCheck, StoredSession } from "@/lib/inventory";
 import {
   daysFromToday,
@@ -17,7 +17,7 @@ import { EmptyState, Loading, PageHeader, ProgressBar, StatusPill, buttonStyle }
 const byStartDate = (a: StoredSession, b: StoredSession) => a.startDate.localeCompare(b.startDate);
 
 export default function UserSchedulePage() {
-  const translateText = useTranslate();
+  const translateText = useT();
   const { credential } = useCredential();
   const { sessions, checks, ready } = useInventoryStore();
   if (!ready) return <Loading />;
@@ -139,6 +139,7 @@ function ActiveCard({
   checks: StoredCheck[];
   translateText: (text: string) => string;
 }) {
+  useT();
   const progress = getSessionProgress(session, checks);
   const started = progress.checked > 0;
   return (

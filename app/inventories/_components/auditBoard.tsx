@@ -1,5 +1,6 @@
 "use client";
 
+import { tx, useT, localized } from "@/lib/i18n";
 // หน้ารายการตรวจนับของรอบที่เลือก (?session=IS-0032) วางตาม Figma:
 // การ์ดแต่ละชิ้นมีช่อง "สภาพทรัพย์สิน" ให้เลือก ปกติ (ค่าเริ่มต้น) / ชำรุด / สูญหาย
 // User: บันทึก แก้สภาพ ยกเลิกผล และส่งผล | Admin: ดูอย่างเดียว
@@ -47,15 +48,16 @@ type Tab = "unchecked" | "checked";
 type Condition = "found" | "damaged" | "missing";
 
 // ตัวเลือกสภาพทรัพย์สิน ปกติเป็นค่าเริ่มต้น
-const CONDITIONS: { value: Condition; label: string }[] = [
+const CONDITIONS: { value: Condition; label: string }[] = localized([
   { value: "found", label: "ปกติ" },
   { value: "damaged", label: "ชำรุด" },
   { value: "missing", label: "สูญหาย" },
-];
+]);
 
 const PAGE_SIZES = [5, 10, 20];
 
 export default function AuditBoard() {
+  useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { credential, ready: credentialReady } = useCredential();
@@ -78,9 +80,9 @@ export default function AuditBoard() {
   if (!session) {
     return (
       <div className="mx-auto max-w-md p-6 pt-16">
-        <EmptyState text="ไม่พบรอบตรวจนับนี้">
+        <EmptyState text={tx("ไม่พบรอบตรวจนับนี้")}>
           <Link href="/inventories" className={buttonStyle.primary}>
-            เลือกรอบตรวจนับ
+            {tx("เลือกรอบตรวจนับ")}
           </Link>
         </EmptyState>
       </div>
@@ -132,20 +134,21 @@ export default function AuditBoard() {
       asset,
       result,
       checker: credential,
+      // เก็บเป็นภาษาไทยไว้ในข้อมูล แล้วค่อยแปลตอนแสดงผล
       note: "ยืนยันด้วยมือ (ไม่ได้สแกน)",
     });
-    toast.show(saved ? `บันทึก ${asset.id}: ${RESULT_LABEL[result]}` : "บันทึกไม่สำเร็จ");
+    toast.show(saved ? tx("บันทึก {0}: {1}", asset.id, RESULT_LABEL[result]) : tx("บันทึกไม่สำเร็จ"));
   };
 
   const handleChange = (check: StoredCheck, result: Condition) => {
     if (!credential) return;
     const changed = updateCheck(check.id, result, credential);
-    toast.show(changed ? `เปลี่ยน ${check.assetId} เป็น ${RESULT_LABEL[result]}` : "เปลี่ยนไม่สำเร็จ");
+    toast.show(changed ? tx("เปลี่ยน {0} เป็น {1}", check.assetId, RESULT_LABEL[result]) : tx("เปลี่ยนไม่สำเร็จ"));
   };
 
   const handleUndo = (check: StoredCheck) => {
-    if (!window.confirm(`ยกเลิกผลตรวจของ ${check.assetId} แล้วย้ายกลับไปรายการที่ยังไม่ตรวจ ใช่ไหม?`)) return;
-    toast.show(removeCheck(check.id) ? `ยกเลิกผล ${check.assetId} แล้ว` : "ยกเลิกไม่สำเร็จ");
+    if (!window.confirm(tx("ยกเลิกผลตรวจของ {0} แล้วย้ายกลับไปรายการที่ยังไม่ตรวจ ใช่ไหม?", check.assetId))) return;
+    toast.show(removeCheck(check.id) ? tx("ยกเลิกผล {0} แล้ว", check.assetId) : tx("ยกเลิกไม่สำเร็จ"));
   };
 
   const handleSubmit = () => {
@@ -153,11 +156,11 @@ export default function AuditBoard() {
     const remaining = progress.total - progress.checked;
     const message =
       remaining > 0
-        ? `ยังเหลือ ${remaining} รายการที่ไม่ได้ตรวจ ระบบจะบันทึกว่า "สูญหาย" ยืนยันส่งผลไหม?`
-        : "ยืนยันส่งผลตรวจนับและปิดรอบนี้?";
+        ? tx("ยังเหลือ {0} รายการที่ไม่ได้ตรวจ ระบบจะบันทึกว่า \"สูญหาย\" ยืนยันส่งผลไหม?", remaining)
+        : tx("ยืนยันส่งผลตรวจนับและปิดรอบนี้?");
     if (!window.confirm(message)) return;
     if (completeSession(session.id, credential)) router.push("/inventories");
-    else toast.show("ส่งผลไม่สำเร็จ");
+    else toast.show(tx("ส่งผลไม่สำเร็จ"));
   };
 
   const handleExport = async () => {
@@ -167,7 +170,7 @@ export default function AuditBoard() {
       "ยี่ห้อ / รุ่น": `${asset.brand} ${asset.model}`,
       หมวดหมู่: getCategoryName(asset.category),
       สาขาที่ลงทะเบียน: getBranchName(asset.branchId),
-      ผลตรวจ: check ? RESULT_LABEL[check.result] : (getAwayReason(asset)?.text ?? "ยังไม่ตรวจ"),
+      ผลตรวจ: check ? RESULT_LABEL[check.result] : (getAwayReason(asset)?.text ?? tx("ยังไม่ตรวจ")),
       ผู้ตรวจ: check ? getCheckerName(check) : "-",
       เวลาตรวจ: check ? formatThaiDateTime(check.checkedAt) : "-",
       หมายเหตุ: check?.note ?? "",
@@ -176,20 +179,20 @@ export default function AuditBoard() {
       ...sessionAssets.map((a) => rowOf(a, checkByAsset.get(a.id))),
       ...extraRows.map(({ asset, check }) => rowOf(asset, check)),
     ];
-    await exportExcel(`ผลตรวจนับ_${session.id}`, [{ name: session.id, rows }]);
-    toast.show("ดาวน์โหลดไฟล์ Excel แล้ว");
+    await exportExcel(tx("ผลตรวจนับ_{0}", session.id), [{ name: session.id, rows }]);
+    toast.show(tx("ดาวน์โหลดไฟล์ Excel แล้ว"));
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-800">
       <Toast message={toast.message} />
       <PageHeader
-        title={canScan ? "ตรวจนับทรัพย์สิน" : "รายละเอียดการตรวจนับ"}
+        title={canScan ? tx("ตรวจนับทรัพย์สิน") : tx("รายละเอียดการตรวจนับ")}
         subtitle={`${session.id} · ${session.name}`}
         backHref="/inventories"
         actions={
           <button type="button" onClick={handleExport} className={buttonStyle.secondary}>
-            ส่งออก Excel
+            {tx("ส่งออก Excel")}
           </button>
         }
       />
@@ -199,19 +202,20 @@ export default function AuditBoard() {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-base text-slate-600">
             <StatusPill status={session.status} />
             <span>{getBranchName(session.branchId)}</span>
-            <span>·</span>
-            <span>{formatDateRange(session.startDate, session.endDate)}</span>
+            {/* จุดคั่นซ่อนบนมือถือ เพราะวันที่จะขึ้นบรรทัดใหม่ */}
+            <span className="hidden sm:inline">·</span>
+            <span className="w-full sm:w-auto">{formatDateRange(session.startDate, session.endDate)}</span>
             {session.assigneeId && (
               <>
                 <span>·</span>
-                <span>ผู้รับผิดชอบ {getStaffName(session.assigneeId)}</span>
+                <span>{tx("ผู้รับผิดชอบ")} {getStaffName(session.assigneeId)}</span>
               </>
             )}
           </div>
           <div className="mt-4 flex items-end justify-between">
             <p className="text-3xl font-extrabold text-slate-900">
               {progress.checked}
-              <span className="text-xl font-semibold text-slate-400"> / {progress.total} รายการ</span>
+              <span className="text-xl font-semibold text-slate-400"> / {progress.total} {tx("รายการ")}</span>
             </p>
             <p className="text-xl font-bold text-blue-600">{progress.percent}%</p>
           </div>
@@ -219,12 +223,12 @@ export default function AuditBoard() {
             <ProgressBar percent={progress.percent} />
           </div>
           <p className="mt-3 text-base text-slate-600">
-            ตรวจแล้ว {progress.checked} · ยังไม่ตรวจ {progress.total - progress.checked}
-            {progress.away > 0 && ` · ไม่อยู่ในสาขา ${progress.away} รายการ (ไม่ต้องสแกน)`}
+            {tx("ตรวจแล้ว")} {progress.checked} {tx("· ยังไม่ตรวจ")} {progress.total - progress.checked}
+            {progress.away > 0 && tx(" · ไม่อยู่ในสาขา {0} รายการ (ไม่ต้องสแกน)", progress.away)}
           </p>
           {(progress.damaged > 0 || progress.lost > 0) && (
             <p className="mt-1 text-base font-semibold text-amber-700">
-              พบปัญหา: ชำรุด {progress.damaged} · สูญหาย {progress.lost}
+              {tx("พบปัญหา: ชำรุด")} {progress.damaged} {tx("· สูญหาย")} {progress.lost}
             </p>
           )}
         </section>
@@ -232,13 +236,13 @@ export default function AuditBoard() {
         {session.status !== "in_progress" && (
           <p className="rounded-xl bg-slate-200 px-4 py-3 text-base text-slate-700">
             {session.status === "planned"
-              ? `รอบนี้จะเริ่มให้ตรวจนับอัตโนมัติวันที่ ${formatThaiDate(session.startDate)}`
-              : "รอบนี้ปิดแล้ว ดูผลได้อย่างเดียว"}
+              ? tx("รอบนี้จะเริ่มให้ตรวจนับอัตโนมัติวันที่ {0}", formatThaiDate(session.startDate))
+              : tx("รอบนี้ปิดแล้ว ดูผลได้อย่างเดียว")}
           </p>
         )}
         {!isUser && session.status === "in_progress" && (
           <p className="rounded-xl bg-blue-50 px-4 py-3 text-base text-blue-800">
-            มุมมองผู้ดูแล: ติดตามความคืบหน้าได้ การตรวจนับทำโดยผู้ใช้ของสาขา
+            {tx("มุมมองผู้ดูแล: ติดตามความคืบหน้าได้ การตรวจนับทำโดยผู้ใช้ของสาขา")}
           </p>
         )}
 
@@ -250,12 +254,12 @@ export default function AuditBoard() {
               setQuery(e.target.value);
               resetPages();
             }}
-            placeholder="ค้นหาชื่อ ยี่ห้อ หรือรหัสทรัพย์สิน"
-            aria-label="ค้นหาทรัพย์สิน"
+            placeholder={tx("ค้นหาชื่อ ยี่ห้อ หรือรหัสทรัพย์สิน")}
+            aria-label={tx("ค้นหาทรัพย์สิน")}
             className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 sm:max-w-md"
           />
           <label className="flex items-center gap-2 text-base text-slate-600">
-            แสดง
+            {tx("แสดง")}
             <select
               value={pageSize}
               onChange={(e) => {
@@ -266,33 +270,33 @@ export default function AuditBoard() {
             >
               {PAGE_SIZES.map((n) => (
                 <option key={n} value={n}>
-                  {n} รายการ
+                  {n} {tx("รายการ")}
                 </option>
               ))}
             </select>
-            ต่อหน้า
+            {tx("ต่อหน้า")}
           </label>
         </div>
 
         {/* มือถือ: แท็บสลับ 2 รายการ โดยเปิด "ยังไม่ตรวจ" ก่อน */}
         <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200 p-1 lg:hidden" role="tablist">
           <TabButton active={tab === "unchecked"} onClick={() => setTab("unchecked")}>
-            ยังไม่ตรวจ ({uncheckedAssets.length})
+            {tx("ยังไม่ตรวจ (")}{uncheckedAssets.length})
           </TabButton>
           <TabButton active={tab === "checked"} onClick={() => setTab("checked")}>
-            ตรวจแล้ว ({checkedRows.length})
+            {tx("ตรวจแล้ว (")}{checkedRows.length})
           </TabButton>
         </div>
 
         {/* คอม: 2 คอลัมน์คู่กัน "ยังไม่ตรวจ" อยู่ซ้าย */}
         <div className="grid gap-6 lg:grid-cols-2">
           <section className={`${tab === "unchecked" ? "block" : "hidden"} lg:block`}>
-            <h2 className="mb-3 hidden text-lg font-bold lg:block">รายการ ยังไม่ได้ตรวจ</h2>
+            <h2 className="mb-3 hidden text-lg font-bold lg:block">{tx("รายการ ยังไม่ได้ตรวจ")}</h2>
             <p className="mb-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-base font-semibold text-slate-800">
-              คงเหลือ {uncheckedAssets.length} รายการ
+              {tx("คงเหลือ")} {uncheckedAssets.length} {tx("รายการ")}
             </p>
             {uncheckedAssets.length === 0 ? (
-              <EmptyState text={q ? "ไม่พบรายการที่ค้นหา" : "ตรวจครบทุกรายการแล้ว"} />
+              <EmptyState text={q ? tx("ไม่พบรายการที่ค้นหา") : tx("ตรวจครบทุกรายการแล้ว")} />
             ) : (
               <ul className="space-y-3">
                 {uncheckedPageData.items.map((asset) => (
@@ -310,7 +314,7 @@ export default function AuditBoard() {
                             onChange={(v) => setPicked((p) => ({ ...p, [asset.id]: v }))}
                           />
                           <button type="button" onClick={() => handleSave(asset)} className={`${buttonStyle.primary} shrink-0`}>
-                            บันทึก
+                            {tx("บันทึก")}
                           </button>
                         </>
                       ) : null
@@ -330,10 +334,10 @@ export default function AuditBoard() {
             {awayAssets.length > 0 && (
               <details className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4">
                 <summary className="cursor-pointer text-base font-semibold text-sky-900">
-                  ไม่อยู่ในสาขา ({awayAssets.length}) ไม่ต้องสแกน
+                  {tx("ไม่อยู่ในสาขา (")}{awayAssets.length}{tx(") ไม่ต้องสแกน")}
                 </summary>
                 <p className="mt-2 text-sm text-sky-900">
-                  ของที่ถูกเบิก/ยืม หรือส่งซ่อมแล้ว ระบบจะบันทึกให้อัตโนมัติตอนส่งผล
+                  {tx("ของที่ถูกเบิก/ยืม หรือส่งซ่อมแล้ว ระบบจะบันทึกให้อัตโนมัติตอนส่งผล")}
                 </p>
                 <ul className="mt-3 divide-y divide-sky-100">
                   {awayAssets.map((asset) => {
@@ -356,12 +360,12 @@ export default function AuditBoard() {
           </section>
 
           <section className={`${tab === "checked" ? "block" : "hidden"} lg:block`}>
-            <h2 className="mb-3 hidden text-lg font-bold lg:block">รายการ ตรวจแล้ว</h2>
+            <h2 className="mb-3 hidden text-lg font-bold lg:block">{tx("รายการ ตรวจแล้ว")}</h2>
             <p className="mb-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-base font-semibold text-slate-800">
-              ตรวจแล้ว {checkedRows.length} รายการ
+              {tx("ตรวจแล้ว")} {checkedRows.length} {tx("รายการ")}
             </p>
             {checkedRows.length === 0 ? (
-              <EmptyState text={q ? "ไม่พบรายการที่ค้นหา" : "ยังไม่มีรายการที่ตรวจแล้ว"} />
+              <EmptyState text={q ? tx("ไม่พบรายการที่ค้นหา") : tx("ยังไม่มีรายการที่ตรวจแล้ว")} />
             ) : (
               <ul className="space-y-3">
                 {checkedPageData.items.map(({ check, asset }) => (
@@ -378,7 +382,7 @@ export default function AuditBoard() {
                         <ConditionSelect value={check.result as Condition} onChange={(v) => handleChange(check, v)} />
                       ) : (
                         <span className="flex items-center gap-2 text-base text-slate-600">
-                          สภาพทรัพย์สิน <ResultPill result={check.result} />
+                          {tx("สภาพทรัพย์สิน")} <ResultPill result={check.result} />
                         </span>
                       )
                     }
@@ -397,9 +401,9 @@ export default function AuditBoard() {
             {extraRows.length > 0 && (
               <details className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
                 <summary className="cursor-pointer text-base font-semibold text-rose-900">
-                  ทรัพย์สินนอกรายการรอบนี้ ({extraRows.length})
+                  {tx("ทรัพย์สินนอกรายการรอบนี้ (")}{extraRows.length})
                 </summary>
-                <p className="mt-2 text-sm text-rose-900">ของที่ทะเบียนระบุว่าจำหน่ายแล้ว หรือเป็นของสาขาอื่น แต่พบระหว่างตรวจ</p>
+                <p className="mt-2 text-sm text-rose-900">{tx("ของที่ทะเบียนระบุว่าจำหน่ายแล้ว หรือเป็นของสาขาอื่น แต่พบระหว่างตรวจ")}</p>
                 <ul className="mt-3 divide-y divide-rose-100">
                   {extraRows.map(({ check, asset }) => (
                     <li key={check.id} className="flex items-start justify-between gap-3 py-2">
@@ -429,7 +433,7 @@ export default function AuditBoard() {
                 onClick={handleSubmit}
                 className="min-h-14 flex-1 rounded-2xl bg-emerald-600 text-lg font-bold text-white hover:bg-emerald-700"
               >
-                ตรวจครบแล้ว ส่งผลตรวจนับ
+                {tx("ตรวจครบแล้ว ส่งผลตรวจนับ")}
               </button>
             ) : (
               <>
@@ -437,14 +441,14 @@ export default function AuditBoard() {
                   href={`/inventories/scan?session=${session.id}`}
                   className="flex min-h-14 flex-1 items-center justify-center rounded-2xl bg-blue-900 text-lg font-bold text-white hover:bg-blue-950"
                 >
-                  สแกน QR
+                  {tx("สแกน QR")}
                 </Link>
                 <button
                   type="button"
                   onClick={handleSubmit}
                   className="min-h-14 rounded-2xl border border-slate-300 bg-white px-4 text-base font-semibold text-slate-700"
                 >
-                  ส่งผล
+                  {tx("ส่งผล")}
                 </button>
               </>
             )}
@@ -471,22 +475,23 @@ function Pager({ page, pages, total, shown, onPage }: {
   shown: number;
   onPage: (page: number) => void;
 }) {
+  useT();
   if (total === 0) return null;
   // แสดงเลขหน้ารอบๆ หน้าปัจจุบันไม่เกิน 5 ปุ่ม
   const start = Math.max(1, Math.min(page - 2, pages - 4));
   const numbers = Array.from({ length: Math.min(5, pages) }, (_, i) => start + i);
   const pageButton = "flex h-10 min-w-10 items-center justify-center rounded-xl border px-2 text-base font-semibold sm:h-11 sm:min-w-11";
   return (
-    <nav aria-label="เปลี่ยนหน้า" className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
+    <nav aria-label={tx("เปลี่ยนหน้า")} className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
       <p className="mb-2 text-center text-sm text-slate-500">
-        แสดง {shown} จาก {total} รายการ · หน้า {page}/{pages}
+        {tx("แสดง")} {shown} {tx("จาก")} {total} {tx("รายการ · หน้า")} {page}/{pages}
       </p>
       <div className="flex items-center justify-center gap-1 sm:gap-2">
         <button
           type="button"
           onClick={() => onPage(page - 1)}
           disabled={page <= 1}
-          aria-label="หน้าก่อน"
+          aria-label={tx("หน้าก่อน")}
           className={`${pageButton} border-slate-300 bg-white text-slate-700 disabled:opacity-40`}
         >
           <ChevronLeft size={18} />
@@ -506,7 +511,7 @@ function Pager({ page, pages, total, shown, onPage }: {
           type="button"
           onClick={() => onPage(page + 1)}
           disabled={page >= pages}
-          aria-label="หน้าถัดไป"
+          aria-label={tx("หน้าถัดไป")}
           className={`${pageButton} border-slate-300 bg-white text-slate-700 disabled:opacity-40`}
         >
           <ChevronRight size={18} />
@@ -516,11 +521,11 @@ function Pager({ page, pages, total, shown, onPage }: {
   );
 }
 
-const CARD_STYLE = {
+const CARD_STYLE = localized({
   unchecked: { box: "bg-rose-50", pill: "bg-rose-100 text-rose-800", label: "ยังไม่ได้ตรวจ" },
   checked: { box: "bg-emerald-50", pill: "bg-emerald-100 text-emerald-800", label: "ตรวจแล้ว" },
   problem: { box: "bg-amber-50", pill: "bg-amber-100 text-amber-800", label: "ตรวจแล้ว" },
-};
+});
 
 function CategoryIcon({ category }: { category: string }) {
   if (category === "CAT-002") return <Monitor size={22} aria-hidden />;
@@ -540,6 +545,7 @@ function AssetCard({ asset, tone, person, time, note, hint, footer, onRemove }: 
   footer: ReactNode;
   onRemove?: () => void;
 }) {
+  useT();
   const style = CARD_STYLE[tone];
   return (
     <li className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -556,13 +562,13 @@ function AssetCard({ asset, tone, person, time, note, hint, footer, onRemove }: 
           </div>
           {time && <p className="mt-1 text-sm text-slate-500">{time}</p>}
           {hint && <p className="mt-1 text-sm font-semibold text-amber-700">{hint}</p>}
-          {note && <p className="mt-1 text-sm text-slate-600">หมายเหตุ: {note}</p>}
+          {note && <p className="mt-1 text-sm text-slate-600">{tx("หมายเหตุ:")} {note}</p>}
         </div>
         {onRemove && (
           <button
             type="button"
             onClick={onRemove}
-            aria-label={`ยกเลิกผลตรวจ ${asset.id}`}
+            aria-label={tx("ยกเลิกผลตรวจ {0}", asset.id)}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-white"
           >
             <X size={20} />
@@ -575,9 +581,10 @@ function AssetCard({ asset, tone, person, time, note, hint, footer, onRemove }: 
 }
 
 function ConditionSelect({ value, onChange }: { value: Condition; onChange: (value: Condition) => void }) {
+  useT();
   return (
     <label className="flex min-w-0 flex-1 items-center gap-3 text-base text-slate-700">
-      <span className="shrink-0">สภาพทรัพย์สิน</span>
+      <span className="shrink-0">{tx("สภาพทรัพย์สิน")}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as Condition)}

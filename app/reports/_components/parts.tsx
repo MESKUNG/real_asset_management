@@ -1,5 +1,6 @@
 "use client";
 
+import { tx, useT } from "@/lib/i18n";
 // ชิ้นส่วนหน้าจอที่ใช้ร่วมกันในหน้ารายงานทั้ง 3 แบบ
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
@@ -112,6 +113,7 @@ export function DetailDialog({ title, onClose, children, footer }: {
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  useT();
   return (
     <div
       role="dialog"
@@ -129,7 +131,7 @@ export function DetailDialog({ title, onClose, children, footer }: {
           <button
             type="button"
             onClick={onClose}
-            aria-label="ปิด"
+            aria-label={tx("ปิด")}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100"
           >
             <X size={20} />

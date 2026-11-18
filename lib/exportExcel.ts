@@ -1,3 +1,5 @@
+import { tx } from "@/lib/i18n";
+
 // ส่งออกข้อมูลเป็นไฟล์ Excel (.xlsx) ด้วยไลบรารี exceljs ที่กลุ่มติดตั้งไว้
 export type ExcelSheet = {
   name: string;
@@ -10,16 +12,17 @@ export async function exportExcel(fileName: string, sheets: ExcelSheet[]) {
   const workbook = new ExcelJS.Workbook();
 
   for (const sheet of sheets) {
-    const rows = sheet.rows.length > 0 ? sheet.rows : [{ หมายเหตุ: "ไม่มีข้อมูล" }];
+    const rows = sheet.rows.length > 0 ? sheet.rows : [{ หมายเหตุ: tx("ไม่มีข้อมูล") }];
     const headers = Object.keys(rows[0]);
 
     // ชื่อชีตใน Excel ยาวได้ไม่เกิน 31 ตัวอักษร
     const worksheet = workbook.addWorksheet(sheet.name.slice(0, 31));
     // ความกว้างคอลัมน์ตามข้อความที่ยาวที่สุดในคอลัมน์นั้น
+    // หัวคอลัมน์แปลตามภาษาที่เลือก (key ข้างในยังเป็นภาษาไทยเหมือนเดิม)
     worksheet.columns = headers.map((header) => ({
-      header,
+      header: tx(header),
       key: header,
-      width: Math.max(header.length, ...rows.map((row) => String(row[header] ?? "").length)) + 2,
+      width: Math.max(tx(header).length, ...rows.map((row) => String(row[header] ?? "").length)) + 2,
     }));
     worksheet.addRows(rows);
     worksheet.getRow(1).font = { bold: true };

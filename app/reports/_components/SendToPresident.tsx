@@ -1,11 +1,13 @@
 "use client";
 
+import { tx, useT } from "@/lib/i18n";
+import { useLanguage } from "@/lib/language";
+import { assets } from "@/lib/localizedData";
 // หน้าจัดทำรายงานเสนอ President (Admin)
 // ระบบเติมตัวเลขและข้อความตั้งต้นจากข้อมูลจริงให้ Admin แก้ได้ แล้ว "ส่ง" หรือ "บันทึกฉบับร่าง"
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, useMemo } from "react";
 import { Boxes, CircleCheck, Download, Eye, FileSpreadsheet, Plus, RotateCcw, Send, Wrench } from "lucide-react";
-import { assets } from "@/data/asset";
 import { exportExcel } from "@/lib/exportExcel";
 import {
   SESSION_STATUS_LABEL,
@@ -108,21 +110,21 @@ type Figures = ReturnType<typeof buildFigures>;
 
 function autoSummary(f: Figures, period: Period) {
   return (
-    `ทรัพย์สินที่ใช้งานอยู่ ${activeAssets.length.toLocaleString("th-TH")} รายการ มูลค่า ${formatBaht(f.assetValue)}\n` +
-    `ช่วง ${period.label} มีการเบิก/คืน/โอนย้าย ${f.movements.length} รายการ (รออนุมัติ ${f.pendingMovements}) ` +
-    `ตรวจนับ ${f.inventory.length} รอบ พบปัญหา ${f.issues} รายการ และค่าใช้จ่ายซ่อม ${formatBaht(f.repairTotal)} จาก ${f.repairs.length} งาน`
+    tx("ทรัพย์สินที่ใช้งานอยู่ {0} รายการ มูลค่า {1}\n", activeAssets.length.toLocaleString("th-TH"), formatBaht(f.assetValue)) +
+    tx("ช่วง {0} มีการเบิก/คืน/โอนย้าย {1} รายการ (รออนุมัติ {2}) ", period.label, f.movements.length, f.pendingMovements) +
+    tx("ตรวจนับ {0} รอบ พบปัญหา {1} รายการ และค่าใช้จ่ายซ่อม {2} จาก {3} งาน", f.inventory.length, f.issues, formatBaht(f.repairTotal), f.repairs.length)
   );
 }
 
 function autoIssues(f: Figures) {
   return [
     {
-      title: `เฝ้าระวัง · ผลตรวจนับพบปัญหา ${f.issues} รายการ`,
-      detail: `ชำรุด ${f.damaged} · สูญหาย ${f.lost} รายการ\nข้อเสนอ: ให้สาขาติดตามรายการที่สูญหาย และส่งของชำรุดเข้ากระบวนการซ่อม`,
+      title: tx("เฝ้าระวัง · ผลตรวจนับพบปัญหา {0} รายการ", f.issues),
+      detail: tx("ชำรุด {0} · สูญหาย {1} รายการ\nข้อเสนอ: ให้สาขาติดตามรายการที่สูญหาย และส่งของชำรุดเข้ากระบวนการซ่อม", f.damaged, f.lost),
     },
     {
-      title: `ติดตามค่าใช้จ่ายซ่อม ${formatBaht(f.repairTotal)}`,
-      detail: `งานซ่อมทั้งหมด ${f.repairs.length} งาน ยังไม่เสร็จ ${f.openRepairs} งาน\nข้อเสนอ: สรุปสาเหตุและแผนป้องกันการซ่อมซ้ำ ก่อนเสนอวงเงินเพิ่มเติม`,
+      title: tx("ติดตามค่าใช้จ่ายซ่อม {0}", formatBaht(f.repairTotal)),
+      detail: tx("งานซ่อมทั้งหมด {0} งาน ยังไม่เสร็จ {1} งาน\nข้อเสนอ: สรุปสาเหตุและแผนป้องกันการซ่อมซ้ำ ก่อนเสนอวงเงินเพิ่มเติม", f.repairs.length, f.openRepairs),
     },
   ];
 }
@@ -137,8 +139,12 @@ function Composer({ credential, sessions, checks, draft, sent }: {
   draft: SentReport | undefined;
   sent: SentReport[];
 }) {
+  useT();
   const toast = useToast();
-  const [periods] = useState(() => getPeriods());
+  // คำนวณช่วงเวลาใหม่เมื่อเปลี่ยนภาษา ชื่อเดือนจะได้เปลี่ยนตาม
+  const language = useLanguage();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ใช้ language เป็นตัวบอกให้คำนวณป้ายชื่อเดือนใหม่
+  const periods = useMemo(() => getPeriods(), [language]);
   const draftPeriod = periods.find((p) => p.label === draft?.periodLabel);
   const [periodKey, setPeriodKey] = useState(draftPeriod?.key ?? periods[0].key);
   const period = periods.find((p) => p.key === periodKey) ?? periods[0];
@@ -149,18 +155,18 @@ function Composer({ credential, sessions, checks, draft, sent }: {
   const [issues, setIssues] = useState<{ title: string; detail: string }[] | null>(draft?.issues ?? null);
   const [title, setTitle] = useState<string | null>(draft?.title ?? null);
   const [purpose, setPurpose] = useState<ReportPurpose>(draft?.purpose ?? "inform");
-  const [message, setMessage] = useState(draft?.message ?? DEFAULT_MESSAGE);
+  const [message, setMessage] = useState(draft?.message ?? tx(DEFAULT_MESSAGE));
   const [showPreview, setShowPreview] = useState(false);
 
   const summaryText = summary ?? autoSummary(figures, period);
   const issueList = issues ?? autoIssues(figures);
-  const titleText = title ?? `สรุปทรัพย์สิน ${period.label}`;
+  const titleText = title ?? tx("สรุปทรัพย์สิน {0}", period.label);
 
   const sections = [
-    { label: "ทรัพย์สิน · Asset", value: `${activeAssets.length} รายการ · ${formatBaht(figures.assetValue)}` },
-    { label: "เคลื่อนไหว · Movement", value: `${figures.movements.length} รายการ · ${period.label}` },
-    { label: "ตรวจนับ · Inventory", value: `${figures.inventory.length} รอบ · พบปัญหา ${figures.issues} รายการ` },
-    { label: "ซ่อมบำรุง · Repair", value: `${figures.repairs.length} งาน · ${formatBaht(figures.repairTotal)}` },
+    { label: tx("ทรัพย์สิน · Asset"), value: tx("{0} รายการ · {1}", activeAssets.length, formatBaht(figures.assetValue)) },
+    { label: tx("เคลื่อนไหว · Movement"), value: tx("{0} รายการ · {1}", figures.movements.length, period.label) },
+    { label: tx("ตรวจนับ · Inventory"), value: tx("{0} รอบ · พบปัญหา {1} รายการ", figures.inventory.length, figures.issues) },
+    { label: tx("ซ่อมบำรุง · Repair"), value: tx("{0} งาน · {1}", figures.repairs.length, formatBaht(figures.repairTotal)) },
   ];
 
   const input: ReportInput = {
@@ -175,11 +181,11 @@ function Composer({ credential, sessions, checks, draft, sent }: {
     createdByName: credential.username,
   };
 
-  const error = !input.title ? "กรุณาใส่ชื่อรายงาน" : !input.message ? "กรุณาเขียนข้อความถึง President" : null;
+  const error = !input.title ? tx("กรุณาใส่ชื่อรายงาน") : !input.message ? tx("กรุณาเขียนข้อความถึง President") : null;
 
   const handleDraft = () => {
     saveDraft(input);
-    toast.show("บันทึกฉบับร่างแล้ว เปิดหน้านี้ใหม่จะได้ข้อความเดิม");
+    toast.show(tx("บันทึกฉบับร่างแล้ว เปิดหน้านี้ใหม่จะได้ข้อความเดิม"));
   };
 
   const handleSend = () => {
@@ -187,30 +193,30 @@ function Composer({ credential, sessions, checks, draft, sent }: {
       toast.show(error);
       return;
     }
-    if (!window.confirm(`ส่ง "${input.title}" ให้ President ใช่ไหม? ส่งแล้วแก้ไขไม่ได้`)) return;
+    if (!window.confirm(tx("ส่ง \"{0}\" ให้ President ใช่ไหม? ส่งแล้วแก้ไขไม่ได้", input.title))) return;
     const report = sendReport(input);
-    toast.show(`ส่ง ${report.id} ให้ President แล้ว`);
+    toast.show(tx("ส่ง {0} ให้ President แล้ว", report.id));
   };
 
   const resetAuto = () => {
     setSummary(null);
     setIssues(null);
     setTitle(null);
-    toast.show("เติมข้อความใหม่จากตัวเลขล่าสุดแล้ว");
+    toast.show(tx("เติมข้อความใหม่จากตัวเลขล่าสุดแล้ว"));
   };
 
   const updateIssue = (index: number, field: "title" | "detail", value: string) =>
     setIssues(issueList.map((issue, i) => (i === index ? { ...issue, [field]: value } : issue)));
 
   const handleExport = async () => {
-    await exportExcel(`รายงานเสนอ President_${toDateValue(new Date())}`, [
+    await exportExcel(tx("รายงานเสนอ President_{0}", toDateValue(new Date())), [
       reportSheet({ ...input, id: "-", status: "draft", updatedAt: "", sentAt: null, readAt: null }),
       registerSheet(activeAssets),
       movementSheet(figures.movements),
       inventorySheet(figures.inventory),
       repairSheet(figures.repairs),
     ]);
-    toast.show("ดาวน์โหลดข้อมูลประกอบ 5 ชีตแล้ว");
+    toast.show(tx("ดาวน์โหลดข้อมูลประกอบ 5 ชีตแล้ว"));
   };
 
   const latestRound = sessions
@@ -219,8 +225,8 @@ function Composer({ credential, sessions, checks, draft, sent }: {
 
   const handleExportRound = async () => {
     if (!latestRound) return;
-    await exportExcel(`ผลตรวจนับ_${latestRound.id}`, [sessionResultSheet(latestRound, checks)]);
-    toast.show(`ดาวน์โหลดผลตรวจรอบ ${latestRound.id} แล้ว`);
+    await exportExcel(tx("ผลตรวจนับ_{0}", latestRound.id), [sessionResultSheet(latestRound, checks)]);
+    toast.show(tx("ดาวน์โหลดผลตรวจรอบ {0} แล้ว", latestRound.id));
   };
 
   const activities = getActivities(checks, { period, branchId: "all" }).slice(0, 3);
@@ -233,33 +239,33 @@ function Composer({ credential, sessions, checks, draft, sent }: {
       <main className="mx-auto max-w-7xl space-y-5 px-4 pt-5 lg:px-8 lg:pt-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">จัดทำรายงานเสนอ President</h1>
-            <p className="mt-1 text-base text-slate-500">รวบรวมข้อมูล สรุปประเด็น และตรวจทานก่อนส่ง</p>
+            <h1 className="text-2xl font-bold text-slate-900">{tx("จัดทำรายงานเสนอ President")}</h1>
+            <p className="mt-1 text-base text-slate-500">{tx("รวบรวมข้อมูล สรุปประเด็น และตรวจทานก่อนส่ง")}</p>
           </div>
           <Link href="/reports" className={reportButton.secondary}>
-            ‹ กลับหน้ารับรายงาน
+            {tx("‹ กลับหน้ารับรายงาน")}
           </Link>
         </div>
 
         <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 lg:grid-cols-[16rem_20rem_1fr] lg:items-end">
-          <h2 className="text-lg font-bold text-slate-900 lg:pb-3">1. กำหนดขอบเขตรายงาน</h2>
+          <h2 className="text-lg font-bold text-slate-900 lg:pb-3">{tx("1. กำหนดขอบเขตรายงาน")}</h2>
           <SelectField
-            label="ช่วงเวลา"
+            label={tx("ช่วงเวลา")}
             value={periodKey}
             onChange={setPeriodKey}
             options={periods.map((p) => ({ value: p.key, label: p.label }))}
           />
           <p className="text-sm text-slate-500 lg:pb-3">
-            Movement, ตรวจนับ และงานซ่อม: {formatThaiDate(period.from === "0000-01-01" ? "2024-01-01" : period.from)} –{" "}
-            {formatThaiDate(period.to === "9999-12-31" ? toDateValue(new Date()) : period.to)} · ทรัพย์สิน: ณ วันนี้
+            {tx("Movement, ตรวจนับ และงานซ่อม:")} {formatThaiDate(period.from === "0000-01-01" ? "2024-01-01" : period.from)} –{" "}
+            {formatThaiDate(period.to === "9999-12-31" ? toDateValue(new Date()) : period.to)} {tx("· ทรัพย์สิน: ณ วันนี้")}
           </p>
         </div>
 
         <Card
-          title="2. สรุปสำหรับผู้บริหาร"
+          title={tx("2. สรุปสำหรับผู้บริหาร")}
           actions={
             <button type="button" onClick={resetAuto} className={reportButton.secondary}>
-              <RotateCcw size={18} /> เติมข้อความจากตัวเลขใหม่
+              <RotateCcw size={18} /> {tx("เติมข้อความจากตัวเลขใหม่")}
             </button>
           }
         >
@@ -267,32 +273,32 @@ function Composer({ credential, sessions, checks, draft, sent }: {
             value={summaryText}
             onChange={(e) => setSummary(e.target.value)}
             rows={3}
-            aria-label="สรุปสำหรับผู้บริหาร"
+            aria-label={tx("สรุปสำหรับผู้บริหาร")}
             className={fieldStyle}
           />
           <p className="mt-2 text-sm text-slate-500">
-            สรุปตามขอบเขตที่เลือก ไม่ใช่ยอดรวมทั้งองค์กร · แก้ไขแล้วกด &quot;บันทึกฉบับร่าง&quot; เพื่อเก็บไว้
+            {tx("สรุปตามขอบเขตที่เลือก ไม่ใช่ยอดรวมทั้งองค์กร · แก้ไขแล้วกด \"บันทึกฉบับร่าง\" เพื่อเก็บไว้")}
           </p>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-3">
           <Kpi
-            label="มูลค่าทรัพย์สิน"
+            label={tx("มูลค่าทรัพย์สิน")}
             value={formatBaht(figures.assetValue)}
-            note={`${activeAssets.length} รายการที่ใช้งานอยู่`}
+            note={tx("{0} รายการที่ใช้งานอยู่", activeAssets.length)}
             icon={<Boxes size={24} />}
           />
           <Kpi
-            label="พบปัญหาจากการตรวจนับ"
-            value={`${figures.issues} รายการ`}
-            note={`ชำรุด ${figures.damaged} · สูญหาย ${figures.lost} · ${figures.inventory.length} รอบ`}
+            label={tx("พบปัญหาจากการตรวจนับ")}
+            value={tx("{0} รายการ", figures.issues)}
+            note={tx("ชำรุด {0} · สูญหาย {1} · {2} รอบ", figures.damaged, figures.lost, figures.inventory.length)}
             icon={<CircleCheck size={24} />}
             tone="green"
           />
           <Kpi
-            label="ค่าใช้จ่ายซ่อม"
+            label={tx("ค่าใช้จ่ายซ่อม")}
             value={formatBaht(figures.repairTotal)}
-            note={`รวม ${figures.repairs.length} งานซ่อม · ${period.label}`}
+            note={tx("รวม {0} งานซ่อม · {1}", figures.repairs.length, period.label)}
             icon={<Wrench size={24} />}
             tone="amber"
           />
@@ -300,54 +306,54 @@ function Composer({ credential, sessions, checks, draft, sent }: {
 
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="space-y-5 lg:col-span-2">
-            <Card title="3. รายงานประกอบ 4 ประเภท">
+            <Card title={tx("3. รายงานประกอบ 4 ประเภท")}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <SubReport
-                  title="ทรัพย์สิน · Asset"
-                  badge={<Badge tone="good">{activeAssets.length} รายการ</Badge>}
+                  title={tx("ทรัพย์สิน · Asset")}
+                  badge={<Badge tone="good">{activeAssets.length} {tx("รายการ")}</Badge>}
                   stats={[
-                    ["รายการ", `${activeAssets.length} รายการ`],
-                    ["มูลค่ารวม", formatBaht(figures.assetValue)],
+                    [tx("รายการ"), tx("{0} รายการ", activeAssets.length)],
+                    [tx("มูลค่ารวม"), formatBaht(figures.assetValue)],
                   ]}
                 />
                 <SubReport
-                  title="เคลื่อนไหว · Movement"
-                  badge={<Badge tone="info">{figures.movements.length} รายการ</Badge>}
+                  title={tx("เคลื่อนไหว · Movement")}
+                  badge={<Badge tone="info">{figures.movements.length} {tx("รายการ")}</Badge>}
                   stats={[
-                    ["การเคลื่อนไหว", `${figures.movements.length} รายการ`],
-                    ["รออนุมัติ", `${figures.pendingMovements} รายการ`],
+                    [tx("การเคลื่อนไหว"), tx("{0} รายการ", figures.movements.length)],
+                    [tx("รออนุมัติ"), tx("{0} รายการ", figures.pendingMovements)],
                   ]}
                 />
                 <SubReport
-                  title="ตรวจนับ · Inventory"
-                  badge={<Badge tone={figures.issues > 0 ? "wait" : "good"}>พบปัญหา {figures.issues}</Badge>}
+                  title={tx("ตรวจนับ · Inventory")}
+                  badge={<Badge tone={figures.issues > 0 ? "wait" : "good"}>{tx("พบปัญหา")} {figures.issues}</Badge>}
                   stats={[
-                    ["รอบตรวจนับ", `${figures.inventory.length} รอบ (ปิดแล้ว ${figures.completedRounds})`],
-                    ["ชำรุด / สูญหาย", `${figures.damaged} / ${figures.lost} รายการ`],
+                    [tx("รอบตรวจนับ"), tx("{0} รอบ (ปิดแล้ว {1})", figures.inventory.length, figures.completedRounds)],
+                    [tx("ชำรุด / สูญหาย"), tx("{0} / {1} รายการ", figures.damaged, figures.lost)],
                   ]}
                 />
                 <SubReport
-                  title="ซ่อมบำรุง · Repair"
-                  badge={<Badge tone="wait">{figures.repairs.length} งาน</Badge>}
+                  title={tx("ซ่อมบำรุง · Repair")}
+                  badge={<Badge tone="wait">{tx("{0} งาน", figures.repairs.length)}</Badge>}
                   stats={[
-                    ["งานซ่อม", `${figures.repairs.length} งาน (ค้าง ${figures.openRepairs})`],
-                    ["ค่าใช้จ่ายรวม", formatBaht(figures.repairTotal)],
+                    [tx("งานซ่อม"), tx("{0} งาน (ค้าง {1})", figures.repairs.length, figures.openRepairs)],
+                    [tx("ค่าใช้จ่ายรวม"), formatBaht(figures.repairTotal)],
                   ]}
                 />
               </div>
-              <p className="mt-3 text-sm text-slate-500">ตัวเลขคำนวณจากข้อมูลกลางของระบบ แก้ไขไม่ได้ เพื่อให้รายงานตรงกับข้อมูลจริง</p>
+              <p className="mt-3 text-sm text-slate-500">{tx("ตัวเลขคำนวณจากข้อมูลกลางของระบบ แก้ไขไม่ได้ เพื่อให้รายงานตรงกับข้อมูลจริง")}</p>
             </Card>
 
-            <Card title="4. ประเด็นและข้อเสนอ">
+            <Card title={tx("4. ประเด็นและข้อเสนอ")}>
               <div className="grid gap-3 md:grid-cols-2">
                 {issueList.map((issue, i) => (
                   <div key={i} className={`rounded-2xl p-4 ${i === 0 ? "bg-amber-50" : "border border-slate-200"}`}>
                     <label className="block text-sm font-semibold text-slate-700">
-                      หัวข้อประเด็น
+                      {tx("หัวข้อประเด็น")}
                       <input value={issue.title} onChange={(e) => updateIssue(i, "title", e.target.value)} className={fieldStyle} />
                     </label>
                     <label className="mt-3 block text-sm font-semibold text-slate-700">
-                      รายละเอียดและข้อเสนอ
+                      {tx("รายละเอียดและข้อเสนอ")}
                       <textarea
                         value={issue.detail}
                         onChange={(e) => updateIssue(i, "detail", e.target.value)}
@@ -358,38 +364,38 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-sm text-slate-500">ข้อเสนอข้างต้นยังไม่ใช่คำขออนุมัติงบประมาณ ถ้าต้องการให้อนุมัติ เลือก &quot;ขออนุมัติ&quot; ในข้อ 5</p>
+              <p className="mt-3 text-sm text-slate-500">{tx("ข้อเสนอข้างต้นยังไม่ใช่คำขออนุมัติงบประมาณ ถ้าต้องการให้อนุมัติ เลือก \"ขออนุมัติ\" ในข้อ 5")}</p>
             </Card>
 
             <div className="grid gap-5 md:grid-cols-2">
-              <Card title="ข้อมูลประกอบ · Excel" badge={<Badge tone="good">พร้อมใช้งาน</Badge>}>
+              <Card title={tx("ข้อมูลประกอบ · Excel")} badge={<Badge tone="good">{tx("พร้อมใช้งาน")}</Badge>}>
                 <div className="grid grid-cols-2 gap-3">
-                  <Stat label="ชีต" value="5 ชีต" />
-                  <Stat label="รูปแบบ" value=".xlsx" />
+                  <Stat label={tx("ชีต")} value={tx("5 ชีต")} />
+                  <Stat label={tx("รูปแบบ")} value=".xlsx" />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-3 [&>*]:flex-1 [&>*]:basis-40">
                   <button type="button" onClick={handleExport} className={reportButton.secondary}>
-                    <Download size={18} /> ส่งออก Excel
+                    <Download size={18} /> {tx("ส่งออก Excel")}
                   </button>
                   <Link href="/reports" className={reportButton.primary}>
-                    <FileSpreadsheet size={18} /> ดูข้อมูลละเอียด
+                    <FileSpreadsheet size={18} /> {tx("ดูข้อมูลละเอียด")}
                   </Link>
                 </div>
               </Card>
 
-              <Card title="ประวัติตรวจนับ" badge={<Badge tone={latestRound ? "good" : "plain"}>{latestRound ? "พร้อมใช้งาน" : "ไม่มีข้อมูล"}</Badge>}>
+              <Card title={tx("ประวัติตรวจนับ")} badge={<Badge tone={latestRound ? "good" : "plain"}>{latestRound ? tx("พร้อมใช้งาน") : tx("ไม่มีข้อมูล")}</Badge>}>
                 <div className="grid grid-cols-2 gap-3">
-                  <Stat label="รอบล่าสุด" value={latestRound ? `${latestRound.id} · ${formatThaiDate(latestRound.startDate)}` : "-"} />
-                  <Stat label="สถานะ" value={latestRound ? SESSION_STATUS_LABEL[latestRound.status] : "-"} />
+                  <Stat label={tx("รอบล่าสุด")} value={latestRound ? `${latestRound.id} · ${formatThaiDate(latestRound.startDate)}` : "-"} />
+                  <Stat label={tx("สถานะ")} value={latestRound ? SESSION_STATUS_LABEL[latestRound.status] : "-"} />
                 </div>
                 {latestRound && <p className="mt-2 text-sm text-slate-500">{getBranchName(latestRound.branchId)}</p>}
                 <div className="mt-3 flex flex-wrap gap-3 [&>*]:flex-1 [&>*]:basis-40">
                   <button type="button" onClick={handleExportRound} disabled={!latestRound} className={`${reportButton.secondary} disabled:opacity-50`}>
-                    <Download size={18} /> ส่งออก Excel
+                    <Download size={18} /> {tx("ส่งออก Excel")}
                   </button>
                   {latestRound && (
                     <Link href={`/inventories/audit?session=${latestRound.id}`} className={reportButton.primary}>
-                      <Plus size={18} /> ดูรายละเอียด
+                      <Plus size={18} /> {tx("ดูรายละเอียด")}
                     </Link>
                   )}
                 </div>
@@ -398,23 +404,23 @@ function Composer({ credential, sessions, checks, draft, sent }: {
           </div>
 
           <div className="space-y-5">
-            <Card title="5. เตรียมส่งให้ President">
-              <p className="-mt-2 mb-3 text-sm text-slate-500">ระบุรายละเอียดและตรวจทานรายงานก่อนส่ง</p>
+            <Card title={tx("5. เตรียมส่งให้ President")}>
+              <p className="-mt-2 mb-3 text-sm text-slate-500">{tx("ระบุรายละเอียดและตรวจทานรายงานก่อนส่ง")}</p>
               <label className="block text-base font-semibold text-slate-800">
-                ชื่อรายงาน *
+                {tx("ชื่อรายงาน *")}
                 <input value={titleText} onChange={(e) => setTitle(e.target.value)} className={fieldStyle} />
               </label>
 
               <div className="mt-3 space-y-1 rounded-xl bg-slate-100 px-4 py-3 text-base">
                 <p>
-                  ผู้จัดทำ: {credential.username} · Admin
+                  {tx("ผู้จัดทำ:")} {credential.username} · Admin
                 </p>
-                <p className="font-semibold">ผู้รับ: President</p>
-                <p>รอบรายงาน: {period.label}</p>
+                <p className="font-semibold">{tx("ผู้รับ: President")}</p>
+                <p>{tx("รอบรายงาน:")} {period.label}</p>
               </div>
 
               <fieldset className="mt-4">
-                <legend className="text-base font-semibold text-slate-800">วัตถุประสงค์ *</legend>
+                <legend className="text-base font-semibold text-slate-800">{tx("วัตถุประสงค์ *")}</legend>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(Object.keys(PURPOSE_LABEL) as ReportPurpose[]).map((p) => (
                     <label
@@ -434,18 +440,18 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                     </label>
                   ))}
                 </div>
-                <p className="mt-1 text-sm text-slate-500">กรณีขออนุมัติ: ระบุเรื่อง วงเงิน เหตุผล และกำหนดการในข้อความ</p>
+                <p className="mt-1 text-sm text-slate-500">{tx("กรณีขออนุมัติ: ระบุเรื่อง วงเงิน เหตุผล และกำหนดการในข้อความ")}</p>
               </fieldset>
 
               <label className="mt-4 block text-base font-semibold text-slate-800">
-                ข้อความถึง President *
+                {tx("ข้อความถึง President *")}
                 <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} className={fieldStyle} />
               </label>
 
               <div className="mt-3 rounded-xl bg-slate-100 px-4 py-3">
-                <p className="text-base font-semibold text-slate-800">เอกสารประกอบการส่ง</p>
-                <p className="text-sm text-slate-600">สรุปผู้บริหาร + รายงาน 4 ประเภท + ประเด็นและข้อเสนอ</p>
-                <p className="text-sm text-slate-600">President ดาวน์โหลดเป็น Excel ได้จากหน้ารายงาน</p>
+                <p className="text-base font-semibold text-slate-800">{tx("เอกสารประกอบการส่ง")}</p>
+                <p className="text-sm text-slate-600">{tx("สรุปผู้บริหาร + รายงาน 4 ประเภท + ประเด็นและข้อเสนอ")}</p>
+                <p className="text-sm text-slate-600">{tx("President ดาวน์โหลดเป็น Excel ได้จากหน้ารายงาน")}</p>
               </div>
 
               {error && (
@@ -456,31 +462,31 @@ function Composer({ credential, sessions, checks, draft, sent }: {
 
               <div className="mt-4 space-y-2">
                 <button type="button" onClick={() => setShowPreview(true)} className={`${reportButton.secondary} w-full`}>
-                  <Eye size={18} /> ดูตัวอย่างรายงาน
+                  <Eye size={18} /> {tx("ดูตัวอย่างรายงาน")}
                 </button>
-                <p className="text-sm text-slate-500">โปรดตรวจช่วงเวลา ตัวเลข และประเด็นเสนอให้ครบถ้วน</p>
+                <p className="text-sm text-slate-500">{tx("โปรดตรวจช่วงเวลา ตัวเลข และประเด็นเสนอให้ครบถ้วน")}</p>
                 <button type="button" onClick={handleSend} disabled={!!error} className={`${reportButton.primary} min-h-12 w-full`}>
-                  <Send size={18} /> ส่งรายงานให้ President
+                  <Send size={18} /> {tx("ส่งรายงานให้ President")}
                 </button>
                 <button type="button" onClick={handleDraft} className={`${reportButton.secondary} w-full`}>
-                  บันทึกฉบับร่าง
+                  {tx("บันทึกฉบับร่าง")}
                 </button>
                 <p className="text-sm text-slate-500">
-                  {draft ? `มีฉบับร่างที่บันทึกเมื่อ ${formatThaiDateTime(draft.updatedAt)}` : "รายงานจะถูกส่งเมื่อกดยืนยันการส่งเท่านั้น"}
+                  {draft ? tx("มีฉบับร่างที่บันทึกเมื่อ {0}", formatThaiDateTime(draft.updatedAt)) : tx("รายงานจะถูกส่งเมื่อกดยืนยันการส่งเท่านั้น")}
                 </p>
               </div>
             </Card>
 
-            <Card title="กิจกรรมอ้างอิงล่าสุด" badge={<Badge tone="wait">{activities.length} กิจกรรม</Badge>}>
+            <Card title={tx("กิจกรรมอ้างอิงล่าสุด")} badge={<Badge tone="wait">{tx("{0} กิจกรรม", activities.length)}</Badge>}>
               {activities.length === 0 ? (
-                <p className="text-base text-slate-500">ไม่มีกิจกรรมในช่วงเวลานี้</p>
+                <p className="text-base text-slate-500">{tx("ไม่มีกิจกรรมในช่วงเวลานี้")}</p>
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {activities.map((a) => (
                     <li key={a.id} className="py-3 first:pt-0">
                       <p className="text-sm text-slate-500">{formatThaiDateTime(a.at)}</p>
                       <p className="text-base font-semibold text-slate-900">{a.text}</p>
-                      <p className="text-sm text-slate-600">ผู้ดำเนินการ · {a.who}</p>
+                      <p className="text-sm text-slate-600">{tx("ผู้ดำเนินการ ·")} {a.who}</p>
                       <p className="text-sm font-medium text-indigo-700">{a.ref}</p>
                     </li>
                   ))}
@@ -488,9 +494,9 @@ function Composer({ credential, sessions, checks, draft, sent }: {
               )}
             </Card>
 
-            <Card title="รายงานที่ส่งแล้ว" badge={<Badge tone="plain">{sent.length} ฉบับ</Badge>}>
+            <Card title={tx("รายงานที่ส่งแล้ว")} badge={<Badge tone="plain">{sent.length} {tx("ฉบับ")}</Badge>}>
               {sent.length === 0 ? (
-                <p className="text-base text-slate-500">ยังไม่เคยส่งรายงาน</p>
+                <p className="text-base text-slate-500">{tx("ยังไม่เคยส่งรายงาน")}</p>
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {sent.slice(0, 5).map((r) => (
@@ -498,10 +504,10 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                       <div className="min-w-0">
                         <p className="text-base font-semibold text-slate-900">{r.title}</p>
                         <p className="text-sm text-slate-500">
-                          {r.id} · ส่ง {r.sentAt ? formatThaiDateTime(r.sentAt) : "-"}
+                          {r.id} {tx("· ส่ง")} {r.sentAt ? formatThaiDateTime(r.sentAt) : "-"}
                         </p>
                       </div>
-                      <Badge tone={r.readAt ? "good" : "wait"}>{r.readAt ? "President อ่านแล้ว" : "ยังไม่อ่าน"}</Badge>
+                      <Badge tone={r.readAt ? "good" : "wait"}>{r.readAt ? tx("President อ่านแล้ว") : tx("ยังไม่อ่าน")}</Badge>
                     </li>
                   ))}
                 </ul>
@@ -513,12 +519,12 @@ function Composer({ credential, sessions, checks, draft, sent }: {
 
       {showPreview && (
         <DetailDialog
-          title={input.title || "ตัวอย่างรายงาน"}
+          title={input.title || tx("ตัวอย่างรายงาน")}
           onClose={() => setShowPreview(false)}
           footer={
             <>
               <button type="button" onClick={() => setShowPreview(false)} className={reportButton.secondary}>
-                กลับไปแก้ไข
+                {tx("กลับไปแก้ไข")}
               </button>
               <button
                 type="button"
@@ -529,7 +535,7 @@ function Composer({ credential, sessions, checks, draft, sent }: {
                 }}
                 className={reportButton.primary}
               >
-                <Send size={18} /> ส่งรายงาน
+                <Send size={18} /> {tx("ส่งรายงาน")}
               </button>
             </>
           }

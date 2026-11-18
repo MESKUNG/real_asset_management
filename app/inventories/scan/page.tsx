@@ -1,7 +1,7 @@
 "use client";
-import { useTranslate } from "@/lib/language";
 
 
+import { inThai, tx, useT } from "@/lib/i18n";
 // หน้าสแกนตรวจนับ: ใช้ตัวสแกนกลางของกลุ่ม (components/scanner) อ่านได้ทั้ง QR Code และ Barcode
 // สแกนได้ต่อเนื่องหลายชิ้นโดยไม่ต้องกลับไปหน้ารายการทุกครั้ง
 import Link from "next/link";
@@ -45,7 +45,7 @@ export default function ScanPage() {
 }
 
 function ScanContent() {
-  const translateText = useTranslate();
+  const translateText = useT();
   const sessionId = useSearchParams().get("session");
   const { credential } = useCredential();
   const { sessions, checks, ready } = useInventoryStore();
@@ -81,9 +81,9 @@ function ScanContent() {
     const result = previewScan(session, code, checks);
     // เจอของในรอบนี้ = บันทึกเป็น "ปกติ" ทันที (ค่าเริ่มต้น) แล้วสแกนชิ้นต่อไปได้เลย
     if (result.type === "ready") {
-      const saved = saveCheck({ sessionId: session.id, asset: result.asset, result: "found", checker: credential, note: "สแกน QR" });
+      const saved = saveCheck({ sessionId: session.id, asset: result.asset, result: "found", checker: credential, note: "สแกน QR" }); // เก็บเป็นภาษาไทย แปลตอนแสดงผล
       setLastCheckId(saved?.id ?? null);
-      toast.show(saved ? `บันทึก ${result.asset.id}: ปกติ` : "บันทึกไม่สำเร็จ");
+      toast.show(saved ? tx("บันทึก {0}: ปกติ", result.asset.id) : tx("บันทึกไม่สำเร็จ"));
       return;
     }
     setOutcome(result);
@@ -94,12 +94,12 @@ function ScanContent() {
 
   const handleChangeLast = (result: "found" | "damaged" | "missing") => {
     if (!lastCheck || !credential) return;
-    toast.show(updateCheck(lastCheck.id, result, credential) ? `เปลี่ยน ${lastCheck.assetId} เป็น ${RESULT_LABEL[result]}` : "เปลี่ยนไม่สำเร็จ");
+    toast.show(updateCheck(lastCheck.id, result, credential) ? tx("เปลี่ยน {0} เป็น {1}", lastCheck.assetId, RESULT_LABEL[result]) : tx("เปลี่ยนไม่สำเร็จ"));
   };
 
   const handleUndoLast = () => {
     if (!lastCheck) return;
-    toast.show(removeCheck(lastCheck.id) ? `ยกเลิกผล ${lastCheck.assetId} แล้ว` : "ยกเลิกไม่สำเร็จ");
+    toast.show(removeCheck(lastCheck.id) ? tx("ยกเลิกผล {0} แล้ว", lastCheck.assetId) : tx("ยกเลิกไม่สำเร็จ"));
     setLastCheckId(null);
   };
 
@@ -110,12 +110,14 @@ function ScanContent() {
       asset: outcome.asset,
       result: "mismatch",
       checker: credential,
-      note:
+      // หมายเหตุเก็บเป็นภาษาไทยเสมอ ตอนแสดงผลจะแปลตามภาษาที่เลือก
+      note: inThai(() =>
         outcome.asset.status === "disposed"
-          ? "พบทรัพย์สินที่จำหน่ายแล้วแต่ยังอยู่ในสาขา"
-          : `พบทรัพย์สินของ${getBranchName(outcome.asset.branchId)} ที่${getBranchName(session.branchId)}`,
+          ? tx("พบทรัพย์สินที่จำหน่ายแล้วแต่ยังอยู่ในสาขา")
+          : tx("พบทรัพย์สินของ{0} ที่{1}", getBranchName(outcome.asset.branchId), getBranchName(session.branchId)),
+      ),
     });
-    toast.show(saved ? `บันทึก ${outcome.asset.id} ว่าสูญหาย (ไม่ตรงทะเบียน) แล้ว` : "บันทึกไม่สำเร็จ");
+    toast.show(saved ? tx("บันทึก {0} ว่าสูญหาย (ไม่ตรงทะเบียน) แล้ว", outcome.asset.id) : tx("บันทึกไม่สำเร็จ"));
     setOutcome(null);
   };
 

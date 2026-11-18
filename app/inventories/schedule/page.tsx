@@ -1,10 +1,11 @@
 "use client";
 
+import { tx, useT, dateLocale } from "@/lib/i18n";
+import { branches as rawBranches } from "@/data/branches";
+import { assets, branches } from "@/lib/localizedData";
 // หน้ามอบหมายรอบตรวจนับ (Admin): เลือกสาขา วันที่ และผู้รับผิดชอบ
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { assets } from "@/data/asset";
-import { branches } from "@/data/branches";
 import {
   createSession,
   deleteSession,
@@ -28,6 +29,7 @@ export default function SchedulePage() {
 }
 
 function ScheduleForm() {
+  useT();
   const { credential } = useCredential();
   const { sessions, ready } = useInventoryStore();
   const toast = useToast();
@@ -59,25 +61,29 @@ function ScheduleForm() {
 
   // วันที่รูปแบบ YYYY-MM-DD เทียบกันแบบข้อความได้เลย
   let error: string | null = null;
-  if (!branchId) error = "กรุณาเลือกสาขา";
-  else if (!startDate || !endDate) error = "กรุณาเลือกวันที่เริ่มและวันที่สิ้นสุด";
-  else if (startDate < today) error = "วันที่เริ่มต้องไม่ย้อนหลัง";
-  else if (endDate < startDate) error = "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม";
-  else if (overlap) error = `สาขานี้มีรอบ ${overlap.id} ในช่วงวันที่นี้อยู่แล้ว`;
+  if (!branchId) error = tx("กรุณาเลือกสาขา");
+  else if (!startDate || !endDate) error = tx("กรุณาเลือกวันที่เริ่มและวันที่สิ้นสุด");
+  else if (startDate < today) error = tx("วันที่เริ่มต้องไม่ย้อนหลัง");
+  else if (endDate < startDate) error = tx("วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม");
+  else if (overlap) error = tx("สาขานี้มีรอบ {0} ในช่วงวันที่นี้อยู่แล้ว", overlap.id);
 
   const days = !error
     ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000) + 1
     : 0;
   const monthText = startDate
-    ? new Date(`${startDate}T00:00:00`).toLocaleDateString("th-TH", { month: "long", year: "numeric" })
+    ? new Date(`${startDate}T00:00:00`).toLocaleDateString(dateLocale(), { month: "long", year: "numeric" })
     : "";
-  const autoName = `ตรวจนับทรัพย์สินประจำเดือน${monthText} - ${branchName}`;
+  const autoName = tx("ตรวจนับทรัพย์สินประจำเดือน{0} - {1}", monthText, branchName);
+  // ชื่อที่บันทึกลงข้อมูลเก็บเป็นภาษาไทยเสมอ (ตอนแสดงผลจะแปลตามภาษาที่เลือกเอง)
+  const storedAutoName = `ตรวจนับทรัพย์สินประจำเดือน${
+    startDate ? new Date(`${startDate}T00:00:00`).toLocaleDateString("th-TH", { month: "long", year: "numeric" }) : ""
+  } - ${rawBranches.find((b) => b.id === branchId)?.name ?? branchId}`;
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (error || !credential) return;
     const session = createSession({
-      name: name.trim() || autoName,
+      name: name.trim() || storedAutoName,
       branchId,
       startDate,
       endDate,
@@ -87,14 +93,14 @@ function ScheduleForm() {
     setName("");
     toast.show(
       startDate <= today
-        ? `ประกาศรอบ ${session.id} แล้ว ผู้ใช้เริ่มตรวจนับได้ทันที`
-        : `ประกาศรอบ ${session.id} แล้ว จะเริ่มให้ตรวจนับอัตโนมัติ ${formatDateRange(startDate, endDate)}`,
+        ? tx("ประกาศรอบ {0} แล้ว ผู้ใช้เริ่มตรวจนับได้ทันที", session.id)
+        : tx("ประกาศรอบ {0} แล้ว จะเริ่มให้ตรวจนับอัตโนมัติ {1}", session.id, formatDateRange(startDate, endDate)),
     );
   };
 
   const handleDelete = (id: string) => {
-    if (!window.confirm(`ลบรอบ ${id} ใช่ไหม? ลบแล้วกู้คืนไม่ได้`)) return;
-    toast.show(deleteSession(id) ? `ลบรอบ ${id} แล้ว` : "ลบได้เฉพาะรอบที่ยังไม่เริ่ม");
+    if (!window.confirm(tx("ลบรอบ {0} ใช่ไหม? ลบแล้วกู้คืนไม่ได้", id))) return;
+    toast.show(deleteSession(id) ? tx("ลบรอบ {0} แล้ว", id) : tx("ลบได้เฉพาะรอบที่ยังไม่เริ่ม"));
   };
 
   const planned = sessions
@@ -107,14 +113,14 @@ function ScheduleForm() {
   return (
     <div className="min-h-screen bg-slate-50 pb-12 text-slate-800">
       <Toast message={toast.message} />
-      <PageHeader title="มอบหมายรอบตรวจนับ" subtitle="กำหนดสาขา ช่วงวันที่ และผู้รับผิดชอบ" backHref="/inventories" />
+      <PageHeader title={tx("มอบหมายรอบตรวจนับ")} subtitle={tx("กำหนดสาขา ช่วงวันที่ และผู้รับผิดชอบ")} backHref="/inventories" />
 
       <main className="mx-auto grid max-w-6xl gap-6 px-4 pt-5 lg:grid-cols-5 lg:px-8">
         <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-3">
-          <h2 className="text-lg font-bold text-slate-900">สร้างรอบใหม่</h2>
+          <h2 className="text-lg font-bold text-slate-900">{tx("สร้างรอบใหม่")}</h2>
 
           <label className="block text-base font-medium text-slate-700">
-            สาขาที่ตรวจนับ
+            {tx("สาขาที่ตรวจนับ")}
             <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={fieldStyle}>
               {activeBranches.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -122,12 +128,12 @@ function ScheduleForm() {
                 </option>
               ))}
             </select>
-            <span className="mt-1 block text-sm text-slate-500">ทรัพย์สินในสาขานี้ {assetCount} รายการ</span>
+            <span className="mt-1 block text-sm text-slate-500">{tx("ทรัพย์สินในสาขานี้")} {assetCount} {tx("รายการ")}</span>
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-base font-medium text-slate-700">
-              วันที่เริ่ม
+              {tx("วันที่เริ่ม")}
               <input
                 type="date"
                 value={startDate}
@@ -140,7 +146,7 @@ function ScheduleForm() {
               />
             </label>
             <label className="block text-base font-medium text-slate-700">
-              วันที่สิ้นสุด
+              {tx("วันที่สิ้นสุด")}
               <input
                 type="date"
                 value={endDate}
@@ -152,7 +158,7 @@ function ScheduleForm() {
           </div>
 
           <label className="block text-base font-medium text-slate-700">
-            ผู้รับผิดชอบ
+            {tx("ผู้รับผิดชอบ")}
             <select
               value={selectedAssignee}
               onChange={(e) => setAssigneeId(Number(e.target.value))}
@@ -160,14 +166,14 @@ function ScheduleForm() {
             >
               {staffIds.map((id) => (
                 <option key={id} value={id}>
-                  {getStaffName(id)} (รหัส {id})
+                  {getStaffName(id)} {tx("(รหัส")} {id})
                 </option>
               ))}
             </select>
           </label>
 
           <label className="block text-base font-medium text-slate-700">
-            ชื่อรอบ (เว้นว่างได้ ระบบตั้งให้)
+            {tx("ชื่อรอบ (เว้นว่างได้ ระบบตั้งให้)")}
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder={autoName} className={fieldStyle} />
           </label>
 
@@ -179,21 +185,20 @@ function ScheduleForm() {
               <>{error}</>
             ) : (
               <>
-                ตรวจนับ <strong>{branchName}</strong> {formatDateRange(startDate, endDate)} ({days} วัน) ·
-                ผู้รับผิดชอบ <strong>{getStaffName(selectedAssignee)}</strong>
+                {tx("ตรวจนับ")} <strong>{branchName}</strong> {formatDateRange(startDate, endDate)} ({days} {tx("วัน) · ผู้รับผิดชอบ")} <strong>{getStaffName(selectedAssignee)}</strong>
               </>
             )}
           </div>
 
           <button type="submit" disabled={!!error} className={`${buttonStyle.primary} min-h-12 w-full text-lg`}>
-            ยืนยันสร้างรอบ
+            {tx("ยืนยันสร้างรอบ")}
           </button>
         </form>
 
         <section className="lg:col-span-2">
-          <h2 className="mb-3 text-lg font-bold text-slate-900">รอบที่รอเริ่ม ({planned.length})</h2>
+          <h2 className="mb-3 text-lg font-bold text-slate-900">{tx("รอบที่รอเริ่ม (")}{planned.length})</h2>
           {planned.length === 0 ? (
-            <EmptyState text="ยังไม่มีรอบที่วางแผนไว้" />
+            <EmptyState text={tx("ยังไม่มีรอบที่วางแผนไว้")} />
           ) : (
             <ul className="space-y-3">
               {planned.map((s) => (
@@ -204,14 +209,14 @@ function ScheduleForm() {
                     {formatDateRange(s.startDate, s.endDate)} · {getStaffName(s.assigneeId)}
                   </p>
                   <button type="button" onClick={() => handleDelete(s.id)} className={`${buttonStyle.danger} mt-3`}>
-                    ลบรอบนี้
+                    {tx("ลบรอบนี้")}
                   </button>
                 </li>
               ))}
             </ul>
           )}
           <Link href="/inventories" className={`${buttonStyle.secondary} mt-4 w-full`}>
-            ไปหน้าติดตามการนับ ›
+            {tx("ไปหน้าติดตามการนับ ›")}
           </Link>
         </section>
       </main>
