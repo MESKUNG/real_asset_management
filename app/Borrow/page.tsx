@@ -4,7 +4,6 @@ import { useTheme, useTranslate } from "@/lib/language";
 import React from 'react'
 import Select, { type StylesConfig } from "react-select";
 import jsQR from "jsqr";
-import { BrowserMultiFormatReader } from "@zxing/browser";
 
 import {
   useEffect,
@@ -454,6 +453,7 @@ export default function Page() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [query, setQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "id">("newest");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Request | null>(null); // คำขอที่ถูกส่งกลับมาแก้
   const [sendBackId, setSendBackId] = useState<string | null>(null);
@@ -488,12 +488,19 @@ export default function Page() {
           assetName(r.assetId).toLowerCase().includes(q) ||
           r.purpose.toLowerCase().includes(q),
       )
-      // เรียงตามรหัสคำขอ จาก BRQ-0001 ลงไป
-      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-  }, [byType, statusFilter, query]);
+      .sort((a, b) => {
+        if (sortOrder === "id") {
+          return a.id.localeCompare(b.id, undefined, { numeric: true });
+        }
 
-  // แบ่งหน้า: ถ้าตัวกรอง/ค้นหา/จำนวนต่อหน้าเปลี่ยน จะกลับไปหน้า 1 อัตโนมัติ
-  const filterKey = `${typeFilter}|${statusFilter}|${query}|${pageSize}`;
+        const dateA = new Date(a.createdAt).getTime() || 0;
+        const dateB = new Date(b.createdAt).getTime() || 0;
+        return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+      });
+  }, [byType, statusFilter, query, sortOrder]);
+
+  // แบ่งหน้า: ถ้าตัวกรอง/ค้นหา/เรียงลำดับ/จำนวนต่อหน้าเปลี่ยน จะกลับไปหน้า 1 อัตโนมัติ
+  const filterKey = `${typeFilter}|${statusFilter}|${query}|${sortOrder}|${pageSize}`;
   const totalPages =
     pageSize === "all" ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
   const page = Math.min(
@@ -685,11 +692,21 @@ export default function Page() {
             <span className="ml-1.5 font-normal opacity-80">{counts[f] ?? 0}</span>
           </button>
         ))}
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest" | "id")}
+          aria-label={translateText("เรียงลำดับคำขอ")}
+          className="ml-auto w-full rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 sm:ml-0 sm:w-48"
+        >
+          <option value="newest">{translateText("คำขอล่าสุด")}</option>
+          <option value="oldest">{translateText("คำขอเก่าสุด")}</option>
+          <option value="id">{translateText("รหัสคำขอ: น้อยไปมาก")}</option>
+        </select>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={translateText("ค้นหารหัสคำขอ ชื่อทรัพย์สิน หรือวัตถุประสงค์")}
-          className="ml-auto w-full rounded-lg border border-slate-400 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600 sm:w-80"
+          className="w-full rounded-lg border border-slate-400 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600 sm:ml-auto sm:w-80"
         />
       </div>
 
@@ -1161,8 +1178,8 @@ function RequestModal({
                 />
                 </div>
                 <label
-                  title="สแกน QR Code / Barcode"
-                  aria-label="สแกน QR Code / Barcode"
+                  title="สแกน QR Code"
+                  aria-label="สแกน QR Code"
                   className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-400 bg-white text-blue-950 hover:bg-indigo-50"
                 >
                   <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1178,45 +1195,53 @@ function RequestModal({
                       e.target.value = "";
                       if (!file) return;
 
-                      const imageUrl = URL.createObjectURL(file);
                       try {
-                        // เริ่มจากอ่าน QR Code ด้วย jsQR ก่อน
+                        // แปลงไฟล์ภาพเป็น ImageData เพื่อให้ jsQR อ่านได้
+                        const imageUrl = URL.createObjectURL(file);
+                        const image = new Image();
+
                         const imageData = await new Promise<ImageData>((resolve, reject) => {
-                          const image = new Image();
                           image.onload = () => {
                             try {
                               const canvas = document.createElement("canvas");
                               canvas.width = image.naturalWidth;
                               canvas.height = image.naturalHeight;
+
                               const context = canvas.getContext("2d");
-                              if (!context) throw new Error("ไม่สามารถเปิด canvas ได้");
+                              if (!context) {
+                                reject(new Error("ไม่สามารถเปิด canvas ได้"));
+                                return;
+                              }
+
                               context.drawImage(image, 0, 0);
-                              resolve(context.getImageData(0, 0, canvas.width, canvas.height));
+                              resolve(
+                                context.getImageData(0, 0, canvas.width, canvas.height)
+                              );
                             } catch (error) {
                               reject(error);
+                            } finally {
+                              URL.revokeObjectURL(imageUrl);
                             }
                           };
-                          image.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์ภาพได้"));
+
+                          image.onerror = () => {
+                            URL.revokeObjectURL(imageUrl);
+                            reject(new Error("ไม่สามารถอ่านไฟล์ภาพได้"));
+                          };
+
                           image.src = imageUrl;
                         });
 
-                        const qrResult = jsQR(
+                        const result = jsQR(
                           imageData.data,
                           imageData.width,
                           imageData.height,
-                          { inversionAttempts: "attemptBoth" },
+                          { inversionAttempts: "attemptBoth" }
                         );
 
-                        // ถ้าไม่พบ QR ให้ ZXing ลองอ่าน Barcode เช่น CODE128 / EAN13
-                        let rawValue = qrResult?.data?.trim() ?? "";
+                        const rawValue = result?.data?.trim();
                         if (!rawValue) {
-                          const reader = new BrowserMultiFormatReader();
-                          const barcodeResult = await reader.decodeFromImageUrl(imageUrl);
-                          rawValue = barcodeResult.getText().trim();
-                        }
-
-                        if (!rawValue) {
-                          setQrMessage("ไม่พบ QR Code หรือ Barcode ในภาพ กรุณาลองถ่ายใหม่ให้ชัดเจน");
+                          setQrMessage("ไม่พบ QR Code ในภาพ กรุณาเลือกรูปที่เห็น QR Code ชัดเจน");
                           return;
                         }
 
@@ -1229,7 +1254,7 @@ function RequestModal({
                           };
                           code = parsed.assetId ?? parsed.id ?? parsed.serialNumber ?? rawValue;
                         } catch {
-                          // QR/Barcode อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา
+                          // QR อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา เช่น AST-0001
                         }
 
                         const matched = assets.find(
@@ -1238,7 +1263,7 @@ function RequestModal({
                             a.qrCode === code ||
                             a.barcode === code ||
                             a.serialNumber === code ||
-                            rawValue.includes(a.id),
+                            rawValue.includes(a.id)
                         );
 
                         if (!matched) {
@@ -1254,10 +1279,8 @@ function RequestModal({
                         setAssetId(matched.id);
                         setQrMessage(`สแกนสำเร็จ: ${matched.name} (${matched.id})`);
                       } catch (error) {
-                        console.error("QR / Barcode read failed:", error);
-                        setQrMessage("อ่าน QR Code หรือ Barcode ไม่สำเร็จ กรุณาลองเลือกรูปอื่น");
-                      } finally {
-                        URL.revokeObjectURL(imageUrl);
+                        console.error("QR Code read failed:", error);
+                        setQrMessage("อ่าน QR Code ไม่สำเร็จ กรุณาลองเลือกรูปอื่น");
                       }
                     }}
                   />
