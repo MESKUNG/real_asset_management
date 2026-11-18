@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useMemo, useSyncExternalStore, Suspense } from "react";
+import { useState, useMemo, useSyncExternalStore, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { assets as initialAssets, Asset } from "@/data/asset";
+import Image from "next/image";
+import { Asset } from "@/data/asset";
 import { branches } from "@/data/branches";
+import {
+  getMergedAssets,
+  getServerAssets,
+  subscribeAssets,
+} from "@/lib/assetStorage";
 import {
   LayoutGrid,
   Building2,
@@ -12,6 +18,9 @@ import {
   ShieldAlert,
   ArrowLeft,
   Check,
+  Upload,
+  ImageIcon,
+  X,
 } from "lucide-react";
 
 type RoleKey = "user" | "admin" | "president" | "superadmin";
@@ -22,7 +31,6 @@ type CredentialData = {
   staff_id?: number | null;
 };
 
-// --- อ่านสิทธิ์จาก localStorage ---
 function subscribeCredential(onChange: () => void) {
   window.addEventListener("storage", onChange);
   window.addEventListener("credentialchange", onChange);
@@ -68,7 +76,6 @@ function getClientCredential(): CredentialData {
   }
 }
 
-// แปลงวันที่ให้รองรับ <input type="date"> (YYYY-MM-DD)
 function toInputDate(dateStr?: string) {
   if (!dateStr) return "";
   if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
@@ -79,10 +86,55 @@ function toInputDate(dateStr?: string) {
   return d.toISOString().slice(0, 10);
 }
 
+// ย่อขนาดรูปภาพก่อนแปลงเป็น Base64 เพื่อป้องกัน localStorage เต็ม
+function compressImageToDataUrl(file: File, maxSize = 800): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(String(reader.result));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์รูปภาพได้"));
+      img.src = String(reader.result);
+    };
+    reader.onerror = () => reject(new Error("ไม่สามารถโหลดไฟล์ได้"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function EditAssetForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const assetId = searchParams.get("id") || "";
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const allAssets = useSyncExternalStore(
+    subscribeAssets,
+    getMergedAssets,
+    getServerAssets
+  );
 
   const credential = useSyncExternalStore(
     subscribeCredential,
@@ -93,13 +145,12 @@ function EditAssetForm() {
   const canManageAsset =
     credential.role === "admin" || credential.role === "superadmin";
 
-  // ค้นหาทรัพย์สินที่จะแก้ไขจาก ID
   const targetAsset = useMemo(() => {
-    return initialAssets.find((item) => item.id === assetId);
-  }, [assetId]);
+    return allAssets.find((item) => item.id === assetId);
+  }, [allAssets, assetId]);
 
   const categoryOptions = useMemo(() => {
-    const fromData = Array.from(new Set(initialAssets.map((a) => a.category)));
+    const fromData = Array.from(new Set(allAssets.map((a) => a.category)));
     const defaults = [
       "คอมพิวเตอร์และอุปกรณ์ IT",
       "อุปกรณ์สำนักงาน",
@@ -108,7 +159,7 @@ function EditAssetForm() {
       "ยานพาหนะ",
     ];
     return Array.from(new Set([...defaults, ...fromData]));
-  }, []);
+  }, [allAssets]);
 
   const branchOptions = useMemo(() => {
     return (branches as Record<string, string>[]).map((b) => ({
@@ -117,7 +168,11 @@ function EditAssetForm() {
     }));
   }, []);
 
-  // Form States (ดึงค่าเริ่มต้นจาก targetAsset)
+  const [assetImage, setAssetImage] = useState<string>(
+    targetAsset?.assetImage || ""
+  );
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   const [name, setName] = useState(targetAsset?.name || "");
   const [category, setCategory] = useState(
     targetAsset?.category || categoryOptions[0] || ""
@@ -158,7 +213,6 @@ function EditAssetForm() {
     targetAsset?.qrCode || targetAsset?.id || ""
   );
 
-  // ป้องกันสิทธิ์ User / President
   if (!canManageAsset) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] p-8 flex flex-col items-center justify-center text-center">
@@ -199,6 +253,29 @@ function EditAssetForm() {
     );
   }
 
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("กรุณาเลือกไฟล์รูปภาพเท่านั้น (JPG, PNG, WEBP)");
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      const compressedDataUrl = await compressImageToDataUrl(file, 800);
+      setAssetImage(compressedDataUrl);
+    } catch {
+      alert("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -210,6 +287,7 @@ function EditAssetForm() {
       brand: brand.trim() || "-",
       model: model.trim() || "-",
       serialNumber: serialNumber.trim() || "-",
+      assetImage: assetImage || undefined,
       branchId,
       responsiblePersonId: responsiblePersonId
         ? Number(responsiblePersonId)
@@ -228,8 +306,10 @@ function EditAssetForm() {
       const saved = JSON.parse(localStorage.getItem("updated_assets") || "{}");
       saved[updatedAsset.id] = updatedAsset;
       localStorage.setItem("updated_assets", JSON.stringify(saved));
+      window.dispatchEvent(new Event("assetchange"));
     } catch {
-      // ignore storage error
+      alert("พื้นที่จัดเก็บชั่วคราวเต็ม กรุณาลดขนาดรูปภาพหรือใช้รูปที่เล็กลง");
+      return;
     }
 
     alert(`บันทึกการเปลี่ยนแปลง ${updatedAsset.name} (${updatedAsset.id}) เรียบร้อยแล้ว`);
@@ -239,7 +319,6 @@ function EditAssetForm() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 text-slate-800">
       <form onSubmit={handleSubmit} className="max-w-6xl mx-auto space-y-6">
-        {/* Page Header */}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">แก้ไขทรัพย์สิน</h1>
           <p className="text-xs text-slate-400 mt-1">
@@ -247,13 +326,91 @@ function EditAssetForm() {
           </p>
         </div>
 
-        {/* Card 1: ข้อมูลทั่วไป */}
+        {/* Card 1: ข้อมูลทั่วไป + รูปภาพทรัพย์สิน */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             ข้อมูลทั่วไป
           </h2>
 
-          {/* แถว 1: รหัสทรัพย์สิน & ชื่อทรัพย์สิน */}
+          {/* ส่วนอัปโหลดรูปภาพ */}
+          <div className="mb-6">
+            <label className="block text-xs font-semibold text-slate-700 mb-2">
+              รูปภาพทรัพย์สิน
+            </label>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
+              {/* กล่องแสดงรูปตัวอย่าง */}
+              <div className="relative w-32 h-32 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                {assetImage ? (
+                  <>
+                    <Image
+                      src={assetImage}
+                      alt={name || targetAsset.name}
+                      width={256}
+                      height={256}
+                      unoptimized
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAssetImage("")}
+                      title="ลบรูปภาพ"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-900/70 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center text-slate-400">
+                    <ImageIcon size={26} />
+                    <span className="text-[11px] mt-1">ไม่มีรูปภาพ</span>
+                  </div>
+                )}
+              </div>
+
+              {/* ปุ่มเลือกรูป */}
+              <div className="space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    disabled={isUploadingImage}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold rounded-xl transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload size={15} />
+                    <span>
+                      {isUploadingImage
+                        ? "กำลังอัปโหลด..."
+                        : assetImage
+                        ? "เปลี่ยนรูปภาพ"
+                        : "อัปโหลดรูปภาพ"}
+                    </span>
+                  </button>
+
+                  {assetImage && (
+                    <button
+                      type="button"
+                      onClick={() => setAssetImage("")}
+                      className="px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                    >
+                      ลบรูป
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  รองรับไฟล์ JPG, PNG, WEBP (ระบบจะปรับขนาดให้อัตโนมัติเพื่อความรวดเร็ว)
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
@@ -284,7 +441,6 @@ function EditAssetForm() {
             </div>
           </div>
 
-          {/* แถว 2: หมวดหมู่ & สถานะ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
@@ -333,7 +489,6 @@ function EditAssetForm() {
             </div>
           </div>
 
-          {/* แถว 3: ยี่ห้อ, รุ่น, Serial number */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
@@ -373,7 +528,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Card 2: สาขาและตำแหน่งจัดเก็บ */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             สาขาและตำแหน่งจัดเก็บ
@@ -391,10 +545,9 @@ function EditAssetForm() {
                 />
                 <select
                   required
-                  disabled={credential.role === "admin"}
                   value={branchId}
                   onChange={(e) => setBranchId(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {branchOptions.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -430,7 +583,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Card 3: การรับประกัน / และค่าเสื่อมราคา */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             การรับประกัน / และค่าเสื่อมราคา
@@ -477,7 +629,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Card 4: ผู้จำหน่าย */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-5">
             ผู้จำหน่าย
@@ -539,7 +690,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Card 5: QR Code / Barcode */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-4">
             QR Code / Barcode
@@ -558,7 +708,6 @@ function EditAssetForm() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* QR Code Box */}
             <div className="border border-slate-200 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-semibold text-slate-800">
@@ -583,7 +732,6 @@ function EditAssetForm() {
               </div>
             </div>
 
-            {/* Barcode Box */}
             <div className="border border-slate-200 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-semibold text-slate-800">
@@ -636,7 +784,6 @@ function EditAssetForm() {
           </div>
         </div>
 
-        {/* Bottom Action Buttons */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
           <Link
             href={`/assets/${targetAsset.id}`}

@@ -3,8 +3,13 @@
 import { useState, useMemo, useSyncExternalStore, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { assets as initialAssets, AssetStatus } from "@/data/asset";
+import { AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
+import {
+  getMergedAssets,
+  getServerAssets,
+  subscribeAssets,
+} from "@/lib/assetStorage";
 import { Trash2, ShieldAlert, ArrowLeft } from "lucide-react";
 
 type RoleKey = "user" | "admin" | "president" | "superadmin";
@@ -14,7 +19,6 @@ type CredentialData = {
   branch_id?: string;
 };
 
-// --- อ่านสิทธิ์จาก localStorage ---
 function subscribeCredential(onChange: () => void) {
   window.addEventListener("storage", onChange);
   window.addEventListener("credentialchange", onChange);
@@ -60,6 +64,12 @@ function DeleteAssetForm() {
   const searchParams = useSearchParams();
   const assetId = searchParams.get("id") || "";
 
+  const allAssets = useSyncExternalStore(
+    subscribeAssets,
+    getMergedAssets,
+    getServerAssets
+  );
+
   const credential = useSyncExternalStore(
     subscribeCredential,
     getClientCredential,
@@ -71,10 +81,9 @@ function DeleteAssetForm() {
 
   const [confirmInput, setConfirmInput] = useState("");
 
-  // ค้นหาทรัพย์สินที่จะลบ
   const targetAsset = useMemo(() => {
-    return initialAssets.find((item) => item.id === assetId);
-  }, [assetId]);
+    return allAssets.find((item) => item.id === assetId);
+  }, [allAssets, assetId]);
 
   const getBranchName = (branchId: string) => {
     const found = (branches as Record<string, string>[]).find(
@@ -94,7 +103,6 @@ function DeleteAssetForm() {
     return map[status];
   };
 
-  // ป้องกันสิทธิ์ User / President
   if (!canManageAsset) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] p-8 flex flex-col items-center justify-center text-center">
@@ -151,6 +159,7 @@ function DeleteAssetForm() {
           "deleted_assets",
           JSON.stringify([...deleted, targetAsset.id])
         );
+        window.dispatchEvent(new Event("assetchange"));
       }
     } catch {
       // ignore storage error
@@ -163,7 +172,6 @@ function DeleteAssetForm() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 text-slate-800">
       <div className="max-w-5xl mx-auto">
-        {/* Header & Breadcrumb */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">ลบทรัพย์สิน</h1>
           <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1">
@@ -182,12 +190,10 @@ function DeleteAssetForm() {
           </div>
         </div>
 
-        {/* Main Confirmation Card */}
         <form
           onSubmit={handleDelete}
           className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-100 shadow-xs"
         >
-          {/* Warning Header */}
           <div className="flex items-center gap-4 mb-6">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
               <Trash2 size={22} />
@@ -202,7 +208,6 @@ function DeleteAssetForm() {
             </div>
           </div>
 
-          {/* Asset Preview Box */}
           <div className="bg-slate-50/90 border border-slate-100 rounded-2xl p-5 mb-6 space-y-1.5">
             <p className="text-xs text-slate-400 font-medium">
               {targetAsset.id}
@@ -218,7 +223,6 @@ function DeleteAssetForm() {
             </p>
           </div>
 
-          {/* Confirmation Input */}
           <div className="mb-6">
             <label className="block text-xs font-semibold text-slate-700 mb-2">
               พิมพ์รหัสทรัพย์สินเพื่อยืนยัน <span className="text-rose-500">*</span>
@@ -232,7 +236,6 @@ function DeleteAssetForm() {
             />
           </div>
 
-          {/* Action Buttons */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Link
               href={`/assets/${targetAsset.id}`}

@@ -4,8 +4,13 @@ import { useMemo, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { assets as initialAssets, AssetStatus } from "@/data/asset";
+import { AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
+import {
+  getMergedAssets,
+  getServerAssets,
+  subscribeAssets,
+} from "@/lib/assetStorage";
 import { Laptop, ArrowLeft } from "lucide-react";
 
 type RoleKey = "user" | "admin" | "president" | "superadmin";
@@ -86,6 +91,13 @@ export default function AssetDetailPage() {
   const params = useParams();
   const assetId = decodeURIComponent(String(params?.id || ""));
 
+  // ดึงข้อมูลรวมจาก data/asset.ts + รายการที่เพิ่ม/แก้ไข/ลบ
+  const allAssets = useSyncExternalStore(
+    subscribeAssets,
+    getMergedAssets,
+    getServerAssets
+  );
+
   const credential = useSyncExternalStore(
     subscribeCredential,
     getClientCredential,
@@ -98,8 +110,8 @@ export default function AssetDetailPage() {
 
   // ค้นหาข้อมูลทรัพย์สินตาม ID จาก URL
   const asset = useMemo(() => {
-    return initialAssets.find((item) => item.id === assetId);
-  }, [assetId]);
+    return allAssets.find((item) => item.id === assetId);
+  }, [allAssets, assetId]);
 
   const getBranchLabel = (branchId: string) => {
     const found = (branches as Record<string, string>[]).find(
@@ -215,7 +227,14 @@ export default function AssetDetailPage() {
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs mb-6 flex items-center gap-5">
           <div className="w-16 h-16 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-center text-indigo-500 shrink-0 overflow-hidden">
             {asset.assetImage ? (
-              <Image src={asset.assetImage} alt={asset.name} width={128} height={128} unoptimized className="h-full w-full object-cover" />
+              <Image
+                src={asset.assetImage}
+                alt={asset.name}
+                width={128}
+                height={128}
+                unoptimized
+                className="h-full w-full object-cover"
+              />
             ) : (
               <Laptop size={30} />
             )}
@@ -411,7 +430,6 @@ export default function AssetDetailPage() {
 
               <div className="border border-slate-100 rounded-xl py-8 flex flex-col items-center justify-center bg-slate-50/30">
                 <div className="p-3 bg-slate-100 rounded-xl">
-                  {/* Mock QR Vector */}
                   <svg
                     viewBox="0 0 100 100"
                     className="w-24 h-24 text-slate-900"
@@ -437,7 +455,6 @@ export default function AssetDetailPage() {
 
               <div className="border border-slate-100 rounded-xl py-8 flex flex-col items-center justify-center bg-slate-50/30">
                 <div className="h-[120px] flex items-center justify-center px-6">
-                  {/* Mock Barcode Vector */}
                   <svg
                     viewBox="0 0 180 60"
                     className="w-44 h-16 text-slate-900"
