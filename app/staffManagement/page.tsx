@@ -17,6 +17,9 @@ import { useEffect, useMemo, useState } from "react";
 import { branches } from "@/data/branches";
 import { useTranslate } from "@/lib/language";
 import StaffDetailModal from "./_components/StaffDetailModal";
+import EditStaffModal, {
+  type StaffAccountChanges,
+} from "./_components/EditStaffModal";
 import StaffProfileImage from "./_components/StaffProfileImage";
 import SuspendStaffModal from "./_components/SuspendStaffModal";
 
@@ -153,6 +156,7 @@ export default function StaffManagementPage() {
   const [selectedAccount, setSelectedAccount] = useState<StaffAccount | null>(
     null,
   );
+  const [accountToEdit, setAccountToEdit] = useState<StaffAccount | null>(null);
   const [accountToSuspend, setAccountToSuspend] = useState<StaffAccount | null>(
     null,
   );
@@ -262,18 +266,60 @@ export default function StaffManagementPage() {
     return branch ? translateText(branch.name) : branchId;
   };
 
+
+  //////////////////////////////////////////////////////////////
+  /////////////////การ Edit Accout//////////////////////////////
+  const updateAccount = async (
+    accountId: number,
+    changes: StaffAccountChanges,
+  ) => {
+    const response = await fetch(
+      `/api/staff-management/accounts/${accountId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: changes.first_name,
+          last_name: changes.last_name,
+          email: changes.email,
+          branch_id: changes.branch_id,
+          ...(changes.password ? { password: changes.password } : {}),
+        }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`บันทึกข้อมูลบัญชีไม่สำเร็จ (HTTP ${response.status})`);
+    }
+
+    const payload: unknown = await response.json();
+    const updatedAccount = parseAccount(payload, accountId);
+    if (updatedAccount.id !== accountId) {
+      throw new Error("MockAPI ส่งข้อมูลบัญชีที่แก้ไขกลับมาไม่ถูกต้อง");
+    }
+
+    setAccounts((currentAccounts) =>
+      currentAccounts.map((account) =>
+        account.id === updatedAccount.id ? updatedAccount : account,
+      ),
+    );
+    setAccountToEdit(null);
+  };
+
+    //////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////
+
   const suspendAccount = async () => {
     if (!accountToSuspend) return;
 
-    const baseUrl = getApiBaseUrl();
-    const response = await fetch(`${baseUrl}/Account/${accountToSuspend.id}`, {
+    const response = await fetch(
+      `/api/staff-management/accounts/${accountToSuspend.id}`,
+      {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: "Inactive",
-        updated_at: Math.floor(Date.now() / 1000),
-      }),
-    });
+        body: JSON.stringify({ status: "Inactive" }),
+      },
+    );
     if (!response.ok) {
       throw new Error(`ระงับบัญชีไม่สำเร็จ (HTTP ${response.status})`);
     }
@@ -512,6 +558,7 @@ export default function StaffManagementPage() {
                               </button>
                               <button
                                 type="button"
+                                onClick={() => setAccountToEdit(account)}
                                 className="h-9 whitespace-nowrap rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                               >
                                 {translateText("แก้ไขข้อมูล")}
@@ -642,6 +689,14 @@ export default function StaffManagementPage() {
           }
           branchName={getBranchName(selectedAccount.branch_id)}
           onClose={() => setSelectedAccount(null)}
+        />
+      )}
+
+      {accountToEdit && (
+        <EditStaffModal
+          account={accountToEdit}
+          onClose={() => setAccountToEdit(null)}
+          onSave={(changes) => updateAccount(accountToEdit.id, changes)}
         />
       )}
 
