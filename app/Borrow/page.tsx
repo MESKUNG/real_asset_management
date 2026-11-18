@@ -3,6 +3,7 @@ import { useTranslate } from "@/lib/language";
 
 import React from 'react'
 import Select, { type StylesConfig } from "react-select";
+import jsQR from "jsqr";
 
 import {
   useEffect,
@@ -1161,39 +1162,93 @@ function RequestModal({
                       const file = e.target.files?.[0];
                       e.target.value = "";
                       if (!file) return;
-                      const Detector = (window as Window & { BarcodeDetector?: new (options?: { formats: string[] }) => { detect: (source: ImageBitmap) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
-                      if (!Detector || typeof createImageBitmap === "undefined") {
-                        setQrMessage("เบราว์เซอร์นี้ไม่รองรับการอ่าน QR Code กรุณาเลือกทรัพย์สินจากรายการ");
-                        return;
-                      }
+
                       try {
-                        const bitmap = await createImageBitmap(file);
-                        const detector = new Detector({ formats: ["qr_code"] });
-                        const codes = await detector.detect(bitmap);
-                        bitmap.close();
-                        const rawValue = codes[0]?.rawValue?.trim();
+                        // แปลงไฟล์ภาพเป็น ImageData เพื่อให้ jsQR อ่านได้
+                        const imageUrl = URL.createObjectURL(file);
+                        const image = new Image();
+
+                        const imageData = await new Promise<ImageData>((resolve, reject) => {
+                          image.onload = () => {
+                            try {
+                              const canvas = document.createElement("canvas");
+                              canvas.width = image.naturalWidth;
+                              canvas.height = image.naturalHeight;
+
+                              const context = canvas.getContext("2d");
+                              if (!context) {
+                                reject(new Error("ไม่สามารถเปิด canvas ได้"));
+                                return;
+                              }
+
+                              context.drawImage(image, 0, 0);
+                              resolve(
+                                context.getImageData(0, 0, canvas.width, canvas.height)
+                              );
+                            } catch (error) {
+                              reject(error);
+                            } finally {
+                              URL.revokeObjectURL(imageUrl);
+                            }
+                          };
+
+                          image.onerror = () => {
+                            URL.revokeObjectURL(imageUrl);
+                            reject(new Error("ไม่สามารถอ่านไฟล์ภาพได้"));
+                          };
+
+                          image.src = imageUrl;
+                        });
+
+                        const result = jsQR(
+                          imageData.data,
+                          imageData.width,
+                          imageData.height,
+                          { inversionAttempts: "attemptBoth" }
+                        );
+
+                        const rawValue = result?.data?.trim();
                         if (!rawValue) {
-                          setQrMessage("ไม่พบ QR Code ในภาพ กรุณาลองสแกนอีกครั้ง");
+                          setQrMessage("ไม่พบ QR Code ในภาพ กรุณาเลือกรูปที่เห็น QR Code ชัดเจน");
                           return;
                         }
+
                         let code = rawValue;
                         try {
-                          const parsed = JSON.parse(rawValue) as { assetId?: string; id?: string; serialNumber?: string };
+                          const parsed = JSON.parse(rawValue) as {
+                            assetId?: string;
+                            id?: string;
+                            serialNumber?: string;
+                          };
                           code = parsed.assetId ?? parsed.id ?? parsed.serialNumber ?? rawValue;
-                        } catch { /* QR อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา */ }
-                        const matched = assets.find((a) => a.id === code || a.serialNumber === code || rawValue.includes(a.id));
+                        } catch {
+                          // QR อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา เช่น AST-0001
+                        }
+
+                        const matched = assets.find(
+                          (a) =>
+                            a.id === code ||
+                            a.qrCode === code ||
+                            a.barcode === code ||
+                            a.serialNumber === code ||
+                            rawValue.includes(a.id)
+                        );
+
                         if (!matched) {
                           setQrMessage(`ไม่พบทรัพย์สินรหัส ${code} ในระบบ`);
                           return;
                         }
+
                         if (!options.some((a) => a.id === matched.id)) {
                           setQrMessage("ทรัพย์สินนี้ไม่อยู่ในสถานะที่เลือกได้สำหรับคำขอประเภทนี้");
                           return;
                         }
+
                         setAssetId(matched.id);
                         setQrMessage(`สแกนสำเร็จ: ${matched.name} (${matched.id})`);
-                      } catch {
-                        setQrMessage("อ่าน QR Code ไม่สำเร็จ กรุณาลองใหม่");
+                      } catch (error) {
+                        console.error("QR Code read failed:", error);
+                        setQrMessage("อ่าน QR Code ไม่สำเร็จ กรุณาลองเลือกรูปอื่น");
                       }
                     }}
                   />
