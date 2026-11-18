@@ -443,7 +443,8 @@ export default function Page() {
           assetName(r.assetId).toLowerCase().includes(q) ||
           r.purpose.toLowerCase().includes(q),
       )
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      // เรียงตามรหัสคำขอ จาก BRQ-0001 ลงไป
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
   }, [byType, statusFilter, query]);
 
   function update(id: string, patch: Partial<Request>) {
