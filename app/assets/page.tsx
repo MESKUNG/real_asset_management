@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Asset, AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
+import { useTheme, useTranslate } from "@/lib/language";
 import {
   getMergedAssets,
   getServerAssets,
@@ -79,6 +80,17 @@ function getClientCredential(): CredentialData {
 }
 
 export default function AssetListPage() {
+  const isDark = useTheme() === "dark";
+  const translateText = useTranslate();
+  const surfaceClass = isDark
+    ? "border-slate-700 bg-slate-900"
+    : "border-slate-100 bg-white";
+  const fieldClass = isDark
+    ? "border-slate-700 bg-slate-800 text-slate-100 placeholder:text-slate-400"
+    : "border-slate-200 bg-white text-slate-700 placeholder:text-slate-400";
+  const primaryTextClass = isDark ? "text-slate-100" : "text-slate-900";
+  const bodyTextClass = isDark ? "text-slate-200" : "text-slate-700";
+
   // ดึงข้อมูลรวมจาก data/asset.ts + รายการที่เพิ่ม/แก้ไข/ลบ
   const allAssets = useSyncExternalStore(
     subscribeAssets,
@@ -185,7 +197,7 @@ export default function AssetListPage() {
     safePage * ITEMS_PER_PAGE
   );
 
-  // Badge สถานะภาษาไทย
+  // สร้างป้ายสถานะให้ใช้สีตามธีมและข้อความตามภาษาที่เลือก
   const renderStatusBadge = (status: AssetStatus) => {
     const map: Record<
       AssetStatus,
@@ -193,32 +205,32 @@ export default function AssetListPage() {
     > = {
       available: {
         label: "พร้อมใช้งาน",
-        bg: "bg-emerald-50",
-        text: "text-emerald-600",
+        bg: isDark ? "bg-emerald-950/60" : "bg-emerald-50",
+        text: isDark ? "text-emerald-300" : "text-emerald-600",
         dot: "bg-emerald-500",
       },
       borrowed: {
         label: "กำลังถูกยืม",
-        bg: "bg-sky-50",
-        text: "text-sky-600",
+        bg: isDark ? "bg-sky-950/60" : "bg-sky-50",
+        text: isDark ? "text-sky-300" : "text-sky-600",
         dot: "bg-sky-500",
       },
       repair: {
         label: "ซ่อมบำรุง",
-        bg: "bg-amber-50",
-        text: "text-amber-600",
+        bg: isDark ? "bg-amber-950/60" : "bg-amber-50",
+        text: isDark ? "text-amber-300" : "text-amber-600",
         dot: "bg-amber-500",
       },
       damaged: {
         label: "ชำรุด",
-        bg: "bg-rose-50",
-        text: "text-rose-600",
+        bg: isDark ? "bg-rose-950/60" : "bg-rose-50",
+        text: isDark ? "text-rose-300" : "text-rose-600",
         dot: "bg-rose-500",
       },
       disposed: {
         label: "จำหน่ายออก",
-        bg: "bg-slate-100",
-        text: "text-slate-600",
+        bg: isDark ? "bg-slate-700" : "bg-slate-100",
+        text: isDark ? "text-slate-300" : "text-slate-600",
         dot: "bg-slate-500",
       },
     };
@@ -229,22 +241,22 @@ export default function AssetListPage() {
         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${style.bg} ${style.text}`}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
-        {style.label}
+        {translateText(style.label)}
       </span>
     );
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-8 text-slate-800">
+    <div className={`min-h-screen p-3 text-slate-800 sm:p-6 lg:p-8 ${isDark ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"}`}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">ทรัพย์สินทั้งหมด</h1>
+            <h1 className={`text-2xl font-bold ${primaryTextClass}`}>{translateText("ทรัพย์สินทั้งหมด")}</h1>
             <p className="text-sm text-slate-500 mt-1">
               {canViewAllBranches
-                ? "ค้นหาและจัดการทะเบียนทรัพย์สินของทุกสาขา"
-                : `ค้นหาและจัดการทะเบียนทรัพย์สินของสาขา (${getBranchName(userBranchId || "")})`}
+                ? translateText("ค้นหาและจัดการทะเบียนทรัพย์สินของทุกสาขา")
+                : `${translateText("ค้นหาและจัดการทะเบียนทรัพย์สินของสาขา")} (${translateText(getBranchName(userBranchId || ""))})`}
             </p>
           </div>
 
@@ -254,35 +266,35 @@ export default function AssetListPage() {
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition"
             >
               <Plus size={18} />
-              <span>เพิ่มทรัพย์สิน</span>
+              <span>{translateText("เพิ่มทรัพย์สิน")}</span>
             </Link>
           )}
         </div>
 
         {/* Summary Card (แสดงยอดคงที่ ไม่เปลี่ยนตามตัวกรอง) */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs mb-6">
+        <div className={`rounded-2xl border p-4 shadow-xs mb-6 sm:p-6 ${surfaceClass}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+              <div className={`p-2.5 rounded-xl ${isDark ? "bg-indigo-950/60 text-indigo-300" : "bg-indigo-50 text-indigo-600"}`}>
                 <Boxes size={22} />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-slate-700 font-semibold">ทรัพย์สินทั้งหมด</span>
-                <span className="text-3xl font-bold text-slate-900">{stats.total}</span>
-                <span className="text-slate-600 text-sm">รายการ</span>
+                <span className={`font-semibold ${bodyTextClass}`}>{translateText("ทรัพย์สินทั้งหมด")}</span>
+                <span className={`text-3xl font-bold ${primaryTextClass}`}>{stats.total}</span>
+                <span className={`text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>{translateText("รายการ")}</span>
               </div>
             </div>
             <Link
               href="/reports"
-              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition"
-              title="ดูรายงาน"
+              className={`rounded-lg p-2 transition ${isDark ? "text-slate-400 hover:bg-slate-700" : "text-slate-500 hover:bg-slate-100"}`}
+              title={translateText("ดูรายงาน")}
             >
               <BarChart2 size={20} />
             </Link>
           </div>
 
           {/* Segmented Progress Bar */}
-          <div className="w-full h-3.5 rounded-full overflow-hidden flex gap-1 bg-slate-100 mb-3">
+          <div className={`mb-3 flex h-3.5 w-full gap-1 overflow-hidden rounded-full ${isDark ? "bg-slate-800" : "bg-slate-100"}`}>
             {stats.readyPct > 0 && (
               <div
                 style={{ width: `${stats.readyPct}%` }}
@@ -304,24 +316,24 @@ export default function AssetListPage() {
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-6 text-xs text-slate-600">
+          <div className={`flex flex-wrap items-center gap-6 text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-600" />
-              <span>พร้อมใช้งาน / ใช้งานอยู่ {stats.ready}</span>
+              <span>{translateText("พร้อมใช้งาน / ใช้งานอยู่")} {stats.ready}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-600" />
-              <span>ซ่อมบำรุง {stats.repair}</span>
+              <span>{translateText("ซ่อมบำรุง")} {stats.repair}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-rose-500" />
-              <span>ชำรุด / จำหน่าย {stats.damaged}</span>
+              <span>{translateText("ชำรุด / จำหน่าย")} {stats.damaged}</span>
             </div>
           </div>
         </div>
 
         {/* Filter Bar */}
-        <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div className="mb-3 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[260px]">
             <Search
               size={16}
@@ -334,8 +346,8 @@ export default function AssetListPage() {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="ค้นหาชื่อ, รหัสทรัพย์สิน, ยี่ห้อ หรือ Serial Number"
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder={translateText("ค้นหาชื่อ, รหัสทรัพย์สิน, ยี่ห้อ หรือ Serial Number")}
+              className={`w-full rounded-xl border py-2.5 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500 ${fieldClass}`}
             />
           </div>
 
@@ -352,12 +364,13 @@ export default function AssetListPage() {
                 setSelectedBranch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-10 pr-8 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+              className={`rounded-xl border py-2.5 pl-10 pr-8 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-60 ${fieldClass}`}
+              style={{ colorScheme: isDark ? "dark" : "light" }}
             >
-              <option value="all">ทุกสาขา</option>
+              <option value="all">{translateText("ทุกสาขา")}</option>
               {branchOptions.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.name}
+                  {translateText(b.name)}
                 </option>
               ))}
             </select>
@@ -375,47 +388,48 @@ export default function AssetListPage() {
                 setSelectedStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-10 pr-8 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none"
+              className={`rounded-xl border py-2.5 pl-10 pr-8 text-sm outline-none ${fieldClass}`}
+              style={{ colorScheme: isDark ? "dark" : "light" }}
             >
-              <option value="all">ทุกสถานะ</option>
-              <option value="available">พร้อมใช้งาน</option>
-              <option value="borrowed">กำลังถูกยืม</option>
-              <option value="repair">ซ่อมบำรุง</option>
-              <option value="damaged">ชำรุด</option>
-              <option value="disposed">จำหน่ายออก</option>
+              <option value="all">{translateText("ทุกสถานะ")}</option>
+              <option value="available">{translateText("พร้อมใช้งาน")}</option>
+              <option value="borrowed">{translateText("กำลังถูกยืม")}</option>
+              <option value="repair">{translateText("ซ่อมบำรุง")}</option>
+              <option value="damaged">{translateText("ชำรุด")}</option>
+              <option value="disposed">{translateText("จำหน่ายออก")}</option>
             </select>
           </div>
         </div>
 
-        <p className="text-xs text-slate-400 mb-4">
-          ทั้งหมด {filteredAssets.length} รายการ · เรียงตามอัปเดตล่าสุด
+        <p className="mb-4 text-xs text-slate-400">
+          {translateText("ทั้งหมด")} {filteredAssets.length} {translateText("รายการ")} · {translateText("เรียงตามอัปเดตล่าสุด")}
         </p>
 
         {/* Table Header (Desktop) */}
         <div className="hidden md:grid grid-cols-12 px-6 py-2.5 text-xs font-medium text-slate-400">
-          <div className="col-span-4">ทรัพย์สิน / รหัส</div>
-          <div className="col-span-3">ผู้รับผิดชอบ / ยี่ห้อ</div>
-          <div className="col-span-2">สาขา</div>
-          <div className="col-span-1">สถานะ</div>
-          <div className="col-span-1 text-right">มูลค่า</div>
+          <div className="col-span-4">{translateText("ทรัพย์สิน / รหัส")}</div>
+          <div className="col-span-3">{translateText("ผู้รับผิดชอบ / ยี่ห้อ")}</div>
+          <div className="col-span-2">{translateText("สาขา")}</div>
+          <div className="col-span-1">{translateText("สถานะ")}</div>
+          <div className="col-span-1 text-right">{translateText("มูลค่า")}</div>
           <div className="col-span-1" />
         </div>
 
         {/* Asset List Rows */}
         <div className="space-y-2.5">
           {paginatedAssets.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center text-sm text-slate-400 border border-slate-100">
-              ไม่พบรายการทรัพย์สินที่ตรงกับเงื่อนไขการค้นหา
+            <div className={`rounded-2xl border p-12 text-center text-sm text-slate-400 ${surfaceClass}`}>
+              {translateText("ไม่พบรายการทรัพย์สินที่ตรงกับเงื่อนไขการค้นหา")}
             </div>
           ) : (
             paginatedAssets.map((asset: Asset) => (
               <div
                 key={asset.id}
-                className="grid grid-cols-1 md:grid-cols-12 items-center gap-3 md:gap-0 bg-white px-6 py-4 rounded-2xl border border-slate-100 shadow-xs hover:border-indigo-200 transition relative"
+                className={`relative grid grid-cols-1 items-center gap-3 rounded-2xl border px-4 py-4 shadow-xs transition hover:border-indigo-400 sm:px-6 md:grid-cols-12 md:gap-0 ${surfaceClass} ${isDark ? "hover:bg-slate-800" : "hover:bg-indigo-50/40"}`}
               >
                 {/* ทรัพย์สิน / รหัส */}
                 <div className="col-span-4 flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 overflow-hidden">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border ${isDark ? "border-slate-700 bg-slate-800 text-slate-400" : "border-slate-100 bg-slate-50 text-slate-500"}`}>
                     {asset.assetImage ? (
                       <Image
                         src={asset.assetImage}
@@ -432,7 +446,7 @@ export default function AssetListPage() {
                   <div className="min-w-0">
                     <Link
                       href={`/assets/${asset.id}`}
-                      className="text-sm font-semibold text-slate-800 hover:text-indigo-600 transition truncate block"
+                      className={`block truncate text-sm font-semibold transition hover:text-indigo-500 ${isDark ? "text-slate-100" : "text-slate-800"}`}
                     >
                       {asset.name}
                     </Link>
@@ -444,10 +458,10 @@ export default function AssetListPage() {
 
                 {/* ผู้รับผิดชอบ */}
                 <div className="col-span-3">
-                  <p className="text-sm text-slate-700">
+                  <p className={`text-sm ${bodyTextClass}`}>
                     {asset.responsiblePersonId
-                      ? `รหัสพนักงาน #${asset.responsiblePersonId}`
-                      : "ยังไม่มอบหมาย"}
+                      ? `${translateText("รหัสพนักงาน")} #${asset.responsiblePersonId}`
+                      : translateText("ยังไม่มอบหมาย")}
                   </p>
                   <p className="text-xs text-slate-400">
                     {asset.brand} {asset.model}
@@ -455,15 +469,15 @@ export default function AssetListPage() {
                 </div>
 
                 {/* สาขา */}
-                <div className="col-span-2 text-sm text-slate-600">
-                  {getBranchName(asset.branchId)}
+                <div className={`col-span-2 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                  {translateText(getBranchName(asset.branchId))}
                 </div>
 
                 {/* สถานะ */}
                 <div className="col-span-1">{renderStatusBadge(asset.status)}</div>
 
                 {/* มูลค่า */}
-                <div className="col-span-1 md:text-right text-sm font-medium text-slate-700">
+                <div className={`col-span-1 text-sm font-medium md:text-right ${bodyTextClass}`}>
                   ฿{asset.purchasePrice.toLocaleString()}
                 </div>
 
@@ -476,26 +490,26 @@ export default function AssetListPage() {
                         onClick={() =>
                           setOpenMenuId(openMenuId === asset.id ? null : asset.id)
                         }
-                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+                        className={`rounded-lg p-1.5 ${isDark ? "text-slate-400 hover:bg-slate-700 hover:text-slate-100" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"}`}
                       >
                         <MoreHorizontal size={18} />
                       </button>
 
                       {openMenuId === asset.id && (
-                        <div className="absolute right-0 top-9 z-20 w-36 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 text-xs">
+                        <div className={`absolute right-0 top-9 z-20 w-36 rounded-xl border py-1.5 text-xs shadow-lg ${isDark ? "border-slate-700 bg-slate-900" : "border-slate-100 bg-white"}`}>
                           <Link
                             href={`/assets/edit?id=${asset.id}`}
-                            className="flex items-center gap-2 px-3.5 py-2 text-slate-700 hover:bg-slate-50"
+                            className={`flex items-center gap-2 px-3.5 py-2 ${isDark ? "text-slate-200 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-50"}`}
                           >
                             <Pencil size={14} />
-                            <span>แก้ไขข้อมูล</span>
+                            <span>{translateText("แก้ไขข้อมูล")}</span>
                           </Link>
                           <Link
                             href={`/assets/delete?id=${asset.id}`}
-                            className="flex items-center gap-2 px-3.5 py-2 text-rose-600 hover:bg-rose-50"
+                            className={`flex items-center gap-2 px-3.5 py-2 ${isDark ? "text-rose-300 hover:bg-rose-950/50" : "text-rose-600 hover:bg-rose-50"}`}
                           >
                             <Trash2 size={14} />
-                            <span>ลบทรัพย์สิน</span>
+                            <span>{translateText("ลบทรัพย์สิน")}</span>
                           </Link>
                         </div>
                       )}
@@ -508,18 +522,18 @@ export default function AssetListPage() {
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-xs text-slate-500">
+        <div className={`mt-6 flex flex-col items-center justify-between gap-4 text-xs sm:flex-row ${isDark ? "text-slate-400" : "text-slate-500"}`}>
           <span>
-            แสดง {filteredAssets.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}–
-            {Math.min(safePage * ITEMS_PER_PAGE, filteredAssets.length)} จาก{" "}
-            {filteredAssets.length} รายการ
+            {translateText("แสดง")} {filteredAssets.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1}–
+            {Math.min(safePage * ITEMS_PER_PAGE, filteredAssets.length)} {translateText("จาก")}{" "}
+            {filteredAssets.length} {translateText("รายการ")}
           </span>
 
           <div className="flex items-center gap-1">
             <button
               disabled={safePage === 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-40"
+              className={`rounded-lg p-1.5 transition disabled:opacity-40 ${isDark ? "hover:bg-slate-700" : "hover:bg-slate-200"}`}
             >
               <ChevronLeft size={16} />
             </button>
@@ -540,8 +554,12 @@ export default function AssetListPage() {
                     onClick={() => setCurrentPage(page)}
                     className={`w-8 h-8 rounded-lg font-medium transition ${
                       safePage === page
-                        ? "bg-indigo-100 text-indigo-600 font-semibold"
-                        : "hover:bg-slate-200 text-slate-600"
+                        ? isDark
+                          ? "bg-indigo-500/20 font-semibold text-indigo-200"
+                          : "bg-indigo-100 font-semibold text-indigo-600"
+                        : isDark
+                          ? "text-slate-300 hover:bg-slate-700"
+                          : "text-slate-600 hover:bg-slate-200"
                     }`}
                   >
                     {page}
@@ -552,7 +570,7 @@ export default function AssetListPage() {
             <button
               disabled={safePage === totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1.5 rounded-lg hover:bg-slate-200 disabled:opacity-40"
+              className={`rounded-lg p-1.5 transition disabled:opacity-40 ${isDark ? "hover:bg-slate-700" : "hover:bg-slate-200"}`}
             >
               <ChevronRight size={16} />
             </button>

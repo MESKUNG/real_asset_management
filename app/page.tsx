@@ -184,7 +184,6 @@ export default function Home() {
           login_time: new Date().toISOString(),
           status: "success",
           device: navigator.userAgent || "ไม่ทราบอุปกรณ์",
-          ip_address: "ระบุไม่ได้",
         });
       } catch (historyError) {
         console.warn("บันทึกประวัติการเข้าสู่ระบบไม่สำเร็จ:", historyError);

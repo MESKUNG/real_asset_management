@@ -23,6 +23,7 @@ export type BorrowRequest = {
   status: BorrowStatus;
   note: string;
   createdAt: string;
+  submittedByUser?: boolean;
 };
 
 export const borrowRequests: BorrowRequest[] = [

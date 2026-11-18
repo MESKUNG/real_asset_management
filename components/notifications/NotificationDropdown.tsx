@@ -1,7 +1,7 @@
 "use client";
 
 // ปุ่มกระดิ่งและกล่องแจ้งเตือนด้านบนของเว็บ
-// ถ้าจะเปลี่ยนหน้าตา ให้ดู className ในส่วน return ด้านล่าง
+// แสดงจำนวนที่ยังไม่อ่านและรายการล่าสุด; กดรายการเพื่อไปดูรายละเอียดได้
 import {
   useEffect,
   useMemo,
@@ -11,7 +11,7 @@ import {
 } from "react";
 import { Bell1, CheckCircle1, Gear1, RefreshCircle1Clockwise } from "@tailgrids/icons";
 import { useRouter } from "next/navigation";
-import { useLanguage, useTranslate } from "@/lib/language";
+import { useLanguage, useTheme, useTranslate } from "@/lib/language";
 import {
   formatNotificationTime,
   getCredentialRoleSnapshot,
@@ -41,7 +41,7 @@ function NotificationIcon({
 }: {
   category: NotificationItem["category"];
 }) {
-  // เลือกรูปไอคอนตามประเภทแจ้งเตือน ถ้าเพิ่มประเภทใหม่ให้เพิ่มรูปตรงนี้ด้วย
+  // เลือกรูปไอคอนให้ตรงกับชนิดของแจ้งเตือน
   const iconClass = "size-4";
   const iconByCategory = {
     new: <Bell1 className={iconClass} />,
@@ -66,6 +66,7 @@ function NotificationIcon({
 export default function NotificationDropdown() {
   const router = useRouter();
   const language = useLanguage();
+  const isDark = useTheme() === "dark";
   const translateText = useTranslate();
   const role = useSyncExternalStore(
     subscribeToCredentialChanges,
@@ -133,7 +134,7 @@ export default function NotificationDropdown() {
     };
   }, [isOpen]);
 
-  // ปุ่ม "อ่านทั้งหมด" ทำให้จุดแจ้งเตือนของทุกรายการหายไป
+  // ทำเครื่องหมายว่ารายการที่เห็นทั้งหมดถูกอ่านแล้ว
   const markAllAsRead = () => {
     try {
       markNotificationsRead(visibleNotifications.map(({ id }) => id));
@@ -165,7 +166,9 @@ export default function NotificationDropdown() {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         onClick={() => setIsOpen((open) => !open)}
-        className="relative flex size-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className={`relative flex size-10 items-center justify-center rounded-lg text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+          isDark ? "hover:bg-slate-700" : "hover:bg-slate-100"
+        }`}
       >
         <Bell1 className="size-5" />
         {unreadCount > 0 && (
@@ -179,10 +182,10 @@ export default function NotificationDropdown() {
         <section
           role="dialog"
           aria-label={translateText("การแจ้งเตือน")}
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl"
+          className="absolute right-0 top-[calc(100%+0.75rem)] z-50 max-h-[calc(100dvh-5rem)] w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl"
         >
           {/* กล่องนี้จะแสดงหลังจากกดกระดิ่ง */}
-          <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <header className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-3 sm:px-4">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold">
                 {translateText("การแจ้งเตือน")}
@@ -197,7 +200,11 @@ export default function NotificationDropdown() {
               type="button"
               onClick={markAllAsRead}
               disabled={unreadCount === 0}
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:cursor-default disabled:text-slate-400"
+              className={`text-xs font-medium transition-colors disabled:cursor-default disabled:text-slate-400 ${
+                isDark
+                  ? "text-indigo-300 hover:text-indigo-200"
+                  : "text-indigo-600 hover:text-indigo-700"
+              }`}
             >
               {translateText("อ่านทั้งหมด")}
             </button>
@@ -210,7 +217,7 @@ export default function NotificationDropdown() {
             </p>
           )}
 
-          <div className="max-h-[min(26rem,70vh)] overflow-y-auto">
+          <div className="max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto">
             {/* กล่องย่อแสดง 4 รายการล่าสุดที่ผู้ใช้มีสิทธิ์เห็น */}
             {visibleNotifications.slice(0, 4).map((notification) => {
               const isUnread = !readIds.has(notification.id);
@@ -220,21 +227,27 @@ export default function NotificationDropdown() {
                   type="button"
                   key={notification.id}
                   onClick={() => openNotification(notification)}
-                  className={`flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-indigo-50 ${
-                    isUnread ? "bg-indigo-50/70" : "bg-white"
+                  className={`flex w-full cursor-pointer items-start gap-3 border-l-2 border-transparent px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:px-4 ${
+                    isDark
+                      ? `hover:border-indigo-400 hover:bg-slate-700 active:bg-slate-600 ${
+                          isUnread ? "bg-indigo-950/40" : "bg-slate-800"
+                        }`
+                      : `hover:border-indigo-500 hover:bg-indigo-100 active:bg-indigo-200 ${
+                          isUnread ? "bg-indigo-50/70" : "bg-white"
+                        }`
                   }`}
                 >
                   <NotificationIcon category={notification.category} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-start justify-between gap-2">
-                      <span className="text-xs font-semibold text-slate-800">
+                      <span className="min-w-0 break-words text-xs font-semibold text-slate-800">
                         {translateText(notification.title)}
                       </span>
-                      <span className="shrink-0 text-[10px] text-slate-400">
+                      <span className="shrink-0 whitespace-nowrap text-[10px] text-slate-400">
                         {formatNotificationTime(notification.createdAt, language)}
                       </span>
                     </span>
-                    <span className="mt-1 block line-clamp-2 whitespace-normal text-xs text-slate-600">
+                    <span className="mt-1 block line-clamp-2 break-words text-xs text-slate-600">
                       {translateText(notification.assetName)}
                       {notification.issue &&
                         ` · ${translateText(notification.issue)}`}
@@ -265,7 +278,11 @@ export default function NotificationDropdown() {
               setIsOpen(false);
               router.push("/notifications-center");
             }}
-            className="flex w-full items-center justify-center gap-2 border-t border-slate-100 px-4 py-3 text-xs font-semibold text-indigo-600 transition hover:bg-slate-50"
+            className={`flex w-full items-center justify-center gap-2 border-t border-slate-100 px-3 py-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:px-4 ${
+              isDark
+                ? "text-indigo-300 hover:bg-slate-700"
+                : "text-indigo-600 hover:bg-indigo-50"
+            }`}
           >
             {translateText("ดูการแจ้งเตือนทั้งหมด")}{" "}
             <span aria-hidden="true">›</span>

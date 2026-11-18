@@ -8,7 +8,7 @@ import {
 
 
 // หน้านี้ให้ Admin ค้นหา ตรวจสอบ และอัปเดตคำร้องแจ้งซ่อม
-// ตอนนี้การแก้ไขยังไม่บันทึกลงฐานข้อมูล ถ้ารีเฟรชหน้าจะกลับเป็นข้อมูลเดิม
+// Admin เปลี่ยนสถานะและเขียนคำตอบได้; คำตอบจะถูกเก็บและส่งแจ้งเตือนไปยัง User
 import { Suspense, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAccountNames } from "@/lib/accounts";
@@ -79,6 +79,7 @@ const allowedFileTypes = new Set([
 ]);
 const maxFileSize = 10 * 1024 * 1024;
 
+// จัดรูปแบบวันและเวลาให้คนอ่านเข้าใจง่าย
 function formatThaiDate(date: string) {
   // แปลงวันที่ให้เป็นรูปแบบภาษาไทย
   return new Date(date).toLocaleDateString("th-TH", {
@@ -126,7 +127,7 @@ function RepairsAdminPageContent() {
     Record<string, RepairRequest>
   >({});
   const requests = useMemo(() => {
-    // รวมข้อมูลตั้งต้นกับ User; ถ้ามีการแก้ไขของ Admin ให้ใช้ค่าที่แก้ล่าสุด
+    // รวมคำร้องตัวอย่างกับคำร้องที่ User ส่ง; ถ้า Admin แก้แล้วให้ใช้ค่าล่าสุด
     const requestsById = new Map<string, RepairRequest>();
     [...initialRequests, ...createdRequests].forEach((request) =>
       requestsById.set(request.id, request),

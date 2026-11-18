@@ -7,7 +7,8 @@ import {
 } from "@/lib/language";
 
 
-// หน้าประวัติซ่อมของ Admin แสดงงานที่ซ่อมเสร็จแล้ว
+// หน้าประวัติซ่อมของ Admin แสดงเฉพาะงานที่ซ่อมเสร็จแล้ว
+// ค้นหา เปลี่ยนหน้า และเปิดรายละเอียดได้; เปิดรายละเอียดจากลิงก์ได้ด้วย
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Search1 } from "@tailgrids/icons";
@@ -34,6 +35,7 @@ function isCompletedRequest(
   return request.status === "completed" && request.completedAt !== null;
 }
 
+// จัดวันที่ให้อ่านง่ายก่อนนำไปแสดงบนหน้า
 function formatThaiDate(date: string) {
   // เปลี่ยนวันที่ให้แสดงเป็นรูปแบบภาษาไทย
   return new Date(date).toLocaleDateString("th-TH", {
