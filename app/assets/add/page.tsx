@@ -167,6 +167,7 @@ export default function AddAssetPage() {
       brand: brand.trim() || "-",
       model: model.trim() || "-",
       serialNumber: serialNumber.trim() || "-",
+      assetImage: `https://picsum.photos/seed/${nextAssetId}/640/480`,
       branchId,
       responsiblePersonId: responsiblePersonId
         ? Number(responsiblePersonId)

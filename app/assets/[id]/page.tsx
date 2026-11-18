@@ -3,6 +3,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { assets as initialAssets, AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
 import { Laptop, ArrowLeft } from "lucide-react";
@@ -212,8 +213,12 @@ export default function AssetDetailPage() {
 
         {/* Asset Summary Banner */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs mb-6 flex items-center gap-5">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-center text-indigo-500 shrink-0">
-            <Laptop size={30} />
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-center text-indigo-500 shrink-0 overflow-hidden">
+            {asset.assetImage ? (
+              <Image src={asset.assetImage} alt={asset.name} width={128} height={128} unoptimized className="h-full w-full object-cover" />
+            ) : (
+              <Laptop size={30} />
+            )}
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-900">{asset.name}</h2>
@@ -228,6 +233,19 @@ export default function AssetDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
           {/* Left Column (8 cols) */}
           <div className="lg:col-span-8 space-y-6">
+            {asset.assetImage && (
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-xs">
+                <Image
+                  src={asset.assetImage}
+                  alt={`ภาพทรัพย์สิน ${asset.name}`}
+                  width={1200}
+                  height={900}
+                  unoptimized
+                  className="max-h-96 w-full rounded-xl object-contain"
+                />
+              </div>
+            )}
+
             {/* การ์ดข้อมูลทั่วไป */}
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
               <h3 className="text-base font-bold text-slate-900 mb-5">

@@ -2,6 +2,7 @@
 'use client';
 
 import { QRCodeSVG } from "qrcode.react";
+import Image from "next/image";
 import { assets } from "@/data/asset";
 
 // ดึง Type จากข้อมูล assets โดยตรง
@@ -59,6 +60,17 @@ function AssetQRCode({ asset }: { asset: Asset }) {
       <h3 className="font-bold text-lg text-gray-800">
         {asset.name}
       </h3>
+
+      {asset.assetImage && (
+        <Image
+          src={asset.assetImage}
+          alt={`ภาพทรัพย์สิน ${asset.name}`}
+          width={400}
+          height={300}
+          unoptimized
+          className="h-36 w-full rounded-lg object-cover"
+        />
+      )}
 
       <QRCodeSVG
         id={qrId}

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { assets as initialAssets, Asset, AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
 import {
@@ -398,8 +399,12 @@ export default function AssetListPage() {
               >
                 {/* ทรัพย์สิน / รหัส */}
                 <div className="col-span-4 flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0">
-                    <Laptop size={18} />
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 overflow-hidden">
+                    {asset.assetImage ? (
+                      <Image src={asset.assetImage} alt={asset.name} width={80} height={80} unoptimized className="h-full w-full object-cover" />
+                    ) : (
+                      <Laptop size={18} />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <Link

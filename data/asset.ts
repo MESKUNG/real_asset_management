@@ -18,6 +18,7 @@ export type Asset = {
   brand: string;
   model: string;
   serialNumber: string;
+  assetImage?: string;
 
   // สาขาและผู้รับผิดชอบ
   branchId: string;
@@ -10546,4 +10547,7 @@ export const assets: Asset[] = [
     "createdBy": 173,
     "updatedBy": 173
   },
-];
+].map((asset) => ({
+  ...asset,
+  assetImage: `https://picsum.photos/seed/${asset.id}/640/480`,
+}));
