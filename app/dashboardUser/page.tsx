@@ -202,7 +202,7 @@ export default function Page() {
   const scopeLabel = selectedBranch?.name ?? scopeUnavailableLabel;
 
   return (
-    <div className="flex flex-col gap-8 px-6 py-8">
+    <div className="flex flex-col gap-6 px-3 py-5 sm:gap-8 sm:px-6 sm:py-8">
       <section className="flex flex-col gap-3">
         <div>
           <h1 className="text-xl font-bold">{translateText("สรุปสถานะทรัพย์สิน")}</h1>
@@ -212,21 +212,21 @@ export default function Page() {
             <span className="font-medium text-red-600">{branchLabel}</span>
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:gap-5 md:grid-cols-3">
           <div className="flex flex-col gap-3 rounded-xl border border-gray-300 bg-white p-4">
             <div className="flex justify-between">
-              <div className="text-lg text-gray-500">{translateText("ทรัพย์สินทั้งหมด")}</div>
+              <div className="text-base text-gray-500 sm:text-lg">{translateText("ทรัพย์สินทั้งหมด")}</div>
               <Boxes className="text-indigo-600" />
             </div>
-            <div className="text-5xl font-bold">{totalAssets ?? "—"}</div>
+            <div className="text-3xl font-bold sm:text-5xl">{totalAssets ?? "—"}</div>
             <div className="text-sm text-gray-500">{scopeLabel}</div>
           </div>
           <div className="flex flex-col gap-3 rounded-xl border border-gray-300 bg-white p-4">
             <div className="flex justify-between">
-              <div className="text-lg text-gray-500">{translateText("พร้อมใช้งาน")}</div>
+              <div className="text-base text-gray-500 sm:text-lg">{translateText("พร้อมใช้งาน")}</div>
               <CircleCheck className="text-green-600" />
             </div>
-            <div className="text-5xl font-bold">
+            <div className="text-3xl font-bold sm:text-5xl">
               {hasScope ? availableAssets : "—"}
             </div>
             <div className="text-sm text-green-600">
@@ -236,13 +236,13 @@ export default function Page() {
           </div>
           <div className="flex flex-col gap-3 rounded-xl border border-gray-300 bg-white p-4">
             <div className="flex justify-between">
-              <div className="text-lg text-gray-500">
+              <div className="text-base text-gray-500 sm:text-lg">
                 
                 {translateText("ชำรุด/อยู่ระหว่างซ่อมบำรุง")}
               </div>
               <Wrench className="text-red-600" />
             </div>
-            <div className="text-5xl font-bold">
+            <div className="text-3xl font-bold sm:text-5xl">
               {hasScope ? maintenanceAssets : "—"}
             </div>
             <div className="text-sm text-red-600">
@@ -256,8 +256,8 @@ export default function Page() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-bold">{translateText("งานที่ต้องดำเนินการ")}</h2>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-2 md:grid-cols-2">
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-gray-300 bg-white p-4 sm:items-center sm:gap-4">
             <span className="font-semibold">{translateText("รอบตรวจนับครั้งถัดไป")}</span>
             <span className="text-right text-sm text-red-600">
               {hasScope
@@ -267,19 +267,19 @@ export default function Page() {
                 : scopeUnavailableLabel}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-gray-300 bg-white p-4 sm:items-center sm:gap-4">
             <span className="font-semibold">{translateText("คำขอซ่อมที่ต้องติดตาม")}</span>
             <span className="text-sm text-red-600">
               {hasScope ? `${activeRepairs} รายการ` : "—"}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-gray-300 bg-white p-4 sm:items-center sm:gap-4">
             <span className="font-semibold">{translateText("คำขอยืมที่ยังไม่เสร็จ")}</span>
             <span className="text-sm text-red-600">
               {hasScope ? `${activeBorrowRequests} รายการ` : "—"}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-300 bg-white p-4">
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-gray-300 bg-white p-4 sm:items-center sm:gap-4">
             <span className="font-semibold">{translateText("ทรัพย์สินใกล้หมดประกันที่สุด")}</span>
             <span className="text-right text-sm text-red-600">
               {hasScope && nearestWarrantyAsset ? (
@@ -354,7 +354,7 @@ export default function Page() {
               {pieData.map((item) => (
                 <li
                   key={item.name}
-                  className="flex items-center gap-2 text-xs text-gray-500"
+                  className="flex flex-wrap items-center gap-2 text-xs text-gray-500"
                 >
                   <span
                     className="h-2.5 w-2.5 shrink-0 rounded-sm"

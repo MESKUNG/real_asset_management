@@ -182,14 +182,7 @@ export default function TopNavbar({
           >
             <Menu className="size-6" aria-hidden="true" />
           </button>
-          <TextField className="hidden flex-col gap-2 md:flex">
-            <InputGroup className="w-64 gap-4 border-gray-300">
-              <Search1 className="ml-2 size-4.5" />
-              <InputGroupInput
-                placeholder={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน...")}
-              />
-            </InputGroup>
-          </TextField>
+          
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">

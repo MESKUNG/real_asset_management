@@ -3,6 +3,8 @@ export type Branch = {
   name: string;
   code: string;
   address: string;
+  province?: string;
+  postalCode?: string;
   phone: string;
   status: "active" | "inactive";
   createdAt: string;
@@ -17,6 +19,7 @@ export const branches: Branch[] = [
     name: "สำนักงานใหญ่",
     code: "BKK",
     address: "กรุงเทพมหานคร",
+    province: "กรุงเทพมหานคร",
     phone: "021000001",
     status: "active",
     createdAt: "2025-01-01T09:00:00",
@@ -26,6 +29,7 @@ export const branches: Branch[] = [
     name: "สาขาเชียงใหม่",
     code: "CNX",
     address: "เชียงใหม่",
+    province: "เชียงใหม่",
     phone: "021000002",
     status: "active",
     createdAt: "2025-01-01T09:00:00",
@@ -35,6 +39,7 @@ export const branches: Branch[] = [
     name: "สาขาภูเก็ต",
     code: "HKT",
     address: "ภูเก็ต",
+    province: "ภูเก็ต",
     phone: "021000003",
     status: "active",
     createdAt: "2025-01-01T09:00:00",
@@ -44,6 +49,7 @@ export const branches: Branch[] = [
     name: "สาขาขอนแก่น",
     code: "KKC",
     address: "ขอนแก่น",
+    province: "ขอนแก่น",
     phone: "021000004",
     status: "active",
     createdAt: "2025-01-01T09:00:00",
@@ -53,6 +59,7 @@ export const branches: Branch[] = [
     name: "สาขาชลบุรี",
     code: "CBI",
     address: "ชลบุรี",
+    province: "ชลบุรี",
     phone: "021000005",
     status: "active",
     createdAt: "2025-01-01T09:00:00",

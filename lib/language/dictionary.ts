@@ -605,4 +605,57 @@ export const englishTranslations: Record<string, string> = {
   "ภาพบนหน้าจอกะพริบ": "The screen is flickering",
   "ตรวจสอบสายสัญญาณและทดสอบการแสดงผลแล้ว":
     "Inspected the display cable and tested the screen",
+  "กำลังตรวจสอบสิทธิ์...": "Checking access...",
+  "หน้าจัดการสาขาสำหรับ President และ Superadmin เท่านั้น":
+    "Branch management is available to Presidents and Superadmins only.",
+  "ข้อมูลสาขาและสถานที่ตั้งขององค์กร":
+    "Manage your organization's branches and locations",
+  "เพิ่มสาขา": "Add branch",
+  "ค้นหารหัส หรือชื่อสาขา": "Search by branch code or name",
+  "สาขาเปิดใช้งาน": "active branches",
+  "รหัส / ชื่อสาขา": "Code / Branch name",
+  "ที่อยู่": "Address",
+  "ปิดใช้งาน": "Inactive",
+  "ดู / แก้ไข": "View / Edit",
+  "ลบรายการ": "Delete",
+  "แสดง {from}–{to} จาก {total} สาขา":
+    "Showing {from}–{to} of {total} branches",
+  "เปลี่ยนหน้ารายการสาขา": "Branch list pagination",
+  "ข้อมูลสาขา": "Branch information",
+  "รหัสสาขา *": "Branch code *",
+  "เช่น BKK": "e.g. BKK",
+  "รหัสไม่ซ้ำกัน เช่น BKK, CNX": "Use a unique code, e.g. BKK or CNX",
+  "ชื่อสาขา *": "Branch name *",
+  "ที่อยู่ *": "Address *",
+  "จังหวัด *": "Province *",
+  "รหัสไปรษณีย์": "Postal code",
+  "เช่น 40000": "e.g. 40000",
+  "เปิดใช้งานสาขานี้": "Enable this branch",
+  "บันทึกข้อมูล": "Save",
+  "แก้ไขสาขา": "Edit branch",
+  "บันทึกข้อมูลสาขาไม่สำเร็จ": "Could not save branch information",
+  "รหัสสาขานี้ถูกใช้งานแล้ว": "This branch code is already in use",
+  "โหลดข้อมูลสาขาไม่สำเร็จ": "Could not load branch information",
+  "ข้อมูลสาขาในเบราว์เซอร์เสียหาย":
+    "Branch data stored in this browser is corrupted",
+  "รูปแบบข้อมูลสาขาในเบราว์เซอร์ไม่ถูกต้อง":
+    "Branch data stored in this browser has an invalid format",
+  "ยืนยันการลบสาขา": "Confirm branch deletion",
+  "ต้องการลบสาขานี้ใช่หรือไม่?": "Are you sure you want to delete this branch?",
+  "สาขานี้มี Asset {count} รายการ ระบบจะปิดใช้งานแทนการลบ เพื่อรักษาประวัติ Asset":
+    "This branch has {count} assets. It will be deactivated instead of deleted to preserve asset history.",
+  "ระบบจะปิดใช้งานสาขาและเก็บข้อมูลเดิมไว้ เพื่อไม่ให้ประวัติการทำรายการสูญหาย":
+    "The branch will be deactivated and retained to preserve its records.",
+  "ปิดใช้งานสาขาไม่สำเร็จ": "Could not deactivate the branch",
+  "กำลังดำเนินการ...": "Processing...",
+  "ยืนยันลบ": "Confirm",
+  "{count} สาขา": "{count} branches",
+  "{count} สาขาเปิดใช้งาน": "{count} active branches",
+  "{count} Asset": "{count} Assets",
+  "ดูสาขา": "View branches",
+  "สาขาทั้งหมด": "All branches",
+  "ดูข้อมูลสาขาและสถานที่ตั้งขององค์กร":
+    "View branch and location information for the organization",
+  "หน้านี้สำหรับ Admin และ User เท่านั้น":
+    "This page is available to Admins and Users only.",
 };

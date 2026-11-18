@@ -48,7 +48,7 @@ export default function StaffDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -57,9 +57,9 @@ export default function StaffDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="staff-detail-title"
-        className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+        <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
           <div>
             <h2
               id="staff-detail-title"
@@ -90,8 +90,8 @@ export default function StaffDetailModal({
           </button>
         </header>
 
-        <div className="space-y-5 px-6 py-6">
-          <div className="flex items-center gap-4 rounded-xl bg-slate-50 p-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3 sm:flex-nowrap sm:gap-4 sm:p-5">
             <StaffProfileImage
               src={account.profile_image}
               alt={`รูปโปรไฟล์ ${account.first_name} ${account.last_name}`}
@@ -99,7 +99,7 @@ export default function StaffDetailModal({
               size={56}
             />
             <div className="min-w-0">
-              <p className="text-lg font-bold text-slate-800">
+              <p className="break-words text-base font-bold text-slate-800 sm:text-lg">
                 {accountCode} · {account.first_name} {account.last_name}
               </p>
               <p className="mt-0.5 text-sm text-slate-500">
@@ -136,11 +136,11 @@ export default function StaffDetailModal({
           </div>
         </div>
 
-        <footer className="flex justify-end border-t border-slate-100 px-6 py-4">
+        <footer className="flex justify-end border-t border-slate-100 px-4 py-3 sm:px-6 sm:py-4">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
           >
             {translateText("ปิด")}
           </button>

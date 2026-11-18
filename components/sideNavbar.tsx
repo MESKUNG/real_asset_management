@@ -21,7 +21,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";  
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { useTranslate } from "@/lib/language";
 ///////////////////////////////////////////////////
@@ -43,12 +43,21 @@ type MenuSection = {
 
 const menus: Record<RoleKey, MenuSection[]> = {
   user: [
-    { heading: "ทั่วไป", items: [{ name: "ภาพรวม", path: "/dashboardUser", icon: LayoutDashboard }] },
+    {
+      heading: "ทั่วไป",
+      items: [
+        { name: "ภาพรวม", path: "/dashboardUser", icon: LayoutDashboard },
+      ],
+    },
     {
       heading: "งานปฏิบัติการ",
       items: [
         { name: "จัดการ Asset", path: "/assets", icon: Boxes },
-        { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow", icon: ArrowLeftRight },
+        {
+          name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน",
+          path: "/Borrow",
+          icon: ArrowLeftRight,
+        },
         {
           name: "ซ่อมบำรุง",
           icon: Wrench,
@@ -58,25 +67,48 @@ const menus: Record<RoleKey, MenuSection[]> = {
           ],
         },
         { name: "รายงาน", path: "/reports", icon: ChartNoAxesColumnIncreasing },
-        { name: "ตรวจนับ / รอบการตรวจนับ", path: "/inventories", icon: CheckSquare, highlight: "audit" },
+        {
+          name: "ตรวจนับ / รอบการตรวจนับ",
+          path: "/inventories",
+          icon: CheckSquare,
+          highlight: "audit",
+        },
       ],
     },
-    { heading: "จัดการระบบ", items: [{ name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 }] },
+    {
+      heading: "จัดการระบบ",
+      items: [
+        { name: "ดูสาขา", path: "/branchsButSee", icon: Building2 },
+        { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 },
+      ],
+    },
   ],
   admin: [
     {
       heading: "ภาพรวม",
       items: [
         { name: "ภาพรวม", path: "/dashboardAdmin", icon: LayoutDashboard },
-        { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center", icon: Bell },
+        {
+          name: "ศูนย์รวมการแจ้งเตือน",
+          path: "/notifications-center",
+          icon: Bell,
+        },
       ],
     },
     {
       heading: "งานปฏิบัติการ",
       items: [
         { name: "จัดการ Asset", path: "/assets", icon: Boxes },
-        { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow", icon: ArrowLeftRight },
-        { name: "ติดตามการนับ / มอบหมายงาน", path: "/inventories", icon: CircleCheck },
+        {
+          name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน",
+          path: "/Borrow",
+          icon: ArrowLeftRight,
+        },
+        {
+          name: "ติดตามการนับ / มอบหมายงาน",
+          path: "/inventories",
+          icon: CircleCheck,
+        },
         {
           name: "ซ่อมบำรุง",
           icon: Wrench,
@@ -90,7 +122,11 @@ const menus: Record<RoleKey, MenuSection[]> = {
           name: "รายงาน",
           icon: ChartNoAxesColumnIncreasing,
           items: [
-            { name: "รับรายงาน", path: "/reports", icon: ChartNoAxesColumnIncreasing },
+            {
+              name: "รับรายงาน",
+              path: "/reports",
+              icon: ChartNoAxesColumnIncreasing,
+            },
             { name: "ส่งรายงาน", path: "/reports/send", icon: Send },
           ],
         },
@@ -99,7 +135,7 @@ const menus: Record<RoleKey, MenuSection[]> = {
     {
       heading: "จัดการระบบ",
       items: [
-        { name: "สถานที่และแผนก", path: "/locations", icon: Building2 },
+        { name: "ดูสาขา", path: "/branchsButSee", icon: Building2 },
         { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 },
       ],
     },
@@ -109,7 +145,11 @@ const menus: Record<RoleKey, MenuSection[]> = {
       heading: "ภาพรวม",
       items: [
         { name: "ภาพรวม", path: "/dashboardPresident", icon: LayoutDashboard },
-        { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center", icon: Bell },
+        {
+          name: "ศูนย์รวมการแจ้งเตือน",
+          path: "/notifications-center",
+          icon: Bell,
+        },
       ],
     },
     {
@@ -121,8 +161,16 @@ const menus: Record<RoleKey, MenuSection[]> = {
           icon: Send,
           items: [
             { name: "ภาพรวมคำขอ", path: "/approve_center", icon: Send },
-            { name: "อนุมัติโยกย้าย", path: "/approve_transfer", icon: CircleCheck },
-            { name: "ประวัติการโอนย้าย", path: "/transfer_history", icon: Clock3 },
+            {
+              name: "อนุมัติโยกย้าย",
+              path: "/approve_transfer",
+              icon: CircleCheck,
+            },
+            {
+              name: "ประวัติการโอนย้าย",
+              path: "/transfer_history",
+              icon: Clock3,
+            },
           ],
         },
         { name: "รายงาน", path: "/reports", icon: ChartNoAxesColumnIncreasing },
@@ -135,8 +183,12 @@ const menus: Record<RoleKey, MenuSection[]> = {
           name: "สถานที่และแผนก",
           icon: Building2,
           items: [
-            { name: "จัดการสาขา", path: "/staffandbranches", icon: Building2 },
-            { name: "จัดการ Admin", path: "/adminManagement", icon: UserRoundCog },
+            { name: "จัดการสาขา", path: "/branchsManagement", icon: Building2 },
+            {
+              name: "จัดการ Admin",
+              path: "/adminManagement",
+              icon: UserRoundCog,
+            },
           ],
         },
         { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 },
@@ -144,10 +196,25 @@ const menus: Record<RoleKey, MenuSection[]> = {
     },
   ],
   superadmin: [
-    { heading: "ภาพรวม", items: [{ name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center", icon: Bell }] },
+    {
+      heading: "ภาพรวม",
+      items: [
+        {
+          name: "ศูนย์รวมการแจ้งเตือน",
+          path: "/notifications-center",
+          icon: Bell,
+        },
+      ],
+    },
     {
       heading: "งานปฏิบัติการ",
-      items: [{ name: "จัดการบัญชี Admin", path: "/adminManagement", icon: UsersRound }],
+      items: [
+        {
+          name: "จัดการบัญชี Admin",
+          path: "/adminManagement",
+          icon: UsersRound,
+        },
+      ],
     },
     {
       heading: "จัดการระบบ",
@@ -156,8 +223,12 @@ const menus: Record<RoleKey, MenuSection[]> = {
           name: "สถานที่และแผนก",
           icon: Building2,
           items: [
-            { name: "จัดการสาขา", path: "/staffandbranches", icon: Building2 },
-            { name: "จัดการ Admin", path: "/adminManagement", icon: UserRoundCog },
+            { name: "จัดการสาขา", path: "/branchsManagement", icon: Building2 },
+            {
+              name: "จัดการ Admin",
+              path: "/adminManagement",
+              icon: UserRoundCog,
+            },
           ],
         },
         { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 },
@@ -239,9 +310,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     getServerRoleSnapshot,
   );
 
-
   ///////////////////////////////////////////
-///////Responsive//////////////////////
+  ///////Responsive//////////////////////
   useEffect(() => {
     if (!isOpen || !role) return;
 
@@ -290,7 +360,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         )}
       </div>
-      <nav aria-label={translateText("เมนูหลัก")} className="flex flex-col gap-5">
+      <nav
+        aria-label={translateText("เมนูหลัก")}
+        className="flex flex-col gap-5"
+      >
         {menus[role].map((section) => (
           <section key={section.heading}>
             <h2 className="mb-1.5 px-1 text-[11px] font-medium text-slate-500">
@@ -302,8 +375,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 const hasChildren = Boolean(item.items?.length);
                 const isOpen = openMenus[item.name] ?? false;
                 const isPathActive = (path?: string) =>
-                  Boolean(path && (pathname === path || pathname.startsWith(`${path}/`)));
-                const isActive = item.items?.some((child) => isPathActive(child.path)) ?? isPathActive(item.path);
+                  Boolean(
+                    path &&
+                    (pathname === path || pathname.startsWith(`${path}/`)),
+                  );
+                const isActive =
+                  item.items?.some((child) => isPathActive(child.path)) ??
+                  isPathActive(item.path);
                 const itemClass = `flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
                   item.highlight === "audit"
                     ? "my-1 min-h-[68px] rounded-2xl bg-yellow-400 px-3 text-base text-blue-950 hover:bg-yellow-300"
@@ -311,7 +389,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       ? "bg-indigo-50 text-violet-700"
                       : "text-white hover:bg-white/10"
                 }`;
-                const iconClass = item.highlight === "audit" ? "size-6" : "size-5";
+                const iconClass =
+                  item.highlight === "audit" ? "size-6" : "size-5";
 
                 return (
                   <div key={item.name}>
@@ -320,19 +399,45 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         type="button"
                         aria-expanded={isOpen}
                         onClick={() =>
-                          setOpenMenus((current) => ({ ...current, [item.name]: !isOpen }))
+                          setOpenMenus((current) => ({
+                            ...current,
+                            [item.name]: !isOpen,
+                          }))
                         }
                         className={itemClass}
                       >
-                        <Icon className={`${iconClass} shrink-0 ${isActive ? "text-violet-600" : "text-slate-400"}`} aria-hidden="true" />
-                        <span className="min-w-0 flex-1">{translateText(item.name)}</span>
-                        <svg aria-hidden="true" viewBox="0 0 20 20" className={`size-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none">
-                          <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+                        <Icon
+                          className={`${iconClass} shrink-0 ${isActive ? "text-violet-600" : "text-slate-400"}`}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1">
+                          {translateText(item.name)}
+                        </span>
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 20 20"
+                          className={`size-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                          fill="none"
+                        >
+                          <path
+                            d="m5 7.5 5 5 5-5"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="1.5"
+                          />
                         </svg>
                       </button>
                     ) : item.path ? (
-                      <Link href={item.path} onClick={isMobile ? onClose : undefined} className={itemClass}>
-                        <Icon className={`${iconClass} shrink-0 ${item.highlight === "audit" ? "text-blue-950" : isActive ? "text-violet-600" : "text-slate-400"}`} aria-hidden="true" />
+                      <Link
+                        href={item.path}
+                        onClick={isMobile ? onClose : undefined}
+                        className={itemClass}
+                      >
+                        <Icon
+                          className={`${iconClass} shrink-0 ${item.highlight === "audit" ? "text-blue-950" : isActive ? "text-violet-600" : "text-slate-400"}`}
+                          aria-hidden="true"
+                        />
                         <span>{translateText(item.name)}</span>
                       </Link>
                     ) : null}
@@ -340,7 +445,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       <div className="flex flex-col pt-1">
                         {item.items?.map((child) => {
                           if (!child.path) return null;
-                          const isChildActive = pathname === child.path || pathname.startsWith(`${child.path}/`);
+                          const isChildActive =
+                            pathname === child.path ||
+                            pathname.startsWith(`${child.path}/`);
                           return (
                             <Link
                               key={child.path}

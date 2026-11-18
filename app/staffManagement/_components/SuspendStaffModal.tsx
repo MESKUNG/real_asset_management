@@ -52,7 +52,7 @@ export default function SuspendStaffModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSaving) onClose();
       }}
@@ -63,7 +63,7 @@ export default function SuspendStaffModal({
         aria-labelledby="suspend-account-title"
         className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl"
       >
-        <header className="flex items-start justify-between gap-4 px-6 py-5">
+        <header className="flex items-start justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
           <div className="flex items-start gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-600">
               <AlertTriangle className="size-5" aria-hidden="true" />
@@ -91,7 +91,7 @@ export default function SuspendStaffModal({
           </button>
         </header>
 
-        <div className="px-6 pb-6">
+        <div className="px-4 pb-5 sm:px-6 sm:pb-6">
           <div className="rounded-xl bg-amber-50 px-5 py-4">
             <p className="text-sm font-semibold text-amber-800">
               {translateText("บัญชีที่จะระงับ")}
@@ -107,12 +107,12 @@ export default function SuspendStaffModal({
           )}
         </div>
 
-        <footer className="flex flex-wrap justify-end gap-3 border-t border-slate-100 px-6 py-4">
+        <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4">
           <button
             type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:w-auto"
           >
             {translateText("ยกเลิก")}
           </button>
@@ -120,7 +120,7 @@ export default function SuspendStaffModal({
             type="button"
             onClick={handleConfirm}
             disabled={isSaving || account.status === "Inactive"}
-            className="h-10 rounded-lg bg-rose-500 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-10 w-full rounded-lg bg-rose-500 px-4 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {isSaving
               ? translateText("กำลังบันทึก...")

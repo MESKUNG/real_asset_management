@@ -1,7 +1,6 @@
 "use client";
 import { useTranslate } from "@/lib/language";
 
-
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -124,15 +123,15 @@ function Metric({
   icon: React.ReactNode;
 }) {
   return (
-    <Card className="p-5">
+    <Card className="p-4 sm:p-5">
       <div className="flex items-start justify-between">
-        <span className="text-lg text-slate-500">{label}</span>
+        <span className="text-sm text-slate-500 sm:text-lg">{label}</span>
         <span className={color}>{icon}</span>
       </div>
-      <strong className="mt-3 block text-5xl font-bold tracking-tight">
+      <strong className="mt-3 block text-3xl font-bold tracking-tight sm:text-5xl">
         {value}
       </strong>
-      <p className={`mt-3 text-sm ${color}`}>{note}</p>
+      <p className={`mt-2 text-xs sm:mt-3 sm:text-sm ${color}`}>{note}</p>
     </Card>
   );
 }
@@ -233,15 +232,17 @@ export default function Page() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f1f2f7] px-4 py-6 text-[#1c2740] sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-7">
+    <div className="min-h-screen bg-[#f1f2f7] px-3 py-5 text-[#1c2740] sm:px-6 sm:py-6 lg:px-8">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-6 sm:gap-7">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">{translateText("ภาพรวมองค์กร")}</h1>
+            <h1 className="text-xl font-bold sm:text-2xl">
+              {translateText("ภาพรวมองค์กร")}
+            </h1>
           </div>
         </header>
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           <Metric
             label={translateText("Asset ทั้งองค์กร")}
             value={fmt(total)}
@@ -275,14 +276,14 @@ export default function Page() {
         <section>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-bold">{translateText("ภาพรวมสาขา")}</h2>
-            <div className="flex flex-wrap gap-2">
-              <label className="relative">
+            <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:flex sm:flex-wrap">
+              <label className="relative min-w-0">
                 <Building2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <select
                   aria-label={translateText("เลือกสาขา")}
                   value={selectedBranch}
                   onChange={(event) => setSelectedBranch(event.target.value)}
-                  className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600"
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600 sm:w-auto"
                 >
                   <option value="all">{translateText("ทุกสาขา")}</option>
                   {branches.map((branch) => (
@@ -293,13 +294,13 @@ export default function Page() {
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               </label>
-              <label className="relative">
+              <label className="relative min-w-0">
                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <select
                   aria-label={translateText("ช่วงเวลา")}
                   value={range}
                   onChange={(event) => setRange(event.target.value)}
-                  className="appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600"
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600 sm:w-auto"
                 >
                   <option>{translateText("ทั้งหมด")}</option>
                   <option>{translateText("เดือนนี้")}</option>
@@ -308,21 +309,28 @@ export default function Page() {
               </label>
             </div>
           </div>
-          <Card className="p-5 sm:p-6">
+          <Card className="p-4 sm:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-semibold text-slate-500">
-                
                 {translateText("จำนวน Asset แยกตามสาขา")}
               </h3>
               <span className="text-xs text-slate-400">
-                
                 {translateText("ข้อมูลจำนวนรายการจาก Asset ในระบบ")}
               </span>
             </div>
             <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
-              <Legend color={palette.available} label={translateText("พร้อมใช้")} />
-              <Legend color={palette.repair} label={translateText("ชำรุด/ซ่อม")} />
-              <Legend color={palette.other} label={translateText("สถานะอื่น")} />
+              <Legend
+                color={palette.available}
+                label={translateText("พร้อมใช้")}
+              />
+              <Legend
+                color={palette.repair}
+                label={translateText("ชำรุด/ซ่อม")}
+              />
+              <Legend
+                color={palette.other}
+                label={translateText("สถานะอื่น")}
+              />
             </div>
             {rows.length ? (
               <div className="h-[260px] w-full">
@@ -382,11 +390,52 @@ export default function Page() {
               </div>
             ) : (
               <div className="grid h-[260px] place-items-center text-sm text-slate-400">
-                
                 {translateText("ไม่พบข้อมูลสาขา")}
               </div>
             )}
-            <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+            <div className="mt-4 space-y-3 sm:hidden">
+              {filteredRows.map((row) => (
+                <article
+                  key={row.id}
+                  className="rounded-lg border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h4 className="min-w-0 break-words font-semibold">{row.branch}</h4>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${row.active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+                    >
+                      ● {row.active ? "เปิดใช้งาน" : "ไม่ใช้งาน"}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <dt className="text-xs text-slate-400">{translateText("ทั้งหมด")}</dt>
+                      <dd>{fmt(row.total)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-slate-400">{translateText("พร้อมใช้")}</dt>
+                      <dd className="text-emerald-700">{fmt(row.available)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-slate-400">{translateText("ชำรุด/ซ่อม")}</dt>
+                      <dd className="text-amber-700">{fmt(row.repair)}</dd>
+                    </div>
+                  </dl>
+                  <Link
+                    className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-indigo-600 hover:bg-slate-50"
+                    href="/reports"
+                  >
+                    {translateText("ดูรายงานสาขา")}
+                  </Link>
+                </article>
+              ))}
+              {filteredRows.length === 0 && (
+                <p className="rounded-lg border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
+                  {translateText("ไม่พบสาขาที่ค้นหา")}
+                </p>
+              )}
+            </div>
+            <div className="mt-4 hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
               <table className="w-full min-w-[650px] text-left text-sm">
                 <thead className="bg-[#f1f2f7] text-xs text-slate-500">
                   <tr>
@@ -427,7 +476,6 @@ export default function Page() {
                           className="font-semibold text-indigo-600 hover:underline"
                           href="/reports"
                         >
-                          
                           {translateText("ดูรายงานสาขา")}
                         </Link>
                       </td>
@@ -439,7 +487,6 @@ export default function Page() {
                         colSpan={6}
                         className="px-4 py-8 text-center text-slate-400"
                       >
-                        
                         {translateText("ไม่พบสาขาที่ค้นหา")}
                       </td>
                     </tr>
@@ -448,26 +495,78 @@ export default function Page() {
               </table>
             </div>
             <p className="mt-4 text-xs text-slate-500">
-              
-              {translateText("พร้อมใช้งาน")} {fmt(ready)}  {translateText("· ชำรุด/ซ่อม")} {fmt(inRepair)}  {translateText("· สถานะอื่น")}{" "}
-              {fmt(other)}  {translateText("รายการ")}
+              {translateText("พร้อมใช้งาน")} {fmt(ready)}{" "}
+              {translateText("· ชำรุด/ซ่อม")} {fmt(inRepair)}{" "}
+              {translateText("· สถานะอื่น")} {fmt(other)}{" "}
+              {translateText("รายการ")}
             </p>
           </Card>
         </section>
 
         <section>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-bold">{translateText("คำขอโอนย้ายและเบิกทรัพย์สิน")}</h2>
+            <h2 className="text-xl font-bold">
+              {translateText("คำขอโอนย้ายและเบิกทรัพย์สิน")}
+            </h2>
             <button
               onClick={downloadCsv}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 sm:w-auto"
             >
               <Download size={17} />
-              
+
               {translateText("ส่งออก Excel")}
             </button>
           </div>
-          <Card className="overflow-x-auto">
+          <div className="space-y-3 sm:hidden">
+            {latestPending.map((request) => (
+              <article
+                key={request.id}
+                className="rounded-xl border border-slate-200 bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{request.id}</p>
+                    <p className="mt-1 break-words text-sm">{assetName(request.assetId)}</p>
+                  </div>
+                  <StatusPill status={statusText(request.status)} />
+                </div>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <div>
+                    <dt className="text-xs text-slate-400">{translateText("ต้นทาง → ปลายทาง")}</dt>
+                    <dd className="break-words text-slate-600">
+                      {branchName(request.branchId)} →{" "}
+                      {request.toBranchId
+                        ? branchName(request.toBranchId)
+                        : "ไม่พบข้อมูลปลายทาง"}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="min-w-0">
+                      <dt className="text-xs text-slate-400">{translateText("ผู้ยื่น")}</dt>
+                      <dd className="break-words text-slate-600">User {request.borrowerId}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-slate-400">{translateText("วันที่")}</dt>
+                      <dd className="text-slate-600">{dateFmt(request.createdAt)}</dd>
+                    </div>
+                  </div>
+                </dl>
+                <Link
+                  href="/Borrow"
+                  className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+                >
+                  <ClipboardCheck size={16} />
+                  {translateText("ตรวจสอบคำขอ")}
+                </Link>
+              </article>
+            ))}
+            {!latestPending.length && (
+              <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
+                {translateText("ไม่มีคำขอรออนุมัติ")}
+              </p>
+            )}
+          </div>
+          <Card className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[800px] text-left text-sm">
               <thead className="bg-[#f1f2f7] text-xs text-slate-500">
                 <tr>
@@ -512,7 +611,7 @@ export default function Page() {
                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 font-semibold hover:bg-slate-50"
                       >
                         <ClipboardCheck size={16} />
-                        
+
                         {translateText("ตรวจสอบคำขอ")}
                       </Link>
                     </td>
@@ -524,7 +623,6 @@ export default function Page() {
                       colSpan={7}
                       className="px-4 py-8 text-center text-slate-400"
                     >
-                      
                       {translateText("ไม่มีคำขอรออนุมัติ")}
                     </td>
                   </tr>
@@ -536,30 +634,31 @@ export default function Page() {
 
         <section>
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-xl font-bold">{translateText("รายงานและสถิติ")}</h2>
+            <h2 className="text-xl font-bold">
+              {translateText("รายงานและสถิติ")}
+            </h2>
             <Link
               href="/reports"
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 sm:w-auto"
             >
               <FileBarChart2 size={17} />
-              
+
               {translateText("เข้าสู่หน้ารายงาน")}
             </Link>
           </div>
           <div className="grid gap-4 xl:grid-cols-2">
             <Card className="p-5">
               <h3 className="font-semibold text-slate-500">
-                
                 {translateText("จำนวน Asset แยกตามสถานะ")}
               </h3>
-              <div className="mt-5 grid grid-cols-3 gap-3">
+              <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
                 {[
                   ["พร้อมใช้งาน", ready, "text-emerald-700"],
                   ["กำลังซ่อม", inRepair, "text-amber-700"],
                   ["สถานะอื่น", other, "text-rose-600"],
                 ].map(([label, value, color]) => (
                   <div key={String(label)}>
-                    <strong className={`block text-3xl font-bold ${color}`}>
+                    <strong className={`block text-2xl font-bold sm:text-3xl ${color}`}>
                       {fmt(Number(value))}
                     </strong>
                     <span className="text-sm text-slate-500">{label}</span>
@@ -569,7 +668,6 @@ export default function Page() {
             </Card>
             <Card className="p-5">
               <h3 className="font-semibold text-slate-500">
-                
                 {translateText("ผลการตรวจนับทรัพย์สิน")}
               </h3>
               <div className="mt-5 grid grid-cols-2 gap-3">
@@ -578,7 +676,6 @@ export default function Page() {
                     {completedInventories}
                   </strong>
                   <span className="text-sm text-slate-500">
-                    
                     {translateText("รอบที่เสร็จแล้ว")}
                   </span>
                 </div>
@@ -587,20 +684,19 @@ export default function Page() {
                     {unfinishedInventories}
                   </strong>
                   <span className="text-sm text-slate-500">
-                    
                     {translateText("รอบที่ต้องติดตาม")}
                   </span>
                 </div>
               </div>
               <p className="mt-3 text-sm text-slate-400">
-                
-                {translateText("อ้างอิงรอบตรวจนับ")} {inventorySessions.length}  {translateText("รายการที่มีในระบบ")}
+                {translateText("อ้างอิงรอบตรวจนับ")} {inventorySessions.length}{" "}
+                {translateText("รายการที่มีในระบบ")}
               </p>
             </Card>
             <Card className="p-5">
               <div className="mb-4 flex items-center gap-2 font-semibold">
                 <ChartNoAxesCombined size={18} className="text-indigo-600" />
-                
+
                 {translateText("ประวัติการเคลื่อนย้าย Asset")}
               </div>
               <div className="space-y-3">
@@ -634,27 +730,28 @@ export default function Page() {
                   })
                 ) : (
                   <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                    
-                    {translateText("Error: ไม่มีข้อมูลประวัติการโอนย้ายทรัพย์สินใน Data")}
+                    {translateText(
+                      "Error: ไม่มีข้อมูลประวัติการโอนย้ายทรัพย์สินใน Data",
+                    )}
                   </p>
                 )}
               </div>
               <Link
-                href="/reports"
+                href="/transfer_history"
                 className="mt-4 inline-block text-sm font-semibold text-indigo-600"
               >
-                
                 {translateText("ดูประวัติการเคลื่อนย้ายทั้งหมด")}
               </Link>
             </Card>
             <Card className="p-5">
               <div className="mb-4 flex items-center justify-between gap-2">
-                <h3 className="font-semibold">{translateText("สรุปงานซ่อมบำรุง")}</h3>
+                <h3 className="font-semibold">
+                  {translateText("สรุปงานซ่อมบำรุง")}
+                </h3>
                 <Link
                   href="/repairs"
                   className="text-sm font-semibold text-indigo-600"
                 >
-                  
                   {translateText("ดูรายการซ่อม")}
                 </Link>
               </div>
@@ -693,7 +790,6 @@ export default function Page() {
               </div>
               <div className="mt-4 rounded-lg bg-[#f1f2f7] p-3">
                 <p className="text-sm font-semibold">
-                  
                   {translateText("รายการซ่อมที่ยังเปิดอยู่")}
                 </p>
                 {repairOpen[0] ? (
@@ -702,7 +798,6 @@ export default function Page() {
                   </p>
                 ) : (
                   <p className="mt-1 text-sm text-slate-500">
-                    
                     {translateText("ไม่มีรายการซ่อมค้าง")}
                   </p>
                 )}
@@ -714,7 +809,7 @@ export default function Page() {
             className="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-600 hover:bg-slate-50"
           >
             <Download size={15} className="mr-2 inline" />
-            
+
             {translateText("ส่งออก Excel")}
           </button>
         </section>

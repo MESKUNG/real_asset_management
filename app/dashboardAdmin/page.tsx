@@ -81,7 +81,7 @@ export default function Page() {
             branchId: item.branchId,
             date: item.reportedAt,
             status: item.status,
-            href: "/repairs",
+            href: `/repairsadmin?requestId=${encodeURIComponent(item.id)}`,
             category: "repair" as const,
           })),
         ...borrowRequests
@@ -101,7 +101,7 @@ export default function Page() {
             branchId: item.branchId,
             date: item.createdAt,
             status: item.status,
-            href: "/Borrow",
+            href: `/Borrow?requestId=${encodeURIComponent(item.id)}`,
             category:
               item.type === "transfer"
                 ? ("transfer" as const)
@@ -169,11 +169,11 @@ export default function Page() {
     .slice(0, 2);
 
   return (
-    <main className="min-h-screen bg-[#f1f2f7] px-4 py-7 text-[#1c2740] sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-7">
+    <main className="min-h-screen bg-[#f1f2f7] px-3 py-5 text-[#1c2740] sm:px-6 sm:py-7 lg:px-8">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-6 sm:gap-7">
         <section>
-          <h1 className="mb-4 text-xl font-bold">{translateText("สรุปงานที่ต้องติดตาม")}</h1>
-          <div className="grid gap-4 md:grid-cols-3">
+          <h1 className="mb-3 text-lg font-bold sm:mb-4 sm:text-xl">{translateText("สรุปงานที่ต้องติดตาม")}</h1>
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
             <Summary
               title={translateText("คำร้องแจ้งซ่อมที่ต้องติดตาม")}
               value={openRepairs.length}
@@ -199,9 +199,9 @@ export default function Page() {
         </section>
 
         <section>
-          <h2 className="mb-4 text-xl font-bold">{translateText("งานที่รอดำเนินการ")}</h2>
-          <div className="mb-3 flex gap-2">
-            <Filter icon={<ClipboardList />}>
+          <h2 className="mb-3 text-lg font-bold sm:mb-4 sm:text-xl">{translateText("งานที่รอดำเนินการ")}</h2>
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:flex">
+            <Filter icon={<ClipboardList />} className="min-w-0">
               <select
                 className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400"
                 aria-label={translateText("ประเภทงาน")}
@@ -218,7 +218,7 @@ export default function Page() {
                 <option value="inventory">{translateText("ตรวจนับ")}</option>
               </select>
             </Filter>
-            <Filter icon={<span className="text-sm">▦</span>}>
+            <Filter icon={<span className="text-sm">▦</span>} className="min-w-0">
               <select
                 className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400"
                 aria-label={translateText("สาขา")}
@@ -236,7 +236,7 @@ export default function Page() {
                 ))}
               </select>
             </Filter>
-            <Filter icon={<CircleCheck />}>
+            <Filter icon={<CircleCheck />} className="min-w-0">
               <select
                 className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-9 text-sm text-slate-600 outline-none focus:border-indigo-400"
                 aria-label={translateText("สถานะ")}
@@ -254,7 +254,7 @@ export default function Page() {
                 ))}
               </select>
             </Filter>
-            <label className="relative">
+            <label className="relative col-span-2 min-w-0 sm:flex-1">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
                 value={search}
@@ -263,11 +263,60 @@ export default function Page() {
                   setPage(1);
                 }}
                 placeholder={translateText("ค้นหาวันที่ / งาน / Asset")}
-                className="h-full min-h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-indigo-400"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-indigo-400"
               />
             </label>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <div className="space-y-3 sm:hidden">
+            {visible.map((task) => (
+              <article
+                key={`${task.category}-${task.id}`}
+                className="rounded-xl border border-slate-200 bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{task.id}</p>
+                    <p className="mt-1 break-words text-sm">{task.asset}</p>
+                    {task.assetId && (
+                      <p className="text-xs text-slate-400">{task.assetId}</p>
+                    )}
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${categoryColors[task.category]}`}
+                  >
+                    {translateText(task.type)}
+                  </span>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div className="min-w-0">
+                    <dt className="text-xs text-slate-400">{translateText("สาขา")}</dt>
+                    <dd className="break-words">{branchName(task.branchId)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-slate-400">{translateText("วันที่")}</dt>
+                    <dd>{dateText(task.date)}</dd>
+                  </div>
+                </dl>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">
+                    ● {statusNames[task.status] ?? "Error: ไม่มีสถานะ"}
+                  </span>
+                  <Link
+                    href={task.href}
+                    className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50"
+                  >
+                    {translateText("ดูรายละเอียด")}
+                  </Link>
+                </div>
+              </article>
+            ))}
+            {visible.length === 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-9 text-center text-sm text-slate-500">
+                {translateText("ไม่พบงานตามตัวกรอง")}
+              </div>
+            )}
+          </div>
+          <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white sm:block">
             <table className="w-full min-w-[850px] text-left text-sm">
               <thead className="bg-[#f1f2f7] text-xs text-slate-500">
                 <tr>
@@ -373,7 +422,7 @@ export default function Page() {
                 </select>
               </label>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex max-w-full items-center gap-1 overflow-x-auto">
               <button
                 disabled={page === 1}
                 onClick={() => setPage(page - 1)}
@@ -402,8 +451,8 @@ export default function Page() {
         </section>
 
         <section>
-          <h2 className="mb-4 text-xl font-bold">{translateText("สถานะการซ่อมบำรุง & Asset")}</h2>
-          <div className="grid gap-4 md:grid-cols-2">
+          <h2 className="mb-3 text-lg font-bold sm:mb-4 sm:text-xl">{translateText("สถานะการซ่อมบำรุง & Asset")}</h2>
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
             <InfoCard title={translateText("รายการ Asset ที่อยู่ระหว่างซ่อม")}>
               {repairAssets.length ? (
                 repairAssets.map((id) => (
@@ -484,25 +533,27 @@ function Summary({
   color: string;
 }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex justify-between text-lg font-semibold text-slate-500">
+    <article className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+      <div className="flex justify-between gap-2 text-sm font-semibold text-slate-500 sm:text-lg">
         <span>{title}</span>
-        <span className={color}>{icon}</span>
+        <span className={`shrink-0 ${color}`}>{icon}</span>
       </div>
-      <strong className="mt-4 block text-5xl font-bold tracking-tight">{value}</strong>
-      <p className={`mt-3 text-sm ${color}`}>{note}</p>
+      <strong className="mt-3 block text-3xl font-bold tracking-tight sm:mt-4 sm:text-5xl">{value}</strong>
+      <p className={`mt-2 text-xs sm:mt-3 sm:text-sm ${color}`}>{note}</p>
     </article>
   );
 }
 function Filter({
   children,
   icon,
+  className = "",
 }: {
   children: React.ReactNode;
   icon: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <label className="relative flex items-center">
+    <label className={`relative flex items-center ${className}`}>
       <span className="pointer-events-none absolute left-3 text-slate-500">
         {icon}
       </span>
@@ -539,15 +590,15 @@ function InfoLine({
   accent?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-4 text-base">
-      <span className="truncate">
+    <div className="flex flex-col gap-1 text-sm sm:flex-row sm:justify-between sm:gap-4 sm:text-base">
+      <span className="min-w-0 w-full sm:w-auto sm:truncate">
         {left}
         {leftId && (
           <span className="ml-1 text-sm text-slate-400">{leftId}</span>
         )}
       </span>
       <span
-        className={`text-right text-sm ${accent ? "text-amber-700" : "text-slate-500"}`}
+        className={`w-full break-words text-left text-sm sm:w-auto sm:text-right ${accent ? "text-amber-700" : "text-slate-500"}`}
       >
         {right}
       </span>

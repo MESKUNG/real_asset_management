@@ -96,7 +96,7 @@ export default function EditStaffModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSaving) onClose();
       }}
@@ -105,10 +105,10 @@ export default function EditStaffModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-staff-title"
-        className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
       >
-        <form onSubmit={handleSubmit}>
-          <header className="flex items-start justify-between gap-4 px-6 py-5">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <header className="flex items-start justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
             <div>
               <h2
                 id="edit-staff-title"
@@ -131,7 +131,7 @@ export default function EditStaffModal({
             </button>
           </header>
 
-          <div className="max-h-[70vh] space-y-5 overflow-y-auto px-6 pb-6">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-5 sm:px-6 sm:pb-6">
             <fieldset className="space-y-3">
               <legend className="text-sm font-semibold text-slate-700">
                 {translateText("ข้อมูลบัญชี")}
@@ -259,23 +259,23 @@ export default function EditStaffModal({
             )}
           </div>
 
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4">
-            <p className="text-xs text-slate-500">
+          <footer className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4">
+            <p className="hidden text-xs text-slate-500 sm:block">
               {translateText("บันทึกข้อมูลบัญชี")}
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-3">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSaving}
-                className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:w-auto"
               >
                 {translateText("ยกเลิก")}
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 <Save className="size-4" aria-hidden="true" />
                 {isSaving

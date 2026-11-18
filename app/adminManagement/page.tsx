@@ -413,7 +413,7 @@ export default function AdminManagementPage() {
   }
 
   return (
-    <section className="min-h-[calc(100vh-4rem)] bg-gray-50 px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
+    <section className="min-h-[calc(100vh-4rem)] bg-gray-50 px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-[1440px] space-y-6">
         <header>
           <h1 className="text-2xl font-bold text-slate-900">
@@ -433,7 +433,7 @@ export default function AdminManagementPage() {
           )}
         </p>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
           <SummaryCard
             icon={<UsersRound className="size-5" />}
             label={translateText("บัญชี Admin ทั้งหมด")}
@@ -458,7 +458,7 @@ export default function AdminManagementPage() {
         </div>
 
         <section className="space-y-4" aria-labelledby="accounts-heading">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
             <h2
               id="accounts-heading"
               className="text-lg font-semibold text-slate-900"
@@ -468,7 +468,7 @@ export default function AdminManagementPage() {
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-violet-700 sm:w-auto"
             >
               <UserRoundPlus className="size-4" aria-hidden="true" />
               {translateText("เพิ่มบัญชี Admin")}
@@ -536,7 +536,7 @@ export default function AdminManagementPage() {
           )}
 
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="bg-slate-100 text-xs font-semibold text-slate-500">
                   <tr>
@@ -643,13 +643,67 @@ export default function AdminManagementPage() {
               </table>
             </div>
 
-            <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 px-4 py-3">
+            <div className="space-y-3 border-t border-slate-100 p-3 md:hidden">
+              {isLoading ? (
+                <p className="py-8 text-center text-sm text-slate-500">
+                  {translateText("กำลังโหลดบัญชี...")}
+                </p>
+              ) : visibleAccounts.length ? (
+                visibleAccounts.map((account) => (
+                  <article key={account.id} className="rounded-lg border border-slate-200 p-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <StaffProfileImage
+                        src={account.profile_image}
+                        alt={`รูปโปรไฟล์ ${account.first_name} ${account.last_name}`}
+                        initials={`${account.first_name.charAt(0)}${account.last_name.charAt(0)}`}
+                        size={40}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold text-slate-800">{account.first_name} {account.last_name}</p>
+                          <StatusBadge status={account.status} />
+                        </div>
+                        <p className="mt-0.5 break-all text-xs text-slate-500">{account.username}</p>
+                        <p className="mt-1 text-xs text-slate-400">{getAccountCode(account)} · Admin</p>
+                      </div>
+                    </div>
+                    <dl className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-sm">
+                      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2">
+                        <dt className="text-slate-400">{translateText("อีเมล")}</dt>
+                        <dd className="break-all text-slate-600">{account.email}</dd>
+                      </div>
+                      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2">
+                        <dt className="text-slate-400">{translateText("สาขา")}</dt>
+                        <dd className="text-slate-600">{getBranchName(account.branch_id)}</dd>
+                      </div>
+                    </dl>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setSelectedAccount(account)} className="h-10 rounded-lg border border-slate-200 px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                        <Eye className="mr-1 inline size-3.5" aria-hidden="true" />{translateText("ดูรายละเอียด")}
+                      </button>
+                      <button type="button" onClick={() => setAccountToEdit(account)} className="h-10 rounded-lg border border-slate-200 px-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                        {translateText("แก้ไขข้อมูล")}
+                      </button>
+                      {account.status === "Active" && (
+                        <button type="button" onClick={() => setAccountToSuspend(account)} className="col-span-2 h-10 rounded-lg bg-rose-500 px-3 text-xs font-semibold text-white transition hover:bg-rose-600">
+                          {translateText("ระงับ")}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p className="py-8 text-center text-sm text-slate-500">{translateText("ไม่พบบัญชีที่ตรงกับเงื่อนไข")}</p>
+              )}
+            </div>
+
+            <footer className="flex flex-col items-stretch justify-between gap-3 border-t border-slate-100 px-3 py-3 sm:flex-row sm:items-center sm:px-4">
               <p className="text-xs text-slate-500">
                 {translateText("แสดง")} {rangeStart}-{rangeEnd}{" "}
                 {translateText("จาก")} {filteredAccounts.length}{" "}
                 {translateText("บัญชี")}
               </p>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-1 sm:justify-start sm:gap-2">
                 <label className="relative">
                   <span className="sr-only">
                     {translateText("รายการต่อหน้า")}
@@ -660,7 +714,7 @@ export default function AdminManagementPage() {
                       setPageSize(Number(event.target.value));
                       setCurrentPage(1);
                     }}
-                    className="h-9 appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs text-slate-600 outline-none focus:border-violet-400"
+                    className="h-9 max-w-full appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs text-slate-600 outline-none focus:border-violet-400"
                   >
                     {pageSizes.map((size) => (
                       <option key={size} value={size}>
@@ -919,7 +973,7 @@ function AdminAccountFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !isSaving) onClose();
       }}
@@ -928,10 +982,10 @@ function AdminAccountFormModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-account-form-title"
-        className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
       >
-        <form onSubmit={handleSubmit}>
-          <header className="flex items-start justify-between gap-4 px-6 py-5">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <header className="flex items-start justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
             <div>
               <h2
                 id="admin-account-form-title"
@@ -956,7 +1010,7 @@ function AdminAccountFormModal({
             </button>
           </header>
 
-          <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 pb-6">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5 sm:px-6 sm:pb-6">
             <div className="grid gap-3 sm:grid-cols-2">
               <FormField label={translateText("ชื่อผู้ใช้")}>
                 <input
@@ -1042,19 +1096,19 @@ function AdminAccountFormModal({
               </p>
             )}
           </div>
-          <footer className="flex flex-wrap justify-end gap-3 border-t border-slate-100 px-6 py-4">
+          <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4">
             <button
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:w-auto"
             >
               {translateText("ยกเลิก")}
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <UserRoundPlus className="size-4" aria-hidden="true" />
               {isSaving
@@ -1096,7 +1150,7 @@ function AdminDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1105,9 +1159,9 @@ function AdminDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-detail-title"
-        className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+        <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
           <div>
             <h2
               id="admin-detail-title"
@@ -1125,8 +1179,8 @@ function AdminDetailModal({
             <X className="size-5" aria-hidden="true" />
           </button>
         </header>
-        <div className="space-y-5 px-6 py-6">
-          <div className="flex items-center gap-4 rounded-xl bg-slate-50 p-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3 sm:flex-nowrap sm:gap-4 sm:p-5">
             <StaffProfileImage
               src={account.profile_image}
               alt={`รูปโปรไฟล์ ${account.first_name} ${account.last_name}`}
@@ -1134,7 +1188,7 @@ function AdminDetailModal({
               size={56}
             />
             <div className="min-w-0">
-              <p className="text-lg font-bold text-slate-800">
+              <p className="break-words text-base font-bold text-slate-800 sm:text-lg">
                 {getAccountCode(account)} · {account.first_name}{" "}
                 {account.last_name}
               </p>
@@ -1164,11 +1218,11 @@ function AdminDetailModal({
             />
           </div>
         </div>
-        <footer className="flex justify-end border-t border-slate-100 px-6 py-4">
+        <footer className="flex justify-end border-t border-slate-100 px-4 py-3 sm:px-6 sm:py-4">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
           >
             {translateText("ปิด")}
           </button>
@@ -1191,7 +1245,7 @@ function SuspendAdminModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1202,7 +1256,7 @@ function SuspendAdminModal({
         aria-labelledby="suspend-admin-title"
         className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl"
       >
-        <header className="px-6 py-5">
+        <header className="px-4 py-4 sm:px-6 sm:py-5">
           <h2
             id="suspend-admin-title"
             className="text-xl font-bold text-slate-800"
@@ -1213,23 +1267,23 @@ function SuspendAdminModal({
             {translateText("ยืนยันการเปลี่ยนสถานะบัญชีเป็น Inactive")}
           </p>
         </header>
-        <div className="px-6 pb-6">
+        <div className="px-4 pb-5 sm:px-6 sm:pb-6">
           <div className="rounded-xl bg-amber-50 px-5 py-4 text-sm text-slate-700">
             {getAccountCode(account)} · {account.first_name} {account.last_name}
           </div>
         </div>
-        <footer className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+        <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
           >
             {translateText("ยกเลิก")}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="h-10 rounded-lg bg-rose-500 px-4 text-sm font-semibold text-white hover:bg-rose-600"
+            className="h-10 w-full rounded-lg bg-rose-500 px-4 text-sm font-semibold text-white hover:bg-rose-600 sm:w-auto"
           >
             {translateText("ยืนยันการระงับ")}
           </button>
