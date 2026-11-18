@@ -160,10 +160,12 @@ function ActiveCard({
           <dt className="text-sm text-slate-500">{translateText("ช่วงวันที่")}</dt>
           <dd className="font-semibold">{formatDateRange(session.startDate, session.endDate)}</dd>
         </div>
-        <div className="col-span-2">
-          <dt className="text-sm text-slate-500">{translateText("ผู้รับผิดชอบ")}</dt>
-          <dd className="font-semibold">{getStaffName(session.assigneeId)}</dd>
-        </div>
+        {session.assigneeId && (
+          <div className="col-span-2">
+            <dt className="text-sm text-slate-500">{translateText("ผู้รับผิดชอบ")}</dt>
+            <dd className="font-semibold">{getStaffName(session.assigneeId)}</dd>
+          </div>
+        )}
       </dl>
 
       <div className="mt-4">
@@ -191,5 +193,5 @@ function countdownText(startDate: string, translateText: (text: string) => strin
   const days = daysFromToday(startDate);
   if (days > 0) return `${translateText("อีก")} ${days} ${translateText("วัน")}`;
   if (days === 0) return translateText("เริ่มวันนี้");
-  return translateText("รอ Admin เปิดรอบ");
+  return translateText("เริ่มแล้ว");
 }

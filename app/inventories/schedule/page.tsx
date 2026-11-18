@@ -85,7 +85,11 @@ function ScheduleForm() {
       createdBy: credential.id,
     });
     setName("");
-    toast.show(`สร้างรอบ ${session.id} แล้ว กด "เปิดรอบ" ในหน้าติดตามเมื่อถึงวันตรวจ`);
+    toast.show(
+      startDate <= today
+        ? `ประกาศรอบ ${session.id} แล้ว ผู้ใช้เริ่มตรวจนับได้ทันที`
+        : `ประกาศรอบ ${session.id} แล้ว จะเริ่มให้ตรวจนับอัตโนมัติ ${formatDateRange(startDate, endDate)}`,
+    );
   };
 
   const handleDelete = (id: string) => {

@@ -123,21 +123,32 @@ export type StoredCheck = InventoryCheck & { checkerName?: string };
 type InventoryStore = { sessions: StoredSession[]; checks: StoredCheck[] };
 
 // เปลี่ยนชื่อ key เมื่อข้อมูลกลางเปลี่ยนรูปแบบ ข้อมูลเก่าในเบราว์เซอร์จะได้ไม่ปนกัน
-const STORE_KEY = "inventory-store-v2";
+const STORE_KEY = "inventory-store-v3";
 const STORE_EVENT = "inventorystorechange";
 
 function seedStore(): InventoryStore {
   return { sessions: [...inventorySessions], checks: [...inventoryChecks] };
 }
 
+// รอบที่ประกาศไว้ (รอเริ่ม) จะเปลี่ยนเป็น "กำลังนับ" เองเมื่อถึงวันเริ่ม ไม่ต้องให้ Admin กดเปิดรอบ
+function autoStart(store: InventoryStore): InventoryStore {
+  const today = toDateValue(new Date());
+  return {
+    ...store,
+    sessions: store.sessions.map((s) =>
+      s.status === "planned" && s.startDate <= today ? { ...s, status: "in_progress" } : s,
+    ),
+  };
+}
+
 function parseStore(raw: string | null): InventoryStore {
-  if (!raw) return seedStore();
+  if (!raw) return autoStart(seedStore());
   try {
     const data = JSON.parse(raw);
-    if (!Array.isArray(data.sessions) || !Array.isArray(data.checks)) return seedStore();
-    return { sessions: data.sessions, checks: data.checks };
+    if (!Array.isArray(data.sessions) || !Array.isArray(data.checks)) return autoStart(seedStore());
+    return autoStart({ sessions: data.sessions, checks: data.checks });
   } catch {
-    return seedStore();
+    return autoStart(seedStore());
   }
 }
 
@@ -210,9 +221,15 @@ export function getSessionAssets(session: InventorySession): Asset[] {
   return assets.filter((a) => a.branchId === session.branchId && a.status !== "disposed");
 }
 
-// ของที่ถูกยืมหรือส่งซ่อมไม่อยู่ในสาขาตอนตรวจนับ จึงไม่ต้องสแกน
+// ของที่ถูกเบิก/ยืม หรือส่งซ่อมแล้ว ไม่อยู่ในสาขาตอนตรวจนับ จึงไม่ต้องสแกน
 // ดูจากสถานะใน asset.ts แล้วหาเลขที่เอกสารจากใบเบิก (borrowRequests) หรืองานซ่อม (repairRequests)
 export type AwayReason = { text: string; documentId: string | null };
+
+function activeRepair(asset: Asset) {
+  return repairRequests.find(
+    (r) => r.assetId === asset.id && (r.status === "in_progress" || r.status === "pending"),
+  );
+}
 
 export function getAwayReason(asset: Asset): AwayReason | null {
   if (asset.status === "borrowed") {
@@ -222,20 +239,19 @@ export function getAwayReason(asset: Asset): AwayReason | null {
         r.type === "withdraw" &&
         (r.status === "approved" || r.status === "overdue"),
     );
-    return {
-      text: borrow ? `ถูกเบิกโดย ${getStaffName(borrow.borrowerId)}` : "ถูกเบิก/ยืมอยู่",
-      documentId: borrow?.id ?? null,
-    };
+    return { text: "ถูกเบิก/ยืมอยู่", documentId: borrow?.id ?? null };
   }
-  if (asset.status === "repair") {
-    const repair = repairRequests.find(
-      (r) => r.assetId === asset.id && (r.status === "in_progress" || r.status === "pending"),
-    );
-    return {
-      text: repair ? `ส่งซ่อมที่ ${getVendorName(repair.vendorId)}` : "อยู่ระหว่างซ่อม",
-      documentId: repair?.id ?? null,
-    };
+  // สถานะซ่อมที่มีใบแจ้งซ่อม = ส่งออกไปซ่อมแล้ว ไม่อยู่ในสาขา
+  const repair = asset.status === "repair" ? activeRepair(asset) : undefined;
+  if (repair) {
+    return { text: `ส่งซ่อมที่ ${getVendorName(repair.vendorId)}`, documentId: repair.id };
   }
+  return null;
+}
+
+// สถานะซ่อมแต่ยังไม่มีใบแจ้งซ่อม = ของยังอยู่ในสาขา ต้องตรวจนับ แต่บอกผู้ตรวจไว้ก่อน
+export function getConditionHint(asset: Asset): string | null {
+  if (asset.status === "repair" && !activeRepair(asset)) return "ชำรุดแต่ยังไม่ได้ส่งซ่อม";
   return null;
 }
 
@@ -249,8 +265,8 @@ export const SESSION_STATUS_LABEL: Record<InventorySessionStatus, string> = {
 export const RESULT_LABEL: Record<InventoryResult, string> = {
   found: "ปกติ",
   damaged: "ชำรุด",
-  missing: "ไม่พบ",
-  mismatch: "ไม่ตรงสาขา",
+  missing: "สูญหาย",
+  mismatch: "สูญหาย",
 };
 
 export const ASSET_STATUS_LABEL: Record<AssetStatus, string> = {
@@ -316,16 +332,16 @@ export function formatBaht(n: number): string {
 }
 
 /* ---------------- ความคืบหน้าของรอบ ---------------- */
-// total = ของที่ต้องอยู่ในสาขา (ไม่นับของที่ถูกยืมหรือส่งซ่อม)
+// total = ของที่ต้องอยู่ในสาขา (ไม่นับของที่ถูกเบิก/ยืม หรือส่งซ่อมแล้ว)
+// checked = ของในสาขาที่มีผลตรวจแล้ว ไม่ว่าจะเป็น ปกติ ชำรุด หรือสูญหาย
+// lost = สูญหาย (ไม่พบตอนตรวจ + ไม่ตรงทะเบียน)
 
 export function getSessionProgress(session: InventorySession, checks: StoredCheck[]) {
   const onSite = getSessionAssets(session).filter((a) => !getAwayReason(a));
   const onSiteIds = new Set(onSite.map((a) => a.id));
   const sessionChecks = checks.filter((c) => c.sessionId === session.id);
   const checkedIds = new Set(
-    sessionChecks
-      .filter((c) => onSiteIds.has(c.assetId) && c.result !== "missing")
-      .map((c) => c.assetId),
+    sessionChecks.filter((c) => onSiteIds.has(c.assetId)).map((c) => c.assetId),
   );
   const total = onSite.length;
   const checked = checkedIds.size;
@@ -337,6 +353,7 @@ export function getSessionProgress(session: InventorySession, checks: StoredChec
     damaged: sessionChecks.filter((c) => c.result === "damaged").length,
     missing: sessionChecks.filter((c) => c.result === "missing").length,
     mismatch: sessionChecks.filter((c) => c.result === "mismatch").length,
+    lost: sessionChecks.filter((c) => c.result === "missing" || c.result === "mismatch").length,
   };
 }
 
@@ -386,10 +403,6 @@ export function deleteSession(sessionId: string): boolean {
   if (!session || session.status !== "planned") return false;
   saveStore({ ...store, sessions: store.sessions.filter((s) => s.id !== sessionId) });
   return true;
-}
-
-export function startSession(sessionId: string): boolean {
-  return updateStatus(sessionId, "planned", "in_progress");
 }
 
 export function cancelSession(sessionId: string): boolean {
@@ -473,7 +486,8 @@ export function previewScan(
   if (!asset) return { type: "not_found", code: code.trim() };
   const existing = checks.find((c) => c.sessionId === session.id && c.assetId === asset.id);
   if (existing) return { type: "duplicate", asset, check: existing };
-  if (asset.branchId !== session.branchId) return { type: "mismatch", asset };
+  // ของผิดสาขา หรือของที่จำหน่ายไปแล้วแต่ยังเจอ = ข้อมูลไม่ตรงทะเบียน
+  if (asset.branchId !== session.branchId || asset.status === "disposed") return { type: "mismatch", asset };
   return { type: "ready", asset };
 }
 
@@ -511,6 +525,21 @@ export function saveCheck(input: SaveCheckInput): StoredCheck | null {
   );
   saveStore({ sessions, checks });
   return check;
+}
+
+// เปลี่ยนสภาพของรายการที่ตรวจแล้ว (ปกติ / ชำรุด / สูญหาย) ทำได้เฉพาะตอนรอบยังเปิดอยู่
+export function updateCheck(checkId: string, result: InventoryResult, checker: Credential): boolean {
+  const store = readStore();
+  const check = store.checks.find((c) => c.id === checkId);
+  const session = store.sessions.find((s) => s.id === check?.sessionId);
+  if (!check || !session || session.status !== "in_progress") return false;
+  const checks = store.checks.map((c) =>
+    c.id === checkId
+      ? { ...c, result, checkerId: checker.id, checkerName: checker.username, checkedAt: toLocalISO(new Date()) }
+      : c,
+  );
+  saveStore({ ...store, checks });
+  return true;
 }
 
 // ยกเลิกผลที่บันทึกผิด ทำได้เฉพาะตอนรอบยังเปิดอยู่
