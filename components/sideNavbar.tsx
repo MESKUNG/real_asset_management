@@ -47,7 +47,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     { name: "จัดการ Asset", path: "/assets" },
     { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
     { name: "ติดตามการนับ / มอบหมายงาน", path: "/inventories" },
-    { name: "QrCode", path: "/qrcode"},
+    // { name: "QrCode", path: "/qrcode"},
     {
       name: "ซ่อมบำรุง",
       path: "/repairs",

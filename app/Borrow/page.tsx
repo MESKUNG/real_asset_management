@@ -4,6 +4,7 @@ import { useTheme, useTranslate } from "@/lib/language";
 import React from 'react'
 import Select, { type StylesConfig } from "react-select";
 import jsQR from "jsqr";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 
 import {
   useEffect,
@@ -1160,8 +1161,8 @@ function RequestModal({
                 />
                 </div>
                 <label
-                  title="สแกน QR Code"
-                  aria-label="สแกน QR Code"
+                  title="สแกน QR Code / Barcode"
+                  aria-label="สแกน QR Code / Barcode"
                   className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-400 bg-white text-blue-950 hover:bg-indigo-50"
                 >
                   <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1177,53 +1178,45 @@ function RequestModal({
                       e.target.value = "";
                       if (!file) return;
 
+                      const imageUrl = URL.createObjectURL(file);
                       try {
-                        // แปลงไฟล์ภาพเป็น ImageData เพื่อให้ jsQR อ่านได้
-                        const imageUrl = URL.createObjectURL(file);
-                        const image = new Image();
-
+                        // เริ่มจากอ่าน QR Code ด้วย jsQR ก่อน
                         const imageData = await new Promise<ImageData>((resolve, reject) => {
+                          const image = new Image();
                           image.onload = () => {
                             try {
                               const canvas = document.createElement("canvas");
                               canvas.width = image.naturalWidth;
                               canvas.height = image.naturalHeight;
-
                               const context = canvas.getContext("2d");
-                              if (!context) {
-                                reject(new Error("ไม่สามารถเปิด canvas ได้"));
-                                return;
-                              }
-
+                              if (!context) throw new Error("ไม่สามารถเปิด canvas ได้");
                               context.drawImage(image, 0, 0);
-                              resolve(
-                                context.getImageData(0, 0, canvas.width, canvas.height)
-                              );
+                              resolve(context.getImageData(0, 0, canvas.width, canvas.height));
                             } catch (error) {
                               reject(error);
-                            } finally {
-                              URL.revokeObjectURL(imageUrl);
                             }
                           };
-
-                          image.onerror = () => {
-                            URL.revokeObjectURL(imageUrl);
-                            reject(new Error("ไม่สามารถอ่านไฟล์ภาพได้"));
-                          };
-
+                          image.onerror = () => reject(new Error("ไม่สามารถอ่านไฟล์ภาพได้"));
                           image.src = imageUrl;
                         });
 
-                        const result = jsQR(
+                        const qrResult = jsQR(
                           imageData.data,
                           imageData.width,
                           imageData.height,
-                          { inversionAttempts: "attemptBoth" }
+                          { inversionAttempts: "attemptBoth" },
                         );
 
-                        const rawValue = result?.data?.trim();
+                        // ถ้าไม่พบ QR ให้ ZXing ลองอ่าน Barcode เช่น CODE128 / EAN13
+                        let rawValue = qrResult?.data?.trim() ?? "";
                         if (!rawValue) {
-                          setQrMessage("ไม่พบ QR Code ในภาพ กรุณาเลือกรูปที่เห็น QR Code ชัดเจน");
+                          const reader = new BrowserMultiFormatReader();
+                          const barcodeResult = await reader.decodeFromImageUrl(imageUrl);
+                          rawValue = barcodeResult.getText().trim();
+                        }
+
+                        if (!rawValue) {
+                          setQrMessage("ไม่พบ QR Code หรือ Barcode ในภาพ กรุณาลองถ่ายใหม่ให้ชัดเจน");
                           return;
                         }
 
@@ -1236,7 +1229,7 @@ function RequestModal({
                           };
                           code = parsed.assetId ?? parsed.id ?? parsed.serialNumber ?? rawValue;
                         } catch {
-                          // QR อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา เช่น AST-0001
+                          // QR/Barcode อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา
                         }
 
                         const matched = assets.find(
@@ -1245,7 +1238,7 @@ function RequestModal({
                             a.qrCode === code ||
                             a.barcode === code ||
                             a.serialNumber === code ||
-                            rawValue.includes(a.id)
+                            rawValue.includes(a.id),
                         );
 
                         if (!matched) {
@@ -1261,8 +1254,10 @@ function RequestModal({
                         setAssetId(matched.id);
                         setQrMessage(`สแกนสำเร็จ: ${matched.name} (${matched.id})`);
                       } catch (error) {
-                        console.error("QR Code read failed:", error);
-                        setQrMessage("อ่าน QR Code ไม่สำเร็จ กรุณาลองเลือกรูปอื่น");
+                        console.error("QR / Barcode read failed:", error);
+                        setQrMessage("อ่าน QR Code หรือ Barcode ไม่สำเร็จ กรุณาลองเลือกรูปอื่น");
+                      } finally {
+                        URL.revokeObjectURL(imageUrl);
                       }
                     }}
                   />
