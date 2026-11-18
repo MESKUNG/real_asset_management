@@ -1,6 +1,8 @@
 "use client";
 import { useTranslate } from "@/lib/language";
 
+import React from 'react'
+import Select, { type StylesConfig } from "react-select";
 
 import {
   useEffect,
@@ -39,12 +41,41 @@ type NewRequest = {
   purpose: string;
 };
 
+type AssetOption = { value: string; label: string };
+
+// สไตล์ให้ react-select หน้าตาเหมือนช่อง input อื่นในฟอร์ม
+const assetSelectStyles: StylesConfig<AssetOption, false> = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: 40,
+    borderRadius: 8,
+    borderColor: state.isFocused ? "#172554" : "#94a3b8", // slate-400
+    boxShadow: "none",
+    fontSize: 14,
+    "&:hover": { borderColor: "#172554" },
+  }),
+  singleValue: (base) => ({ ...base, color: "#0f172a" }),
+  placeholder: (base) => ({ ...base, color: "#475569" }),
+  option: (base, state) => ({
+    ...base,
+    fontSize: 14,
+    color: state.isSelected ? "#ffffff" : "#0f172a",
+    backgroundColor: state.isSelected
+      ? "#172554"
+      : state.isFocused
+        ? "#e0e7ff"
+        : "transparent",
+  }),
+  // เมนูแสดงเป็น portal นอก modal จึงต้องมี z-index สูงกว่า modal (z-50)
+  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+};
+
 type StatusFilter = "all" | BorrowStatus;
 type TypeFilter = "all" | RequestType;
 
 const TYPES: Record<RequestType, { label: string; hint: string }> = {
   withdraw: { label: "เบิก", hint: "ขอเบิกไปใช้งาน" },
-  return: { label: "คืน", hint: "คืนทรัพย์สินที่ยืมไว้" },
+  return: { label: "รับคืน", hint: "คืนทรัพย์สินที่ยืมไว้" },
   transfer: { label: "ขอโอนย้าย", hint: "ย้ายไปสาขาอื่น" },
 };
 
@@ -68,6 +99,10 @@ const STATUS_FILTERS: StatusFilter[] = [
 ];
 
 const TYPE_FILTERS: TypeFilter[] = ["all", "withdraw", "return", "transfer"];
+
+// จำนวนรายการต่อหน้า (เลือกแสดง 5 / 10 / ทั้งหมด)
+type PageSize = 5 | 10 | "all";
+const PAGE_SIZES: PageSize[] = [5, 10, "all"];
 
 /* ---------- role (อ่านจาก localStorage แบบเดียวกับ Sidebar) ---------- */
 
@@ -365,7 +400,7 @@ function exportPdf(list: Request[], subtitle: string) {
   thead { display: table-header-group; }
   tr { page-break-inside: avoid; }
 </style></head><body>
-<h1>รายงานคำขอเบิก / คืน / โอนย้ายทรัพย์สิน</h1>
+<h1>รายงานคำขอเบิก / รับคืน / โอนย้ายทรัพย์สิน</h1>
 <p>${esc(subtitle)}</p>
 <table><thead><tr>${head}</tr></thead><tbody>${rowsHtml}</tbody></table>
 </body></html>`;
@@ -418,6 +453,8 @@ export default function Page() {
   const [editing, setEditing] = useState<Request | null>(null); // คำขอที่ถูกส่งกลับมาแก้
   const [sendBackId, setSendBackId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState<PageSize>(10);
+  const [pageState, setPageState] = useState({ key: "", page: 1 });
   const detail = requests.find((r) => r.id === detailId) ?? null;
 
   // ตัวเลขบนปุ่มสถานะ นับตามประเภทที่เลือกอยู่
@@ -449,6 +486,24 @@ export default function Page() {
       // เรียงตามรหัสคำขอ จาก BRQ-0001 ลงไป
       .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
   }, [byType, statusFilter, query]);
+
+  // แบ่งหน้า: ถ้าตัวกรอง/ค้นหา/จำนวนต่อหน้าเปลี่ยน จะกลับไปหน้า 1 อัตโนมัติ
+  const filterKey = `${typeFilter}|${statusFilter}|${query}|${pageSize}`;
+  const totalPages =
+    pageSize === "all" ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+  const page = Math.min(
+    pageState.key === filterKey ? pageState.page : 1,
+    totalPages,
+  );
+  const pagedRows =
+    pageSize === "all"
+      ? rows
+      : rows.slice((page - 1) * pageSize, page * pageSize);
+  const rangeFrom =
+    rows.length === 0 ? 0 : pageSize === "all" ? 1 : (page - 1) * pageSize + 1;
+  const rangeTo =
+    pageSize === "all" ? rows.length : Math.min(page * pageSize, rows.length);
+  const goPage = (p: number) => setPageState({ key: filterKey, page: p });
 
   function update(id: string, patch: Partial<Request>) {
     const decidedAt = new Date().toISOString();
@@ -630,7 +685,7 @@ export default function Page() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white">
-        <table className="w-full min-w-[1040px] text-left text-sm text-slate-900">
+        <table className="w-full min-w-[940px] text-left text-sm text-slate-900">
           <thead className="bg-slate-100 text-slate-900">
             <tr>
               <th className="p-3 font-bold">{translateText("รหัส")}</th>
@@ -638,7 +693,6 @@ export default function Page() {
               <th className="p-3 font-bold">{translateText("ทรัพย์สิน")}</th>
               <th className="p-3 font-bold">{translateText("ผู้ขอ")}</th>
               <th className="p-3 font-bold">{translateText("รายละเอียด")}</th>
-              <th className="p-3 font-bold">{translateText("วันที่คืนจริง")}</th>
               <th className="p-3 font-bold">{translateText("สถานะ")}</th>
               <th className="p-3 font-bold">{translateText("หมายเหตุ")}</th>
               <th className="p-3 font-bold">{translateText("ดำเนินการ")}</th>
@@ -648,7 +702,7 @@ export default function Page() {
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={8}
                   className="p-8 text-center text-slate-700"
                 >
                   
@@ -656,7 +710,7 @@ export default function Page() {
                 </td>
               </tr>
             )}
-            {rows.map((r) => {
+            {pagedRows.map((r) => {
               const s = displayStatus(r);
               const note = r.note || approvalComment(r.id);
               return (
@@ -699,7 +753,6 @@ export default function Page() {
                     )}
                     <div className="max-w-56 text-xs text-slate-700">{r.purpose}</div>
                   </td>
-                  <td className="p-3">{fmtDate(r.actualReturnDate)}</td>
                   <td className="p-3">
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS[s].className}`}
@@ -733,6 +786,53 @@ export default function Page() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* เลือกจำนวนรายการที่แสดง + เปลี่ยนหน้า */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-sm font-semibold text-slate-900">
+            {translateText("แสดง")}
+          </span>
+          {PAGE_SIZES.map((n) => (
+            <button
+              key={n}
+              onClick={() => setPageSize(n)}
+              className={pill(pageSize === n)}
+            >
+              {n === "all" ? translateText("ทั้งหมด") : n}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3 text-sm text-slate-900">
+          <span>
+            {rangeFrom}–{rangeTo} {translateText("จาก")} {rows.length}{" "}
+            {translateText("รายการ")}
+          </span>
+          {pageSize !== "all" && totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goPage(page - 1)}
+                disabled={page <= 1}
+                aria-label={translateText("หน้าก่อนหน้า")}
+                className="rounded-lg border border-slate-400 bg-white px-3 py-1.5 font-semibold hover:bg-indigo-100 disabled:opacity-40"
+              >
+                ‹
+              </button>
+              <span className="min-w-12 text-center font-semibold">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => goPage(page + 1)}
+                disabled={page >= totalPages}
+                aria-label={translateText("หน้าถัดไป")}
+                className="rounded-lg border border-slate-400 bg-white px-3 py-1.5 font-semibold hover:bg-indigo-100 disabled:opacity-40"
+              >
+                ›
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {(showModal || editing) && (
@@ -854,6 +954,7 @@ function RequestModal({
   const [toBranchId, setToBranchId] = useState(editing?.toBranchId ?? "");
   const [purpose, setPurpose] = useState(editing?.purpose ?? "");
   const [submittedId, setSubmittedId] = useState<string | null>(null);
+  const [assetMenuOpen, setAssetMenuOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -871,6 +972,13 @@ function RequestModal({
     ? assetId
     : (options[0]?.id ?? "");
   const asset = assets.find((a) => a.id === selectedAssetId);
+  // label รวมชื่อ + รหัส + สาขา ทำให้พิมพ์ค้นหาได้ทั้งสามอย่าง
+  const assetOptions: AssetOption[] = options.map((a) => ({
+    value: a.id,
+    label: `${a.name} (${a.id}) – ${branchName(a.branchId)}`,
+  }));
+  const selectedOption =
+    assetOptions.find((o) => o.value === selectedAssetId) ?? null;
   const destinations = branches.filter(
     (b) => b.status === "active" && b.id !== asset?.branchId,
   );
@@ -998,7 +1106,7 @@ function RequestModal({
             )}
 
             <div>
-              <label className={label}>{translateText("ทรัพย์สิน")}</label>
+              <label htmlFor="asset-select" className={label}>{translateText("ทรัพย์สิน")}</label>
               {options.length === 0 ? (
                 <p className="text-sm text-slate-800">
                   {type === "return"
@@ -1006,17 +1114,27 @@ function RequestModal({
                     : "ตอนนี้ไม่มีทรัพย์สินที่พร้อมใช้งาน"}
                 </p>
               ) : (
-                <select
-                  value={selectedAssetId}
-                  onChange={(e) => setAssetId(e.target.value)}
-                  className={field}
-                >
-                  {options.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({a.id}) – {branchName(a.branchId)}
-                    </option>
-                  ))}
-                </select>
+                <Select<AssetOption, false>
+                  inputId="asset-select"
+                  options={assetOptions}
+                  value={selectedOption}
+                  onChange={(opt) => setAssetId(opt?.value ?? "")}
+                  placeholder={translateText("พิมพ์เพื่อค้นหาทรัพย์สิน...")}
+                  noOptionsMessage={() => translateText("ไม่พบทรัพย์สิน")}
+                  isSearchable
+                  styles={assetSelectStyles}
+                  // แสดงเมนูนอก modal กันโดน overflow ของ modal ตัด
+                  menuPortalTarget={
+                    typeof document !== "undefined" ? document.body : null
+                  }
+                  menuPosition="fixed"
+                  onMenuOpen={() => setAssetMenuOpen(true)}
+                  onMenuClose={() => setAssetMenuOpen(false)}
+                  // กด Esc ตอนเมนูเปิดอยู่ ให้ปิดแค่เมนู ไม่ปิดทั้ง modal
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && assetMenuOpen) e.stopPropagation();
+                  }}
+                />
               )}
             </div>
 
@@ -1264,13 +1382,6 @@ function DetailModal({
       label: "กำหนดคืน",
       value: fmtDateTime(r.expectedReturnDate),
     });
-    if (r.actualReturnDate) {
-      info.push({
-        icon: ICONS.calendar,
-        label: "วันที่คืนจริง",
-        value: fmtDateTime(r.actualReturnDate),
-      });
-    }
   } else {
     info.push({
       icon: ICONS.calendar,

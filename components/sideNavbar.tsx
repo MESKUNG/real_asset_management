@@ -28,7 +28,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
   user: [
     { name: "ภาพรวม", path: "/dashboardUser" },
     { name: "จัดการ Asset", path: "/assets" },
-    { name: "เบิก / คืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
+    { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
     {
       name: "ซ่อมบำรุง",
       path: "/repairs",
@@ -45,7 +45,7 @@ const menus: Record<RoleKey, MenuEntry[]> = {
     { name: "ภาพรวม", path: "/dashboardAdmin" },
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
     { name: "จัดการ Asset", path: "/assets" },
-    { name: "เบิก / คืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
+    { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
     { name: "ติดตามการนับ / มอบหมายงาน", path: "/inventories" },
     {
       name: "ซ่อมบำรุง",
@@ -88,7 +88,6 @@ const menus: Record<RoleKey, MenuEntry[]> = {
       ],
     },
     { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
-    { name: "เบิก / คืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
   ],
   superadmin: [
     { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
