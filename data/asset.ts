@@ -10545,5 +10545,5 @@ export const assets: Asset[] = [
     "updatedAt": "2024-02-19T09:00:00",
     "createdBy": 173,
     "updatedBy": 173
-  }
+  },
 ];
