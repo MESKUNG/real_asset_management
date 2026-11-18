@@ -1,21 +1,24 @@
 "use client";
 
-<<<<<<< HEAD
-// หน้านี้คือหน้าตั้งค่าระบบ
-// ค่าที่เลือกจะถูกจำไว้ และโหมดมืดมีผลกับหน้าอื่นด้วย
 import { useState, useSyncExternalStore } from "react";
+import {
+  SETTINGS_STORAGE_KEY,
+  LANGUAGE_CHANGE_EVENT,
+  saveLanguage,
+  saveTheme,
+  useLanguage,
+  useTheme,
+  useTranslate,
+  type AppLanguage,
+  type AppTheme,
+} from "@/lib/language";
 
 type Settings = {
-  // รายการตั้งค่าที่เว็บจำไว้
   notificationsEnabled: boolean;
   darkMode: boolean;
   language: "th" | "en";
 };
 
-// ชื่อนี้ใช้สำหรับเก็บค่าตั้งค่าในเบราว์เซอร์
-const storageKey = "asset-management-settings";
-
-// ค่าเริ่มต้นสำหรับคนที่ยังไม่เคยตั้งค่า
 const defaultSettings: Settings = {
   notificationsEnabled: true,
   darkMode: false,
@@ -23,77 +26,33 @@ const defaultSettings: Settings = {
 };
 
 const defaultSettingsSnapshot = JSON.stringify(defaultSettings);
-const settingsChangedEvent = "asset-management-settings-change";
-
-// ข้อความที่ใช้ตอนเลือกภาษาไทยหรืออังกฤษ
-const labels = {
-  th: {
-    title: "ตั้งค่าระบบ",
-    description: "จัดการการแจ้งเตือนและรูปแบบการแสดงผลของคุณ",
-    notificationSettings: "การแจ้งเตือน",
-    enableNotifications: "เปิดการแจ้งเตือน",
-    enableNotificationsDescription: "รับการแจ้งเตือนเกี่ยวกับกิจกรรมในระบบ",
-    displaySettings: "การแสดงผลและภาษา",
-    darkMode: "โหมดมืด (Dark Mode)",
-    darkModeDescription: "ปรับโทนสีของหน้าตั้งค่า",
-    language: "ภาษา",
-    saved: "การตั้งค่าจะถูกบันทึกโดยอัตโนมัติ",
-    thai: "ไทย",
-    english: "English",
-  },
-  en: {
-    title: "System settings",
-    description: "Manage your notifications and display preferences",
-    notificationSettings: "Notifications",
-    enableNotifications: "Enable notifications",
-    enableNotificationsDescription: "Receive updates about activity in the system",
-    displaySettings: "Display and language",
-    darkMode: "Dark mode",
-    darkModeDescription: "Change the color theme of the settings page",
-    language: "Language",
-    saved: "Your settings are saved automatically",
-    thai: "ไทย",
-    english: "English",
-  },
-} satisfies Record<Settings["language"], Record<string, string>>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  // เช็กว่าข้อมูลที่อ่านมาเป็นกลุ่มข้อมูลจริงหรือไม่
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// อ่านค่าที่เคยบันทึกไว้ ถ้าอ่านไม่ได้จะใช้ค่าเริ่มต้น
 function getSettingsSnapshot() {
   try {
-    return localStorage.getItem(storageKey) ?? defaultSettingsSnapshot;
+    return localStorage.getItem(SETTINGS_STORAGE_KEY) ?? defaultSettingsSnapshot;
   } catch (error) {
-    console.error("โหลดการตั้งค่าไม่สำเร็จ:", error);
+    console.error("Could not load application settings:", error);
     return defaultSettingsSnapshot;
   }
 }
 
-function getServerSettingsSnapshot() {
-  // ระหว่างเริ่มเปิดหน้า ให้ใช้ค่าเริ่มต้นก่อน
-  return defaultSettingsSnapshot;
-}
-
-// คอยฟังเวลาค่าตั้งค่าเปลี่ยน เพื่อให้หน้าแสดงค่าใหม่ทันที
 function subscribeToSettings(onChange: () => void) {
   window.addEventListener("storage", onChange);
-  window.addEventListener(settingsChangedEvent, onChange);
-
+  window.addEventListener(LANGUAGE_CHANGE_EVENT, onChange);
   return () => {
     window.removeEventListener("storage", onChange);
-    window.removeEventListener(settingsChangedEvent, onChange);
+    window.removeEventListener(LANGUAGE_CHANGE_EVENT, onChange);
   };
 }
 
 function parseSettings(snapshot: string): Settings {
-  // ถ้าค่าใดหายหรืออ่านไม่ได้ ให้ใช้ค่าเริ่มต้นของข้อนั้น
   try {
     const parsed: unknown = JSON.parse(snapshot);
     if (!isRecord(parsed)) return defaultSettings;
-
     return {
       notificationsEnabled:
         typeof parsed.notificationsEnabled === "boolean"
@@ -102,11 +61,11 @@ function parseSettings(snapshot: string): Settings {
       darkMode:
         typeof parsed.darkMode === "boolean"
           ? parsed.darkMode
-          : defaultSettings.darkMode,
+          : parsed.theme === "dark",
       language: parsed.language === "en" ? "en" : "th",
     };
   } catch (error) {
-    console.error("อ่านรูปแบบการตั้งค่าไม่สำเร็จ:", error);
+    console.error("Could not parse application settings:", error);
     return defaultSettings;
   }
 }
@@ -120,7 +79,6 @@ function Toggle({
   label: string;
   onChange: () => void;
 }) {
-  // สวิตช์แบบเดียวกัน ใช้ได้ทั้งเปิดแจ้งเตือนและเปิดโหมดมืด
   return (
     <button
       type="button"
@@ -143,43 +101,35 @@ function Toggle({
 
 export default function SettingsPage() {
   const [saveError, setSaveError] = useState(false);
-  // อ่านค่าตั้งค่าปัจจุบัน เพื่อให้สวิตช์แสดงตรงกับที่เลือก
+  const language = useLanguage();
+  const theme = useTheme();
+  const translateText = useTranslate();
   const snapshot = useSyncExternalStore(
     subscribeToSettings,
     getSettingsSnapshot,
-    getServerSettingsSnapshot,
+    () => defaultSettingsSnapshot,
   );
   const settings = parseSettings(snapshot);
+  const isDark = theme === "dark";
 
   const updateSetting = <Key extends keyof Settings>(
     key: Key,
     value: Settings[Key],
   ) => {
-    // บันทึกค่าที่เปลี่ยน และบอกแถบด้านบนให้เปลี่ยนตาม
-    const updatedSettings = { ...settings, [key]: value };
+    const raw: unknown = JSON.parse(snapshot);
+    const stored = isRecord(raw) ? raw : {};
     try {
-      localStorage.setItem(storageKey, JSON.stringify(updatedSettings));
-      window.dispatchEvent(new Event(settingsChangedEvent));
+      localStorage.setItem(
+        SETTINGS_STORAGE_KEY,
+        JSON.stringify({ ...stored, [key]: value }),
+      );
+      window.dispatchEvent(new Event(LANGUAGE_CHANGE_EVENT));
       setSaveError(false);
     } catch (error) {
-      console.error("บันทึกการตั้งค่าไม่สำเร็จ:", error);
-=======
-import { useState } from "react";
-import {
-  saveLanguage,
-  saveTheme,
-  useLanguage,
-  useTheme,
-  useTranslate,
-  type AppLanguage,
-  type AppTheme,
-} from "@/lib/language";
-
-export default function SettingsPage() {
-  const language = useLanguage();
-  const theme = useTheme();
-  const translateText = useTranslate();
-  const [saveError, setSaveError] = useState(false);
+      console.error("Could not save application settings:", error);
+      setSaveError(true);
+    }
+  };
 
   const changeLanguage = (nextLanguage: AppLanguage) => {
     try {
@@ -187,16 +137,20 @@ export default function SettingsPage() {
       setSaveError(false);
     } catch (error) {
       console.error("Could not save language setting:", error);
->>>>>>> feat/engtext
       setSaveError(true);
     }
   };
 
-<<<<<<< HEAD
-  const text = labels[settings.language];
-  const isDark = settings.darkMode;
+  const changeTheme = (nextTheme: AppTheme) => {
+    try {
+      saveTheme(nextTheme);
+      setSaveError(false);
+    } catch (error) {
+      console.error("Could not save theme setting:", error);
+      setSaveError(true);
+    }
+  };
 
-  // กำหนดสีพื้นหลังและตัวหนังสือของการ์ด
   const cardClass = `rounded-xl border p-5 shadow-sm sm:p-6 ${
     isDark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white"
   }`;
@@ -210,82 +164,73 @@ export default function SettingsPage() {
     isDark ? "text-slate-400" : "text-slate-500"
   }`;
 
-  const renderToggleRow = (
-    key: keyof Pick<Settings, "notificationsEnabled" | "darkMode">,
-    title: string,
-    description: string,
-  ) => (
-    // แสดงชื่อ คำอธิบาย และสวิตช์ของแต่ละตัวเลือก
-    <div className="flex items-center justify-between gap-5 py-3">
-      <div>
-        <p className={labelClass}>{title}</p>
-        <p className={descriptionClass}>{description}</p>
-      </div>
-      <Toggle
-        checked={settings[key]}
-        label={title}
-        onChange={() => updateSetting(key, !settings[key])}
-      />
-    </div>
-  );
-
   return (
-    // เปลี่ยนสีพื้นหลังหน้านี้เมื่อเปิดหรือปิดโหมดมืด
     <div
       className={`min-h-[calc(100vh-4rem)] px-4 py-6 sm:px-6 lg:px-8 ${
         isDark ? "bg-slate-950 text-slate-100" : "bg-[#f3f4f8] text-slate-800"
       }`}
     >
       <div className="mx-auto max-w-[1440px]">
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1
-              className={`text-xl font-semibold tracking-tight sm:text-2xl ${
-                isDark ? "text-white" : "text-slate-900"
-              }`}
-            >
-              {text.title}
-            </h1>
-            <p className={descriptionClass}>{text.description}</p>
-          </div>
+        <header className="mb-6">
+          <h1 className={`text-xl font-semibold tracking-tight sm:text-2xl ${isDark ? "text-white" : "text-slate-900"}`}>
+            {translateText("ตั้งค่าระบบ")}
+          </h1>
+          <p className={descriptionClass}>
+            {translateText("จัดการการแจ้งเตือนและรูปแบบการแสดงผลของคุณ")}
+          </p>
         </header>
 
         <div className="space-y-4">
-          {/* ส่วนนี้ใช้เปิดหรือปิดการแจ้งเตือน */}
           <section className={cardClass} aria-labelledby="notification-heading">
             <h2 id="notification-heading" className={headingClass}>
-              {text.notificationSettings}
+              {translateText("การแจ้งเตือน")}
             </h2>
-            <div className="mt-2 divide-y divide-slate-100">
-              {renderToggleRow(
-                "notificationsEnabled",
-                text.enableNotifications,
-                text.enableNotificationsDescription,
-              )}
+            <div className="mt-2 flex items-center justify-between gap-5 py-3">
+              <div>
+                <p className={labelClass}>{translateText("เปิดการแจ้งเตือน")}</p>
+                <p className={descriptionClass}>
+                  {translateText("รับการแจ้งเตือนเกี่ยวกับกิจกรรมในระบบ")}
+                </p>
+              </div>
+              <Toggle
+                checked={settings.notificationsEnabled}
+                label={translateText("เปิดการแจ้งเตือน")}
+                onChange={() =>
+                  updateSetting(
+                    "notificationsEnabled",
+                    !settings.notificationsEnabled,
+                  )
+                }
+              />
             </div>
           </section>
 
-          {/* ส่วนนี้ใช้เปลี่ยนโหมดมืดและเลือกภาษา */}
           <section className={cardClass} aria-labelledby="display-heading">
             <h2 id="display-heading" className={headingClass}>
-              {text.displaySettings}
+              {translateText("การแสดงผลและภาษา")}
             </h2>
-            <div className="mt-2">
-              {renderToggleRow(
-                "darkMode",
-                text.darkMode,
-                text.darkModeDescription,
-              )}
-              {/* เลือกภาษาที่ใช้แสดงในหน้าตั้งค่า */}
-              <label className="mt-2 block">
-                <span className={`${labelClass} mb-2 block`}>{text.language}</span>
+            <div className="mt-2 space-y-4">
+              <div className="flex items-center justify-between gap-5 py-3">
+                <div>
+                  <p className={labelClass}>{translateText("โหมดมืด (Dark Mode)")}</p>
+                  <p className={descriptionClass}>
+                    {translateText("ปรับโทนสีของหน้าตั้งค่า")}
+                  </p>
+                </div>
+                <Toggle
+                  checked={isDark}
+                  label={translateText("โหมดมืด (Dark Mode)")}
+                  onChange={() => changeTheme(isDark ? "light" : "dark")}
+                />
+              </div>
+              <label className="block">
+                <span className={`${labelClass} mb-2 block`}>
+                  {translateText("ภาษา")}
+                </span>
                 <select
-                  value={settings.language}
+                  value={language}
                   onChange={(event) =>
-                    updateSetting(
-                      "language",
-                      event.target.value === "en" ? "en" : "th",
-                    )
+                    changeLanguage(event.target.value === "en" ? "en" : "th")
                   }
                   className={`h-11 w-full rounded-md border px-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${
                     isDark
@@ -293,88 +238,23 @@ export default function SettingsPage() {
                       : "border-slate-200 bg-white text-slate-700"
                   }`}
                 >
-                  <option value="th">{text.thai}</option>
-                  <option value="en">{text.english}</option>
+                  <option value="th">{translateText("ไทย")}</option>
+                  <option value="en">{translateText("English")}</option>
                 </select>
               </label>
             </div>
           </section>
         </div>
 
-        {/* ข้อความบอกว่าบันทึกแล้ว หรือแจ้งเมื่อบันทึกไม่สำเร็จ */}
         <p
           role={saveError ? "alert" : undefined}
-          className={`mt-4 text-xs ${
-            saveError ? "text-rose-600" : "text-slate-400"
-          }`}
+          className={`mt-4 text-xs ${saveError ? "text-rose-600" : "text-slate-400"}`}
         >
           {saveError
-            ? "บันทึกไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าเบราว์เซอร์"
-            : text.saved}
+            ? translateText("บันทึกไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าเบราว์เซอร์")
+            : translateText("การตั้งค่าจะถูกบันทึกโดยอัตโนมัติ")}
         </p>
       </div>
     </div>
-=======
-  const changeTheme = (nextTheme: AppTheme) => {
-    try {
-      saveTheme(nextTheme);
-      setSaveError(false);
-    } catch (error) {
-      console.error("Could not save theme setting:", error);
-      setSaveError(true);
-    }
-  };
-
-  return (
-    <main className="min-h-[calc(100vh-4rem)] bg-gray-100 px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl">
-        <header className="mb-6">
-          <h1 className="text-xl font-semibold text-slate-900">
-            {translateText("ตั้งค่าระบบ")}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {translateText("เลือกภาษาที่ต้องการใช้แสดงทั่วทั้งเว็บไซต์")}
-          </p>
-        </header>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="block text-sm font-medium text-slate-700">
-            {translateText("ภาษา")}
-            <select
-              value={language}
-              onChange={(event) =>
-                changeLanguage(event.target.value === "en" ? "en" : "th")
-              }
-              className="mt-2 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-            >
-              <option value="th">ไทย</option>
-              <option value="en">English</option>
-            </select>
-          </label>
-          <label className="mt-5 block text-sm font-medium text-slate-700">
-            {translateText("ธีม")}
-            <select
-              value={theme}
-              onChange={(event) =>
-                changeTheme(event.target.value === "dark" ? "dark" : "light")
-              }
-              className="mt-2 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-            >
-              <option value="light">{translateText("สว่าง")}</option>
-              <option value="dark">{translateText("มืด")}</option>
-            </select>
-          </label>
-          <p
-            role={saveError ? "alert" : undefined}
-            className={`mt-4 text-xs ${saveError ? "text-rose-600" : "text-slate-400"}`}
-          >
-            {saveError
-              ? translateText("บันทึกไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าเบราว์เซอร์")
-              : translateText("การตั้งค่าภาษาจะถูกบันทึกโดยอัตโนมัติ")}
-          </p>
-        </section>
-      </div>
-    </main>
->>>>>>> feat/engtext
   );
 }

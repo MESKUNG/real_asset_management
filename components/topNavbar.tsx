@@ -182,20 +182,12 @@ export default function TopNavbar() {
           </TextField>
 
           <div className="flex items-center gap-4 mr-4">
-<<<<<<< HEAD
             <NotificationDropdown />
 
             <Button
               aria-label="ตั้งค่าระบบ"
               onClick={() => router.push("/setting")}
             >
-=======
-            <Button aria-label={translateText("การแจ้งเตือน")}>
-              <Bell1 className="size-4.5" />
-            </Button>
-
-            <Button aria-label={translateText("ตั้งค่าระบบ")} onClick={() => router.push("/setting")}>
->>>>>>> feat/engtext
               <Gear1 className="size-4.5" />
             </Button>
 

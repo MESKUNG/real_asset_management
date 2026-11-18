@@ -27,7 +27,10 @@ function getLanguageSnapshot(): AppLanguage {
 }
 
 function getThemeSnapshot(): AppTheme {
-  return getSettingsSnapshot().theme === "dark" ? "dark" : "light";
+  const settings = getSettingsSnapshot();
+  if (settings.theme === "dark") return "dark";
+  if (settings.theme === "light") return "light";
+  return settings.darkMode === true ? "dark" : "light";
 }
 
 function getServerLanguageSnapshot(): AppLanguage {
@@ -123,9 +126,10 @@ function saveSetting(key: "language" | "theme", value: AppLanguage | AppTheme) {
     const parsed: unknown = JSON.parse(rawSettings);
     if (isRecord(parsed)) settings = parsed;
   }
-  localStorage.setItem(
-    SETTINGS_STORAGE_KEY,
-    JSON.stringify({ ...settings, [key]: value }),
-  );
+  const nextSettings =
+    key === "theme"
+      ? { ...settings, theme: value, darkMode: value === "dark" }
+      : { ...settings, [key]: value };
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
   window.dispatchEvent(new Event(LANGUAGE_CHANGE_EVENT));
 }

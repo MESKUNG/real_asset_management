@@ -63,12 +63,8 @@ const demoRepairHistory: RepairHistoryItem[] = [
 const pageSize = 5;
 
 export default function RepairHistoryPage() {
-<<<<<<< HEAD
-  // จำคำค้นหา หน้าที่กำลังดู และรายการที่เลือกเปิดรายละเอียด
-=======
   const language = useLanguage();
   const translateText = useTranslate();
->>>>>>> feat/engtext
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRequest, setSelectedRequest] =

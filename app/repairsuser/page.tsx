@@ -43,18 +43,6 @@ const statusStyles: Record<RepairStatus, string> = {
   rejected: "bg-rose-50 text-rose-600",
 };
 
-<<<<<<< HEAD
-function formatThaiDate(date: string) {
-  // แสดงวันที่เป็นรูปแบบภาษาไทย
-  return new Date(date).toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-=======
->>>>>>> feat/engtext
 function getBranch(branchId: string) {
   // หาชื่อสาขาจากรหัสสาขา
   return branches.find((branch) => branch.id === branchId);
@@ -66,12 +54,8 @@ function getAsset(assetId: string) {
 }
 
 export default function RepairsPage() {
-<<<<<<< HEAD
-  // จำรายการซ่อม คำค้นหา ตัวกรอง หน้าที่กำลังดู และรายการที่เลือกเปิด
-=======
   const language = useLanguage();
   const translateText = useTranslate();
->>>>>>> feat/engtext
   const [requests, setRequests] = useState(initialRepairRequests);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
