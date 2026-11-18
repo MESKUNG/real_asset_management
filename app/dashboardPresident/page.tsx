@@ -126,13 +126,13 @@ function Metric({
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between">
-        <span className="text-sm text-slate-500">{label}</span>
+        <span className="text-lg text-slate-500">{label}</span>
         <span className={color}>{icon}</span>
       </div>
-      <strong className="mt-3 block text-3xl font-bold tracking-tight">
+      <strong className="mt-3 block text-5xl font-bold tracking-tight">
         {value}
       </strong>
-      <p className={`mt-3 text-xs ${color}`}>{note}</p>
+      <p className={`mt-3 text-sm ${color}`}>{note}</p>
     </Card>
   );
 }
@@ -559,10 +559,10 @@ export default function Page() {
                   ["สถานะอื่น", other, "text-rose-600"],
                 ].map(([label, value, color]) => (
                   <div key={String(label)}>
-                    <strong className={`block text-2xl font-bold ${color}`}>
+                    <strong className={`block text-3xl font-bold ${color}`}>
                       {fmt(Number(value))}
                     </strong>
-                    <span className="text-xs text-slate-500">{label}</span>
+                    <span className="text-sm text-slate-500">{label}</span>
                   </div>
                 ))}
               </div>
@@ -574,25 +574,25 @@ export default function Page() {
               </h3>
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div>
-                  <strong className="block text-2xl font-bold text-indigo-600">
+                  <strong className="block text-3xl font-bold text-indigo-600">
                     {completedInventories}
                   </strong>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-sm text-slate-500">
                     
                     {translateText("รอบที่เสร็จแล้ว")}
                   </span>
                 </div>
                 <div>
-                  <strong className="block text-2xl font-bold text-amber-600">
+                  <strong className="block text-3xl font-bold text-amber-600">
                     {unfinishedInventories}
                   </strong>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-sm text-slate-500">
                     
                     {translateText("รอบที่ต้องติดตาม")}
                   </span>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-slate-400">
+              <p className="mt-3 text-sm text-slate-400">
                 
                 {translateText("อ้างอิงรอบตรวจนับ")} {inventorySessions.length}  {translateText("รายการที่มีในระบบ")}
               </p>
@@ -620,13 +620,13 @@ export default function Page() {
                               {history.assetId} ·{" "}
                               {asset?.name ?? "ไม่พบข้อมูลทรัพย์สิน"}
                             </p>
-                            <p className="mt-1 text-xs text-slate-500">
+                            <p className="mt-1 text-sm text-slate-500">
                               {history.description}
                             </p>
                           </div>
                           <StatusPill status={translateText("บันทึกแล้ว")} />
                         </div>
-                        <p className="mt-2 text-xs text-slate-500">
+                        <p className="mt-2 text-sm text-slate-500">
                           {dateFmt(history.performedAt)}
                         </p>
                       </div>
@@ -682,7 +682,7 @@ export default function Page() {
                     key={String(label)}
                     className="rounded-lg bg-[#f1f2f7] p-3"
                   >
-                    <span className="block text-xs text-slate-500">
+                    <span className="block text-sm text-slate-500">
                       {label}
                     </span>
                     <strong className={`mt-1 block text-xl ${color}`}>
@@ -697,11 +697,11 @@ export default function Page() {
                   {translateText("รายการซ่อมที่ยังเปิดอยู่")}
                 </p>
                 {repairOpen[0] ? (
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-sm text-slate-500">
                     {assetName(repairOpen[0].assetId)} · {repairOpen[0].issue}
                   </p>
                 ) : (
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-sm text-slate-500">
                     
                     {translateText("ไม่มีรายการซ่อมค้าง")}
                   </p>

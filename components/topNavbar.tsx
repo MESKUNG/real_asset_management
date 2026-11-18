@@ -11,7 +11,8 @@ import { InputGroup, InputGroupInput } from "./tailgrids/core/input-group";
 
 import { AvatarBadge } from "@/components/tailgrids/core/avatar";
 
-import { Search1, Gear1,User2 } from "@tailgrids/icons";
+import { Search1, Gear1, User2 } from "@tailgrids/icons";
+import { Menu } from "lucide-react";
 import { Button } from "./tailgrids/core/button";
 import NotificationDropdown from "./notifications/NotificationDropdown";
 
@@ -53,19 +54,17 @@ function getProfileImage(account: Record<string, unknown>): string | undefined {
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
 
-export default function TopNavbar() {
+export default function TopNavbar({
+  onOpenMenu,
+}: {
+  onOpenMenu: () => void;
+}) {
   const router = useRouter();
   const translateText = useTranslate();
 
   const [user, setUser] = useState<Account | null>(null);   //ใช้เก็บข้อมูล Account ของผู้ใช้ที่กำลัง Login อยู่   เก็บข้อมูลได้ทั้ง Type Accout หรือ null  เริ่มต้นเป็น null
   const [isLoadingAccount, setIsLoadingAccount] = useState(true);                //ตรวจสอบว่าระบบกำลังโหลดข้อมูล Account อยู่หรือไม่ เริ่มต้นเป็น true
 
-
-  const logout = () => {                              //ฟังก์ชัน logout
-    localStorage.removeItem("credential");              //ลบข้อมูล credential 
-    window.dispatchEvent(new CustomEvent("credentialchange"));     //
-    router.replace("/");   //เปลี่ยนหน้าโดยที่แทนหน้าปัจจุบัน
-  };
 
   useEffect(() => {       
     let active = true;     //เป็นตัวแปรเพื่อใช้ตรวจสอบว่า Component ยังอยู่ใน DOM หรือไม่ เพื่อป้องกันการอัปเดต State หลังจาก Component ถูก unmount แล้ว เช่น กด login แล้วออก
@@ -171,40 +170,41 @@ export default function TopNavbar() {
 
   return (
     <nav className="w-full bg-white border-b border-gray-200">
-      <div className="max mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Menu */}
-        <div className="flex items-center gap-6 justify-between w-full">
-          <TextField className="flex flex-col gap-2">
+      <div className="mx-auto flex h-16 w-full min-w-0 items-center justify-between gap-3 px-3 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            aria-label={translateText("เปิดเมนู")}
+            aria-haspopup="dialog"
+            aria-controls="mobile-sidebar-dialog"
+            className="grid size-10 shrink-0 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 md:hidden"
+          >
+            <Menu className="size-6" aria-hidden="true" />
+          </button>
+          <TextField className="hidden flex-col gap-2 md:flex">
             <InputGroup className="w-64 gap-4 border-gray-300">
-              <Search1 className="size-4.5 ml-2" />
-              <InputGroupInput placeholder={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน...")} />
+              <Search1 className="ml-2 size-4.5" />
+              <InputGroupInput
+                placeholder={translateText("ค้นหาชื่อ หรือรหัสทรัพย์สิน...")}
+              />
             </InputGroup>
           </TextField>
-
-          <div className="flex items-center gap-4 mr-4">
-            <NotificationDropdown />
-
-            <Button
-              aria-label="ตั้งค่าระบบ"
-              onClick={() => router.push("/setting")}
-            >
-              <Gear1 className="size-4.5" />
-            </Button>
-
-            <Button
-              className="bg-red-500 text-white hover:bg-red-600 w-30 h-10 text-sm"
-              onClick={() => logout()}
-            >
-              {translateText("ออกจากระบบ")}
-            </Button>
-          </div>
         </div>
 
-        {/* Login */}
-        <div>
-          <figure className="flex justify-center items-center gap-2 w-full">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <NotificationDropdown />
+
+          <Button
+            aria-label={translateText("ตั้งค่าระบบ")}
+            onClick={() => router.push("/setting")}
+          >
+            <Gear1 className="size-4.5" />
+          </Button>
+
+          <figure className="flex shrink-0 items-center gap-2">
             <div className="relative size-10 shrink-0">
-              {user?.avatar ? (  //ตรวจสอบว่ามี avatar หรือไม่ ถ้ามีให้แสดงรูปภาพของผู้ใช้ ต้องมี ? ด้วย เพราะ user อาจเป็น null
+              {user?.avatar ? (
                 <Image
                   src={user.avatar}
                   alt={user.username || "User"}
@@ -221,12 +221,13 @@ export default function TopNavbar() {
               <AvatarBadge status="online" />
             </div>
 
-            <figcaption>
-              <p className="text-sm font-medium w-30">
+            <figcaption className="hidden sm:block">
+              <p className="w-30 text-sm font-medium">
                 {user?.username ||
-                  (isLoadingAccount ? translateText("กำลังโหลด...") : translateText("กรุณาเข้าสู่ระบบ"))}
+                  (isLoadingAccount
+                    ? translateText("กำลังโหลด...")
+                    : translateText("กรุณาเข้าสู่ระบบ"))}
               </p>
-
               <p className="text-xs text-gray-500">
                 {user?.position || user?.email || ""}
               </p>

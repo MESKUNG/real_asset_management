@@ -6,18 +6,22 @@ import { branches } from "@/data/branches";
 import { useTranslate } from "@/lib/language";
 
 export type StaffAccountChanges = {
+  username: string;
   first_name: string;
   last_name: string;
   email: string;
+  phone: string;
   branch_id: string;
   password?: string;
 };
 
 type EditStaffModalProps = {
   account: {
+    username: string;
     first_name: string;
     last_name: string;
     email: string;
+    phone: string;
     staff_id: number | null;
     branch_id?: string;
     status: "Active" | "Inactive";
@@ -32,9 +36,11 @@ export default function EditStaffModal({
   onSave,
 }: EditStaffModalProps) {
   const translateText = useTranslate();
+  const [username, setUsername] = useState(account.username);
   const [firstName, setFirstName] = useState(account.first_name);
   const [lastName, setLastName] = useState(account.last_name);
   const [email, setEmail] = useState(account.email);
+  const [phone, setPhone] = useState(account.phone);
   const [branchId, setBranchId] = useState(account.branch_id ?? "");
   const [password, setPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -63,9 +69,11 @@ export default function EditStaffModal({
     setErrorMessage("");
     try {
       await onSave({
+        username: username.trim(),
         first_name: trimmedFirstName,
         last_name: trimmedLastName,
         email: trimmedEmail,
+        phone: phone.trim(),
         branch_id: branchId,
         ...(password ? { password } : {}),
       });
@@ -106,7 +114,7 @@ export default function EditStaffModal({
                 id="edit-staff-title"
                 className="text-xl font-bold text-slate-800"
               >
-                {translateText("แก้ไขบัญชีผู้ใช้")}
+                {translateText("แก้ไขบัญชี Staff")}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
                 {translateText("แก้ไขข้อมูลบัญชี Staff")}
@@ -128,6 +136,15 @@ export default function EditStaffModal({
               <legend className="text-sm font-semibold text-slate-700">
                 {translateText("ข้อมูลบัญชี")}
               </legend>
+              <FormField label={translateText("ชื่อผู้ใช้")}>
+                <input
+                  autoComplete="username"
+                  required
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  className={inputClassName}
+                />
+              </FormField>
               <div className="grid gap-3 sm:grid-cols-2">
                 <FormField label={translateText("ชื่อ")}>
                   <input
@@ -156,6 +173,16 @@ export default function EditStaffModal({
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
+                  className={inputClassName}
+                />
+              </FormField>
+
+              <FormField label={translateText("เบอร์โทรศัพท์")}>
+                <input
+                  type="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
                   className={inputClassName}
                 />
               </FormField>

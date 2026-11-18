@@ -485,12 +485,12 @@ function Summary({
 }) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex justify-between text-sm font-semibold text-slate-500">
+      <div className="flex justify-between text-lg font-semibold text-slate-500">
         <span>{title}</span>
         <span className={color}>{icon}</span>
       </div>
-      <strong className="mt-4 block text-3xl">{value}</strong>
-      <p className={`mt-3 text-xs ${color}`}>{note}</p>
+      <strong className="mt-4 block text-5xl font-bold tracking-tight">{value}</strong>
+      <p className={`mt-3 text-sm ${color}`}>{note}</p>
     </article>
   );
 }
@@ -522,7 +522,7 @@ function InfoCard({
 }) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-5">
-      <h3 className="mb-3 text-sm text-slate-500">{title}</h3>
+      <h3 className="mb-3 text-base text-slate-500">{title}</h3>
       <div className="space-y-2">{children}</div>
     </article>
   );
@@ -539,15 +539,15 @@ function InfoLine({
   accent?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-4 text-sm">
+    <div className="flex justify-between gap-4 text-base">
       <span className="truncate">
         {left}
         {leftId && (
-          <span className="ml-1 text-xs text-slate-400">{leftId}</span>
+          <span className="ml-1 text-sm text-slate-400">{leftId}</span>
         )}
       </span>
       <span
-        className={`text-right text-xs ${accent ? "text-amber-700" : "text-slate-500"}`}
+        className={`text-right text-sm ${accent ? "text-amber-700" : "text-slate-500"}`}
       >
         {right}
       </span>

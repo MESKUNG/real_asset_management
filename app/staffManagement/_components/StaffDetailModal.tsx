@@ -10,6 +10,7 @@ type StaffDetailModalProps = {
     first_name: string;
     last_name: string;
     username: string;
+    staff_id: number | null;
     email: string;
     phone: string;
     profile_image: string;
@@ -64,10 +65,15 @@ export default function StaffDetailModal({
               id="staff-detail-title"
               className="text-xl font-bold text-slate-800"
             >
-              {translateText("รายละเอียดบัญชีผู้ใช้")}
+              {translateText("รายละเอียดบัญชี Staff")}
             </h2>
             <div className="mt-3 flex flex-wrap gap-2">
               <MetaPill>{roleName}</MetaPill>
+              <MetaPill>
+                {translateText("Staff ID")} {account.staff_id === null
+                  ? translateText("ไม่ระบุ")
+                  : `STF-${String(account.staff_id).padStart(3, "0")}`}
+              </MetaPill>
               <MetaPill>{branchName}</MetaPill>
               <MetaPill>
                 {translateText("สร้างเมื่อ")} {createdAt}

@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CircleUserRound,
   Eye,
   Search,
   UserRoundPlus,
@@ -16,6 +15,9 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { branches } from "@/data/branches";
 import { useTranslate } from "@/lib/language";
+import AddStaffModal, {
+  type NewStaffAccount,
+} from "./_components/AddStaffModal";
 import StaffDetailModal from "./_components/StaffDetailModal";
 import EditStaffModal, {
   type StaffAccountChanges,
@@ -41,11 +43,6 @@ type StaffAccount = {
   last_login: number | null;
 };
 
-type AccountRole = {
-  id: number;
-  role_name: string;
-};
-
 const pageSizes = [4, 8, 12, 24];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -62,7 +59,7 @@ function parseAccount(value: unknown, index: number): StaffAccount {
     typeof value.last_name !== "string" ||
     typeof value.profile_image !== "string" ||
     typeof value.phone !== "string" ||
-    typeof value.role_id !== "number" ||
+    value.role_id !== 1 ||
     (value.staff_id !== null && typeof value.staff_id !== "number") ||
     (value.status !== "Active" && value.status !== "Inactive") ||
     typeof value.created_at !== "number" ||
@@ -91,28 +88,16 @@ function parseAccount(value: unknown, index: number): StaffAccount {
   };
 }
 
-function parseRole(value: unknown, index: number): AccountRole {
-  if (
-    !isRecord(value) ||
-    typeof value.id !== "number" ||
-    typeof value.role_name !== "string"
-  ) {
-    throw new Error(`ข้อมูล Role รายการที่ ${index + 1} มีรูปแบบไม่ถูกต้อง`);
+async function getApiErrorMessage(response: Response, fallback: string) {
+  const payload: unknown = await response.json().catch(() => null);
+  if (isRecord(payload) && typeof payload.error === "string") {
+    return payload.error;
   }
-
-  return { id: value.id, role_name: value.role_name };
-}
-
-function getApiBaseUrl() {
-  const baseUrl = process.env.NEXT_PUBLIC_MOCKAPI_URL?.trim();
-  if (!baseUrl) {
-    throw new Error("ไม่พบการตั้งค่า NEXT_PUBLIC_MOCKAPI_URL");
-  }
-  return baseUrl.replace(/\/+$/, "");
+  return `${fallback} (HTTP ${response.status})`;
 }
 
 function getAccountCode(account: StaffAccount) {
-  return `USR-${String(account.id).padStart(3, "0")}`;
+  return `STF-${String(account.id).padStart(3, "0")}`;
 }
 
 function getVisiblePages(currentPage: number, pageCount: number) {
@@ -144,12 +129,10 @@ function getVisiblePages(currentPage: number, pageCount: number) {
 export default function StaffManagementPage() {
   const translateText = useTranslate();
   const [accounts, setAccounts] = useState<StaffAccount[]>([]);
-  const [roles, setRoles] = useState<AccountRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [searchText, setSearchText] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
-  const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [pageSize, setPageSize] = useState(4);
   const [currentPage, setCurrentPage] = useState(1);
@@ -160,6 +143,7 @@ export default function StaffManagementPage() {
   const [accountToSuspend, setAccountToSuspend] = useState<StaffAccount | null>(
     null,
   );
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -167,34 +151,28 @@ export default function StaffManagementPage() {
 
     async function loadAccounts() {
       try {
-        const baseUrl = getApiBaseUrl();
-        const [accountResponse, roleResponse] = await Promise.all([
-          fetch(`${baseUrl}/Account`, { signal: controller.signal }),
-          fetch(`${baseUrl}/Role`, { signal: controller.signal }),
-        ]);
+        const accountResponse = await fetch(
+          "/api/staff-management/accounts",
+          { signal: controller.signal },
+        );
 
         if (!accountResponse.ok) {
           throw new Error(
-            `โหลดข้อมูลจาก /Account ไม่สำเร็จ (HTTP ${accountResponse.status})`,
-          );
-        }
-        if (!roleResponse.ok) {
-          throw new Error(
-            `โหลดข้อมูลจาก /Role ไม่สำเร็จ (HTTP ${roleResponse.status})`,
+            await getApiErrorMessage(
+              accountResponse,
+              "โหลดข้อมูลบัญชี Staff ไม่สำเร็จ",
+            ),
           );
         }
 
         const accountsPayload: unknown = await accountResponse.json();
-        const rolesPayload: unknown = await roleResponse.json();
-        if (!Array.isArray(accountsPayload) || !Array.isArray(rolesPayload)) {
-          throw new Error("รูปแบบข้อมูลจาก MockAPI ไม่ถูกต้อง");
+        if (!Array.isArray(accountsPayload)) {
+          throw new Error("รูปแบบข้อมูลบัญชี Staff ไม่ถูกต้อง");
         }
 
         const parsedAccounts = accountsPayload.map(parseAccount);
-        const parsedRoles = rolesPayload.map(parseRole);
         if (active) {
           setAccounts(parsedAccounts);
-          setRoles(parsedRoles);
           setErrorMessage("");
         }
       } catch (error) {
@@ -247,11 +225,10 @@ export default function StaffManagementPage() {
       return (
         matchesSearch &&
         (branchFilter === "all" || account.branch_id === branchFilter) &&
-        (roleFilter === "all" || String(account.role_id) === roleFilter) &&
         (statusFilter === "all" || account.status === statusFilter)
       );
     });
-  }, [accounts, branchFilter, roleFilter, searchText, statusFilter]);
+  }, [accounts, branchFilter, searchText, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
   const currentPageWithinRange = Math.min(currentPage, pageCount);
@@ -267,72 +244,101 @@ export default function StaffManagementPage() {
   };
 
 
-  //////////////////////////////////////////////////////////////
-  /////////////////การ Edit Accout//////////////////////////////
+  const createStaffAccount = async (newAccount: NewStaffAccount) => {
+    const username = newAccount.username.trim().toLocaleLowerCase();
+    const email = newAccount.email.trim().toLocaleLowerCase();
+    if (
+      accounts.some(
+        (account) => account.username.toLocaleLowerCase() === username,
+      )
+    ) {
+      throw new Error("ชื่อผู้ใช้นี้ถูกใช้แล้ว");
+    }
+    if (
+      accounts.some((account) => account.email.toLocaleLowerCase() === email)
+    ) {
+      throw new Error("อีเมลนี้ถูกใช้แล้ว");
+    }
+
+    const createdAccount: StaffAccount = {
+      id: Math.max(0, ...accounts.map((account) => account.id)) + 1,
+      username: newAccount.username.trim(),
+      email: newAccount.email.trim(),
+      first_name: newAccount.first_name.trim(),
+      last_name: newAccount.last_name.trim(),
+      profile_image: "",
+      phone: newAccount.phone.trim(),
+      role_id: 1,
+      staff_id:
+        Math.max(
+          0,
+          ...accounts.map((account) => account.staff_id ?? 0),
+        ) + 1,
+      branch_id: newAccount.branch_id,
+      status: "Active",
+      created_at: Math.floor(Date.now() / 1000),
+      last_login: null,
+    };
+
+    setAccounts((currentAccounts) => [createdAccount, ...currentAccounts]);
+    setSearchText("");
+    setBranchFilter("all");
+    setStatusFilter("all");
+    setCurrentPage(1);
+    setIsAddModalOpen(false);
+  };
+
   const updateAccount = async (
     accountId: number,
     changes: StaffAccountChanges,
   ) => {
-    const response = await fetch(
-      `/api/staff-management/accounts/${accountId}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          first_name: changes.first_name,
-          last_name: changes.last_name,
-          email: changes.email,
-          branch_id: changes.branch_id,
-          ...(changes.password ? { password: changes.password } : {}),
-        }),
-      },
-    );
-    if (!response.ok) {
-      throw new Error(`บันทึกข้อมูลบัญชีไม่สำเร็จ (HTTP ${response.status})`);
+    const username = changes.username.trim().toLocaleLowerCase();
+    const email = changes.email.trim().toLocaleLowerCase();
+    if (
+      accounts.some(
+        (account) =>
+          account.id !== accountId &&
+          account.username.toLocaleLowerCase() === username,
+      )
+    ) {
+      throw new Error("ชื่อผู้ใช้นี้ถูกใช้แล้ว");
     }
-
-    const payload: unknown = await response.json();
-    const updatedAccount = parseAccount(payload, accountId);
-    if (updatedAccount.id !== accountId) {
-      throw new Error("MockAPI ส่งข้อมูลบัญชีที่แก้ไขกลับมาไม่ถูกต้อง");
+    if (
+      accounts.some(
+        (account) =>
+          account.id !== accountId &&
+          account.email.toLocaleLowerCase() === email,
+      )
+    ) {
+      throw new Error("อีเมลนี้ถูกใช้แล้ว");
     }
 
     setAccounts((currentAccounts) =>
       currentAccounts.map((account) =>
-        account.id === updatedAccount.id ? updatedAccount : account,
+        account.id === accountId
+          ? {
+              ...account,
+              username: changes.username.trim(),
+              first_name: changes.first_name.trim(),
+              last_name: changes.last_name.trim(),
+              email: changes.email.trim(),
+              phone: changes.phone.trim(),
+              branch_id: changes.branch_id,
+            }
+          : account,
       ),
     );
     setAccountToEdit(null);
   };
 
-    //////////////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////
-
   const suspendAccount = async () => {
     if (!accountToSuspend) return;
 
-    const response = await fetch(
-      `/api/staff-management/accounts/${accountToSuspend.id}`,
-      {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Inactive" }),
-      },
-    );
-    if (!response.ok) {
-      throw new Error(`ระงับบัญชีไม่สำเร็จ (HTTP ${response.status})`);
-    }
-
-    const payload: unknown = await response.json();
-    const updatedAccount = parseAccount(payload, accountToSuspend.id);
-    if (updatedAccount.status !== "Inactive") {
-      throw new Error("MockAPI ไม่ได้บันทึกสถานะ Inactive");
-    }
-
     setAccounts((currentAccounts) =>
       currentAccounts.map((account) =>
-        account.id === updatedAccount.id ? updatedAccount : account,
+        account.id === accountToSuspend.id
+          ? { ...account, status: "Inactive" }
+          : account,
       ),
     );
     setAccountToSuspend(null);
@@ -351,31 +357,40 @@ export default function StaffManagementPage() {
       <div className="mx-auto max-w-[1440px] space-y-6">
         <header>
           <h1 className="text-2xl font-bold text-slate-900">
-            {translateText("จัดการ Staff")}
+            {translateText("จัดการบัญชี Staff")}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {translateText("ดูและจัดการบัญชีผู้ใช้ในระบบ")}
+            {translateText("เพิ่ม แก้ไข และระงับบัญชี Staff")}
           </p>
         </header>
+
+        <p
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          {translateText(
+            "โหมดจำลอง: การสร้าง แก้ไข และระงับเปลี่ยนเฉพาะหน้านี้ ไม่บันทึก API และจะหายเมื่อโหลดหน้าใหม่",
+          )}
+        </p>
 
         <div className="grid gap-4 md:grid-cols-3">
           <SummaryCard
             icon={<UsersRound className="size-5" />}
-            label={translateText("บัญชีผู้ใช้ทั้งหมด")}
+            label={translateText("บัญชี Staff ทั้งหมด")}
             value={accounts.length}
-            note={translateText("บัญชีผู้ใช้ในระบบ")}
+            note="Staff"
             iconClassName="text-violet-600"
           />
           <SummaryCard
             icon={<CheckCircle2 className="size-5" />}
-            label={translateText("บัญชีที่พร้อมใช้งาน")}
+            label={translateText("บัญชี Staff ที่พร้อมใช้งาน")}
             value={activeCount}
             note="Active"
             iconClassName="text-emerald-600"
           />
           <SummaryCard
             icon={<Wrench className="size-5" />}
-            label={translateText("บัญชีที่ระงับ")}
+            label={translateText("บัญชี Staff ที่ระงับ")}
             value={inactiveCount}
             note="Inactive"
             iconClassName="text-amber-600"
@@ -388,18 +403,19 @@ export default function StaffManagementPage() {
               id="accounts-heading"
               className="text-lg font-semibold text-slate-900"
             >
-              {translateText("รายการบัญชีผู้ใช้")}
+              {translateText("รายการบัญชี Staff")}
             </h2>
             <button
               type="button"
+              onClick={() => setIsAddModalOpen(true)}
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
             >
               <UserRoundPlus className="size-4" aria-hidden="true" />
-              {translateText("เพิ่มบัญชี")}
+              {translateText("เพิ่มบัญชี Staff")}
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(240px,1.4fr)_repeat(3,minmax(150px,1fr))]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(240px,1.4fr)_repeat(2,minmax(150px,1fr))]">
             <label className="relative block">
               <span className="sr-only">{translateText("ค้นหาบัญชี")}</span>
               <Search
@@ -431,23 +447,6 @@ export default function StaffManagementPage() {
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {translateText(branch.name)}
-                </option>
-              ))}
-            </FilterSelect>
-
-            <FilterSelect
-              label={translateText("ทุกบทบาท")}
-              icon={<CircleUserRound className="size-4" aria-hidden="true" />}
-              value={roleFilter}
-              onChange={(value) => {
-                setRoleFilter(value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="all">{translateText("ทุกบทบาท")}</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.role_name}
                 </option>
               ))}
             </FilterSelect>
@@ -501,82 +500,75 @@ export default function StaffManagementPage() {
                       </td>
                     </tr>
                   ) : visibleAccounts.length ? (
-                    visibleAccounts.map((account) => {
-                      const roleName =
-                        roles.find((role) => role.id === account.role_id)
-                          ?.role_name ?? `ID ${account.role_id}`;
-                      return (
-                        <tr
-                          key={account.id}
-                          className="transition-colors hover:bg-slate-50"
-                        >
-                          <td className="whitespace-nowrap px-4 py-3.5 text-slate-600">
-                            {getAccountCode(account)}
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-3">
-                              <StaffProfileImage
-                                src={account.profile_image}
-                                alt={`รูปโปรไฟล์ ${account.first_name} ${account.last_name}`}
-                                initials={`${account.first_name.charAt(0)}${account.last_name.charAt(0)}`}
-                                size={40}
-                              />
-                              <div>
-                                <div className="font-semibold text-slate-800">
-                                  {account.first_name} {account.last_name}
-                                </div>
-                                <div className="mt-0.5 text-xs text-slate-400">
-                                  {account.username}
-                                </div>
+                    visibleAccounts.map((account) => (
+                      <tr
+                        key={account.id}
+                        className="transition-colors hover:bg-slate-50"
+                      >
+                        <td className="whitespace-nowrap px-4 py-3.5 text-slate-600">
+                          {getAccountCode(account)}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <StaffProfileImage
+                              src={account.profile_image}
+                              alt={`รูปโปรไฟล์ ${account.first_name} ${account.last_name}`}
+                              initials={`${account.first_name.charAt(0)}${account.last_name.charAt(0)}`}
+                              size={40}
+                            />
+                            <div>
+                              <div className="font-semibold text-slate-800">
+                                {account.first_name} {account.last_name}
+                              </div>
+                              <div className="mt-0.5 text-xs text-slate-400">
+                                {account.username}
                               </div>
                             </div>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3.5 text-slate-600">
-                            {account.email}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-700">
-                            {roleName}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-500">
-                            {getBranchName(account.branch_id)}
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <StatusBadge status={account.status} />
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-2">
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3.5 text-slate-600">
+                          {account.email}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-700">Staff</td>
+                        <td className="px-4 py-3.5 text-slate-500">
+                          {getBranchName(account.branch_id)}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <StatusBadge status={account.status} />
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedAccount(account)}
+                              className="h-9 whitespace-nowrap rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              <Eye
+                                className="mr-1.5 inline size-3.5"
+                                aria-hidden="true"
+                              />
+                              {translateText("ดูรายละเอียด")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAccountToEdit(account)}
+                              className="h-9 whitespace-nowrap rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              {translateText("แก้ไขข้อมูล")}
+                            </button>
+                            {account.status === "Active" && (
                               <button
                                 type="button"
-                                onClick={() => setSelectedAccount(account)}
-                                className="h-9 whitespace-nowrap rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                onClick={() => setAccountToSuspend(account)}
+                                className="h-9 whitespace-nowrap rounded-lg bg-rose-500 px-3 text-xs font-semibold text-white transition hover:bg-rose-600"
                               >
-                                <Eye
-                                  className="mr-1.5 inline size-3.5"
-                                  aria-hidden="true"
-                                />
-                                {translateText("ดูรายละเอียด")}
+                                {translateText("ระงับ")}
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => setAccountToEdit(account)}
-                                className="h-9 whitespace-nowrap rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                              >
-                                {translateText("แก้ไขข้อมูล")}
-                              </button>
-                              {account.status === "Active" && (
-                                <button
-                                  type="button"
-                                  onClick={() => setAccountToSuspend(account)}
-                                  className="h-9 whitespace-nowrap rounded-lg bg-rose-500 px-3 text-xs font-semibold text-white transition hover:bg-rose-600"
-                                >
-                                  {translateText("ระงับ")}
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   ) : (
                     <tr>
                       <td
@@ -683,10 +675,7 @@ export default function StaffManagementPage() {
         <StaffDetailModal
           account={selectedAccount}
           accountCode={getAccountCode(selectedAccount)}
-          roleName={
-            roles.find((role) => role.id === selectedAccount.role_id)
-              ?.role_name ?? `ID ${selectedAccount.role_id}`
-          }
+          roleName="Staff"
           branchName={getBranchName(selectedAccount.branch_id)}
           onClose={() => setSelectedAccount(null)}
         />
@@ -706,6 +695,13 @@ export default function StaffManagementPage() {
           accountCode={getAccountCode(accountToSuspend)}
           onClose={() => setAccountToSuspend(null)}
           onConfirm={suspendAccount}
+        />
+      )}
+
+      {isAddModalOpen && (
+        <AddStaffModal
+          onClose={() => setIsAddModalOpen(false)}
+          onCreate={createStaffAccount}
         />
       )}
     </section>

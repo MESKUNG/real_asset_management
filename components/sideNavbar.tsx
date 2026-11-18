@@ -4,7 +4,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import {
+  ArrowLeftRight,
+  Bell,
+  Building2,
+  ChartNoAxesColumnIncreasing,
+  CheckSquare,
+  CircleCheck,
+  Clock3,
+  LayoutDashboard,
+  Boxes,
+  Send,
+  UsersRound,
+  UserRoundCog,
+  Wrench,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";  
 import Image from "next/image";
 import { useTranslate } from "@/lib/language";
 ///////////////////////////////////////////////////
@@ -13,94 +30,139 @@ type RoleKey = "user" | "admin" | "president" | "superadmin"; //สร้าง 
 
 type MenuItem = {
   name: string;
-  path: string;
+  path?: string;
+  icon: LucideIcon;
+  highlight?: "audit";
+  items?: MenuItem[];
 };
 
-type MenuGroup = {
-  name: string;
+type MenuSection = {
+  heading: string;
   items: MenuItem[];
 };
 
-type MenuEntry = MenuItem | MenuGroup;
-
-const menus: Record<RoleKey, MenuEntry[]> = {
-  //Key ต้องเป็นค่าที่อยู่ใน RoleKey และ Value ต้องเป็น Array ที่ประกอบด้วยข้อมูลประเภท MenuItem
+const menus: Record<RoleKey, MenuSection[]> = {
   user: [
-    { name: "ภาพรวม", path: "/dashboardUser" },
-    { name: "จัดการ Asset", path: "/assets" },
-    { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
+    { heading: "ทั่วไป", items: [{ name: "ภาพรวม", path: "/dashboardUser", icon: LayoutDashboard }] },
     {
-      name: "ซ่อมบำรุง",
-      path: "/repairs",
+      heading: "งานปฏิบัติการ",
       items: [
-        { name: "รายการแจ้งซ่อม", path: "/repairsuser" },
-        { name: "ประวัติซ่อม", path: "/repair-historyuser" },
+        { name: "จัดการ Asset", path: "/assets", icon: Boxes },
+        { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow", icon: ArrowLeftRight },
+        {
+          name: "ซ่อมบำรุง",
+          icon: Wrench,
+          items: [
+            { name: "รายการแจ้งซ่อม", path: "/repairsuser", icon: Wrench },
+            { name: "ประวัติซ่อม", path: "/repair-historyuser", icon: Clock3 },
+          ],
+        },
+        { name: "รายงาน", path: "/reports", icon: ChartNoAxesColumnIncreasing },
+        { name: "ตรวจนับ / รอบการตรวจนับ", path: "/inventories", icon: CheckSquare, highlight: "audit" },
       ],
     },
-    { name: "รายงาน", path: "/reports" },
-    { name: "ตรวจนับ / รอบการตรวจนับ", path: "/inventories" },
-    { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
+    { heading: "จัดการระบบ", items: [{ name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 }] },
   ],
   admin: [
-    { name: "ภาพรวม", path: "/dashboardAdmin" },
-    { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
-    { name: "จัดการ Asset", path: "/assets" },
-    { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow" },
-    { name: "ติดตามการนับ / มอบหมายงาน", path: "/inventories" },
-    // { name: "QrCode", path: "/qrcode"},
     {
-      name: "ซ่อมบำรุง",
-      path: "/repairs",
+      heading: "ภาพรวม",
       items: [
-        { name: "รายการแจ้งซ่อม", path: "/repairsadmin" },
-        { name: "ประวัติซ่อม", path: "/repair-historyadmin" },
+        { name: "ภาพรวม", path: "/dashboardAdmin", icon: LayoutDashboard },
+        { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center", icon: Bell },
       ],
     },
-    { name: "จัดการ Staff", path: "/staffManagement" },
     {
-      name: "รายงาน",
-      path: "/reports",
+      heading: "งานปฏิบัติการ",
       items: [
-        { name: "รับรายงาน", path: "/reports" },
-        { name: "ส่งรายงาน", path: "/reports/send" },
+        { name: "จัดการ Asset", path: "/assets", icon: Boxes },
+        { name: "เบิก / รับคืน / ขอโอนย้ายทรัพย์สิน", path: "/Borrow", icon: ArrowLeftRight },
+        { name: "ติดตามการนับ / มอบหมายงาน", path: "/inventories", icon: CircleCheck },
+        {
+          name: "ซ่อมบำรุง",
+          icon: Wrench,
+          items: [
+            { name: "รายการแจ้งซ่อม", path: "/repairsadmin", icon: Wrench },
+            { name: "ประวัติซ่อม", path: "/repair-historyadmin", icon: Clock3 },
+          ],
+        },
+        { name: "จัดการ Staff", path: "/staffManagement", icon: UsersRound },
+        {
+          name: "รายงาน",
+          icon: ChartNoAxesColumnIncreasing,
+          items: [
+            { name: "รับรายงาน", path: "/reports", icon: ChartNoAxesColumnIncreasing },
+            { name: "ส่งรายงาน", path: "/reports/send", icon: Send },
+          ],
+        },
       ],
     },
-    { name: "สถานที่และแผนก", path: "/locations" },
-    { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
+    {
+      heading: "จัดการระบบ",
+      items: [
+        { name: "สถานที่และแผนก", path: "/locations", icon: Building2 },
+        { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 },
+      ],
+    },
   ],
   president: [
-    { name: "ภาพรวม", path: "/dashboardPresident" },
-    { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
-    { name: "จัดการ Asset", path: "/assets" },
     {
-      name: "ตรวจสอบและอนุมัติ",
+      heading: "ภาพรวม",
       items: [
-        { name: "ภาพรวมคำขอ", path: "/approve_center" },
-        { name: "อนุมัติโยกย้าย", path: "/approve_transfer" },
-        { name: "ประวัติการโอนย้าย", path: "/transfer_history" },
+        { name: "ภาพรวม", path: "/dashboardPresident", icon: LayoutDashboard },
+        { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center", icon: Bell },
       ],
     },
-    { name: "รายงาน", path: "/reports" },
     {
-      name: "สถานที่และแผนก",
+      heading: "งานปฏิบัติการ",
       items: [
-        { name: "จัดการสาขา", path: "/staffandbranches" },
-        { name: "จัดการ Admin", path: "/admin_and_presidents" },
+        { name: "จัดการ Asset", path: "/assets", icon: Boxes },
+        {
+          name: "ตรวจสอบและอนุมัติ",
+          icon: Send,
+          items: [
+            { name: "ภาพรวมคำขอ", path: "/approve_center", icon: Send },
+            { name: "อนุมัติโยกย้าย", path: "/approve_transfer", icon: CircleCheck },
+            { name: "ประวัติการโอนย้าย", path: "/transfer_history", icon: Clock3 },
+          ],
+        },
+        { name: "รายงาน", path: "/reports", icon: ChartNoAxesColumnIncreasing },
       ],
     },
-    { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
+    {
+      heading: "จัดการระบบ",
+      items: [
+        {
+          name: "สถานที่และแผนก",
+          icon: Building2,
+          items: [
+            { name: "จัดการสาขา", path: "/staffandbranches", icon: Building2 },
+            { name: "จัดการ Admin", path: "/adminManagement", icon: UserRoundCog },
+          ],
+        },
+        { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 },
+      ],
+    },
   ],
   superadmin: [
-    { name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center" },
-    { name: "จัดการบัญชี Admin / President", path: "/admin_and_presidents" },
+    { heading: "ภาพรวม", items: [{ name: "ศูนย์รวมการแจ้งเตือน", path: "/notifications-center", icon: Bell }] },
     {
-      name: "สถานที่และแผนก",
+      heading: "งานปฏิบัติการ",
+      items: [{ name: "จัดการบัญชี Admin", path: "/adminManagement", icon: UsersRound }],
+    },
+    {
+      heading: "จัดการระบบ",
       items: [
-        { name: "จัดการสาขา", path: "/staffandbranches" },
-        { name: "จัดการ Admin", path: "/admin_and_presidents" },
+        {
+          name: "สถานที่และแผนก",
+          icon: Building2,
+          items: [
+            { name: "จัดการสาขา", path: "/staffandbranches", icon: Building2 },
+            { name: "จัดการ Admin", path: "/adminManagement", icon: UserRoundCog },
+          ],
+        },
+        { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history", icon: Clock3 },
       ],
     },
-    { name: "ประวัติการเข้าสู่ระบบ", path: "/login-history" },
   ],
 };
 
@@ -152,10 +214,21 @@ function getRoleSnapshot(): RoleKey | null {
 ////////////////////////////////////////////
 ///////////////////////////////////////
 
-export default function Sidebar() {
+/////////////////////////////////////////
+///////Responsive//////////////////////
+type SidebarProps = {
+  isOpen: boolean;
+  onClose: () => void;
+};
+
+/////////////////////////////////////////
+/////////////////////////////////////
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const translateText = useTranslate();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
+    ซ่อมบำรุง: true,
+    รายงาน: true,
     ตรวจสอบและอนุมัติ: true,
     สถานที่และแผนก: true,
   });
@@ -166,90 +239,167 @@ export default function Sidebar() {
     getServerRoleSnapshot,
   );
 
+
+  ///////////////////////////////////////////
+///////Responsive//////////////////////
+  useEffect(() => {
+    if (!isOpen || !role) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    const handleResize = () => {
+      if (window.innerWidth >= 768) onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isOpen, onClose, role]);
+
   if (!role) return null;
 
-  return (
-    <aside className="w-80 min-h-screen bg-blue-950 p-4">
-      <Image
-        alt="Compose Logo"
-        src="/All images/compose.webp"
-        width={800}
-        height={100}
-        className="mb-4 rounded-2xl"
-        priority
-      />
-      <nav className="flex flex-col gap-3">
-        {menus[role].map((menu) =>
-          "items" in menu ? (
-            <div key={menu.name}>
-              <button
-                type="button"
-                aria-expanded={openMenus[menu.name] ?? false}
-                onClick={() =>
-                  setOpenMenus((current) => ({
-                    ...current,
-                    [menu.name]: !(current[menu.name] ?? false),
-                  }))
-                }
-                className="flex w-full items-center justify-between rounded-lg p-3 text-left font-medium text-white hover:bg-indigo-100 hover:text-violet-800"
-              >
-                {translateText(menu.name)}
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 20 20"
-                  className={`h-4 w-4 transition-transform ${
-                    openMenus[menu.name] ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                >
-                  <path
-                    d="m5 7.5 5 5 5-5"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.5"
-                  />
-                </svg>
-              </button>
-              {openMenus[menu.name] && (
-                <div className="flex flex-col">
-                  {menu.items.map((item) => (
-                    <Link
-                      key={item.path}
-                      href={item.path}
-                      className={`rounded-lg p-3 pl-10 font-medium ${
-                        pathname === item.path
-                          ? "bg-indigo-100 text-violet-800"
-                          : "text-white hover:bg-indigo-100 hover:text-violet-800"
-                      }`}
-                    >
-                      {translateText(item.name)}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <Link
-              key={menu.path}
-              href={menu.path}
-              className={`
-        rounded-lg font-medium text-white
-        hover:bg-indigo-100 hover:text-violet-800
-        ${
-          menu.name === "ตรวจนับ / รอบการตรวจนับ"
-            ? "bg-yellow-400 text-blue-950! flex p-6 text-xl justify-center item-center"
-            : pathname === menu.path
-              ? "bg-indigo-100 text-violet-800 p-3 text-base"
-              : "p-3 text-base"
-        }
-      `}
+  const renderSidebarContent = (isMobile: boolean) => (
+    <>
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <Image
+            alt="Compose Logo"
+            src="/All images/compose.webp"
+            width={800}
+            height={100}
+            className="h-auto w-full rounded-2xl"
+            priority
+          />
+        </div>
+        {isMobile && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={translateText("ปิดเมนู")}
+            className="grid size-10 shrink-0 place-items-center rounded-lg text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
-            {translateText(menu.name)}
-          </Link>
-        ))}
+            <X className="size-6" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      <nav aria-label={translateText("เมนูหลัก")} className="flex flex-col gap-5">
+        {menus[role].map((section) => (
+          <section key={section.heading}>
+            <h2 className="mb-1.5 px-1 text-[11px] font-medium text-slate-500">
+              {translateText(section.heading)}
+            </h2>
+            <div className="flex flex-col gap-1">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const hasChildren = Boolean(item.items?.length);
+                const isOpen = openMenus[item.name] ?? false;
+                const isPathActive = (path?: string) =>
+                  Boolean(path && (pathname === path || pathname.startsWith(`${path}/`)));
+                const isActive = item.items?.some((child) => isPathActive(child.path)) ?? isPathActive(item.path);
+                const itemClass = `flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
+                  item.highlight === "audit"
+                    ? "my-1 min-h-[68px] rounded-2xl bg-yellow-400 px-3 text-base text-blue-950 hover:bg-yellow-300"
+                    : isActive
+                      ? "bg-indigo-50 text-violet-700"
+                      : "text-white hover:bg-white/10"
+                }`;
+                const iconClass = item.highlight === "audit" ? "size-6" : "size-5";
 
+                return (
+                  <div key={item.name}>
+                    {hasChildren ? (
+                      <button
+                        type="button"
+                        aria-expanded={isOpen}
+                        onClick={() =>
+                          setOpenMenus((current) => ({ ...current, [item.name]: !isOpen }))
+                        }
+                        className={itemClass}
+                      >
+                        <Icon className={`${iconClass} shrink-0 ${isActive ? "text-violet-600" : "text-slate-400"}`} aria-hidden="true" />
+                        <span className="min-w-0 flex-1">{translateText(item.name)}</span>
+                        <svg aria-hidden="true" viewBox="0 0 20 20" className={`size-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none">
+                          <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+                        </svg>
+                      </button>
+                    ) : item.path ? (
+                      <Link href={item.path} onClick={isMobile ? onClose : undefined} className={itemClass}>
+                        <Icon className={`${iconClass} shrink-0 ${item.highlight === "audit" ? "text-blue-950" : isActive ? "text-violet-600" : "text-slate-400"}`} aria-hidden="true" />
+                        <span>{translateText(item.name)}</span>
+                      </Link>
+                    ) : null}
+                    {hasChildren && isOpen && (
+                      <div className="flex flex-col pt-1">
+                        {item.items?.map((child) => {
+                          if (!child.path) return null;
+                          const isChildActive = pathname === child.path || pathname.startsWith(`${child.path}/`);
+                          return (
+                            <Link
+                              key={child.path}
+                              href={child.path}
+                              onClick={isMobile ? onClose : undefined}
+                              className={`rounded-lg py-2.5 pl-11 pr-3 text-sm font-medium ${isChildActive ? "text-violet-300" : "text-white hover:bg-white/10"}`}
+                            >
+                              {translateText(child.name)}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </nav>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      <aside className="hidden min-h-screen w-80 shrink-0 bg-blue-950 p-4 md:block">
+        {renderSidebarContent(false)}
+      </aside>
+
+      <div
+        id="mobile-sidebar-dialog"
+        aria-hidden={!isOpen}
+        className={`fixed inset-0 z-50 md:hidden ${
+          isOpen ? "visible" : "pointer-events-none invisible"
+        }`}
+      >
+        <button
+          type="button"
+          tabIndex={isOpen ? 0 : -1}
+          aria-label={translateText("ปิดเมนู")}
+          onClick={onClose}
+          className={`absolute inset-0 bg-slate-950/45 transition-opacity duration-300 ${
+            isOpen ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        <aside
+          role="dialog"
+          aria-modal={isOpen}
+          aria-label={translateText("เมนูหลัก")}
+          inert={!isOpen}
+          className={`absolute inset-y-0 left-0 h-full w-80 max-w-[85vw] overflow-y-auto bg-blue-950 p-4 shadow-xl transition-transform duration-300 ease-in-out ${
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          {renderSidebarContent(true)}
+        </aside>
+      </div>
+      {/* ///////////////////////////////////////////////////////////////////
+      /////////////////////////////////////////////////////////////////// */}
+    </>
   );
 }

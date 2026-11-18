@@ -1,5 +1,7 @@
 "use client";
 
+import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import {
   SETTINGS_STORAGE_KEY,
@@ -102,6 +104,7 @@ function Toggle({
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [saveError, setSaveError] = useState(false);
   const language = useLanguage();
   const theme = useTheme();
@@ -113,6 +116,12 @@ export default function SettingsPage() {
   );
   const settings = parseSettings(snapshot);
   const isDark = theme === "dark";
+
+  const logout = () => {
+    localStorage.removeItem("credential");
+    window.dispatchEvent(new CustomEvent("credentialchange"));
+    router.replace("/");
+  };
 
   // บันทึกค่าที่เปลี่ยนและส่งสัญญาณให้ hook อัปเดตหน้าจอทันที
   const updateSetting = <Key extends keyof Settings>(
@@ -259,6 +268,28 @@ export default function SettingsPage() {
             ? translateText("บันทึกไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าเบราว์เซอร์")
             : translateText("การตั้งค่าจะถูกบันทึกโดยอัตโนมัติ")}
         </p>
+
+        <section
+          className={`${cardClass} mt-4 flex flex-col gap-4 border-rose-200 sm:flex-row sm:items-center sm:justify-between`}
+          aria-labelledby="logout-heading"
+        >
+          <div>
+            <h2 id="logout-heading" className={headingClass}>
+              {translateText("ออกจากระบบ")}
+            </h2>
+            <p className={descriptionClass}>
+              {translateText("ออกจากระบบจากบัญชีนี้")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-semibold text-white transition hover:bg-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
+          >
+            <LogOut className="size-4" aria-hidden="true" />
+            {translateText("ออกจากระบบ")}
+          </button>
+        </section>
       </div>
     </div>
   );

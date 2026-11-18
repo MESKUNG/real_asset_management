@@ -3,7 +3,7 @@
 import TopNavbar from "./topNavbar";
 import Sidebar from "./sideNavbar";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLanguage, useTheme } from "@/lib/language";
 
 type NavbarProps = {
@@ -14,6 +14,14 @@ export default function Navbar({ children }: NavbarProps) {
   const pathname = usePathname();
   const language = useLanguage();
   const theme = useTheme();
+
+  //////////////////////////////////////////////////////
+  ///////////// Responsive //////////////////////////
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const openSidebar = useCallback(() => setSidebarOpen(true), []);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  //////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -50,9 +58,9 @@ export default function Navbar({ children }: NavbarProps) {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       <div className="min-w-0 flex-1">
-        {pathname !== "/" && <TopNavbar />}  {/* ถ้าหน้าแรกไม่ต้องแสดง TopNavbar */}
+        {pathname !== "/" && <TopNavbar onOpenMenu={openSidebar} />}
         <main>{children}</main>
       </div>
     </div>
