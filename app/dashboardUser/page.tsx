@@ -147,7 +147,7 @@ export default function Page() {
   const activeBorrowRequests = borrowRequests.filter(              //นับจำนวนคำขอยืมทุกอย่างที่อยู่ในกระบวนการ          
     (request) =>
       (!branchId || request.branchId === branchId) &&             //หากผู้ใช้ไม่มีม brancheID ก็แสดงทุกสาขา แต่ถ้ามี ต้อง request.branchId เหมือนกับ branch.Id 
-      ["pending", "approved", "borrowed", "overdue"].includes(request.status),             //includes มี Array ตรงอย่างน้อย 1 อันไหม
+      ["pending", "revision", "approved", "overdue"].includes(request.status),             //นับคำขอที่ยังต้องดำเนินการ รวมรายการที่ส่งกลับให้แก้ไข
   ).length;
 
   const nextInventory = inventorySessions      //ค้นหารอบตรวจนับครั้งถัดไปจาก invertorysession
@@ -177,17 +177,16 @@ export default function Page() {
     .slice(0, 6)       //เลือกเพียง 6 รายการจากทั้งหมด
     .map((history) => {            //หลังจากเรียงแล้ว นำประวัติแต่ละรายการมาแปลงเป้น obj
       const asset = assets.find((item) => item.id === history.assetId);    //หา asset จาก data asset และต้องตรงกับ assetId ใน history
-      const activityBranchId =     
-        history.action === "transferred" && history.newValue         //กิจกรรมต้อง transfer และมีค่า newvalue
-          ? history.newValue    //ถ้าใช่ต้องอิงจากสาขาปลายทาง
-          : asset?.branchId;          //ถ้าไม่ใช่อิงจากสาขาเก่า
+      const activityBranchName =
+        history.action === "transferred"
+          ? `${branches.find((branch) => branch.id === history.oldValue)?.name ?? history.oldValue ?? "ไม่ระบุสาขา"} → ${branches.find((branch) => branch.id === history.newValue)?.name ?? history.newValue ?? "ไม่ระบุสาขา"}`
+          : branches.find((branch) => branch.id === asset?.branchId)?.name ??
+            "Error";
 
       return {
         ...history,         //แตก history ออกเป็น obj ใหม่
         assetName: asset?.name ?? "Error",     //นำชื่ิอทรัพสินจาก assetname หากไม่มี ใช้ error
-        branchName:         
-          branches.find((branch) => branch.id === activityBranchId)?.name ??     //ค้นหาชื่อ array จาก branch    หาสาขา id ที่ตรงกับ activity branch      หลังจากพบแล้วดึง name ของสาขา
-          "Error",
+        branchName: activityBranchName,
       };
     });
 
