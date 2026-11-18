@@ -4,8 +4,9 @@ import { useTranslate } from "@/lib/language";
 import Link from "next/link";
 import { useState, type FormEventHandler } from "react";
 import { Plus } from "@tailgrids/icons";
+import { ScanQrCode } from "lucide-react";
 import { assets } from "@/data/asset";
-import { branches } from "@/data/branches";
+import { HEAD_OFFICE_BRANCH_ID } from "@/data/branches";
 
 type CreateRepairModalProps = {
   // ปุ่มปิดหน้าต่างและปุ่มส่งคำร้องถูกจัดการจากหน้า repairsuser/page.tsx
@@ -175,12 +176,16 @@ export default function CreateRepairModal({
                   </ul>
                 )}
               </div>
-              {/* ชั่วคราวให้ปุ่มสแกนกลับไปหน้า Login ที่ path "/" */}
+              {/* ชั่วคราวให้ลิงก์สแกนกลับไปหน้า Login ที่ path "/" */}
               <Link
                 href="/"
-                className="inline-flex h-10 shrink-0 items-center justify-center rounded-md border border-indigo-200 px-3 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50"
+                aria-label={translateText("สแกน QR")}
+                className="inline-flex h-10 shrink-0 items-center gap-2 pr-1 text-sm font-medium text-indigo-600 transition hover:text-indigo-700"
               >
-                {translateText("สแกน QR")}
+                <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                  <ScanQrCode className="size-5" aria-hidden="true" />
+                </span>
+                <span>{translateText("สแกน QR")}</span>
               </Link>
             </div>
             {assetError && (
@@ -193,26 +198,18 @@ export default function CreateRepairModal({
               </p>
             )}
           </div>
-          {/* รายชื่อสาขามาจาก data/branches.ts */}
+          {/* คำร้องจากหน้า User ถูกกำหนดให้เป็นสำนักงานใหญ่เท่านั้น */}
           <label className="block text-sm font-medium text-slate-700">
-            
             {translateText("สาขา")}
-            <select
+            <input
+              type="hidden"
               name="branchId"
-              required
-              defaultValue=""
-              className="mt-1.5 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-            >
-              <option value="" disabled>
-                
-                {translateText("เลือกสาขา")}
-              </option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
+              value={HEAD_OFFICE_BRANCH_ID}
+              readOnly
+            />
+            <span className="mt-1.5 flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-normal text-slate-700">
+              {translateText("สำนักงานใหญ่")}
+            </span>
           </label>
           {/* ต้องกรอกอาการก่อนส่งคำร้อง */}
           <label className="block text-sm font-medium text-slate-700">

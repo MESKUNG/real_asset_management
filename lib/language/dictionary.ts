@@ -231,11 +231,15 @@ export const englishTranslations: Record<string, string> = {
   "ทั้งหมด": "All",
   "สร้างคำร้องแจ้งซ่อม": "Create a repair request",
   "แสดงรายการแจ้งซ่อมทั้งหมดในระบบ": "Showing all repair requests",
+  "แสดงรายการแจ้งซ่อมของสำนักงานใหญ่เท่านั้น":
+    "Showing repair requests for the head office only",
   "ค้นหาคำร้อง, อุปกรณ์, ผู้แจ้ง...": "Search requests, assets, or reporter...",
   "กรองตามสถานะ": "Filter by status",
   "แสดงรายการตั้งแต่วันที่": "Show requests from date",
   "กรองตามสาขา": "Filter by branch",
   "ผู้ใช้งาน #": "User #",
+  "โหลดชื่อผู้แจ้งจาก API ไม่สำเร็จ":
+    "Could not load reporter names from the API.",
   "ผู้จัดจำหน่าย": "Vendor",
   "ไม่ระบุผู้จัดจำหน่าย": "Vendor not specified",
   "ช่องทางติดต่อ Vendor": "Vendor contact",

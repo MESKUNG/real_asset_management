@@ -2,47 +2,41 @@
 
 // ปุ่มกระดิ่งและกล่องแจ้งเตือนด้านบนของเว็บ
 // ถ้าจะเปลี่ยนหน้าตา ให้ดู className ในส่วน return ด้านล่าง
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Bell1, CheckCircle1, Gear1, RefreshCircle1Clockwise } from "@tailgrids/icons";
 import { useRouter } from "next/navigation";
 import { useLanguage, useTranslate } from "@/lib/language";
 import {
   formatNotificationTime,
+  getCredentialRoleSnapshot,
+  getNotificationsForRole,
   getNotificationsPath,
   getReadNotificationsSnapshot,
+  getServerCredentialRoleSnapshot,
   getServerReadNotificationsSnapshot,
   markNotificationsRead,
-  notifications,
   parseReadNotifications,
+  subscribeToCredentialChanges,
   subscribeToNotificationChanges,
+  type NotificationItem,
 } from "./notifications";
-
-function getRole() {
-  // เช็กว่าคนที่เข้าเว็บเป็น Admin หรือ User เพื่อเปิดหน้าซ่อมให้ถูกหน้า
-  try {
-    const credential = localStorage.getItem("credential");
-    if (!credential) return null;
-
-    const parsed: unknown = JSON.parse(credential);
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "role" in parsed &&
-      typeof parsed.role === "string"
-    ) {
-      return parsed.role;
-    }
-  } catch (error) {
-    console.error("อ่านข้อมูลบัญชีไม่สำเร็จ:", error);
-  }
-
-  return null;
-}
+import {
+  getServerUserRepairRequestsSnapshot,
+  getUserRepairRequestsSnapshot,
+  parseUserRepairRequestsSnapshot,
+  subscribeToUserRepairRequests,
+} from "@/lib/userRepairRequests";
 
 function NotificationIcon({
   category,
 }: {
-  category: (typeof notifications)[number]["category"];
+  category: NotificationItem["category"];
 }) {
   // เลือกรูปไอคอนตามประเภทแจ้งเตือน ถ้าเพิ่มประเภทใหม่ให้เพิ่มรูปตรงนี้ด้วย
   const iconClass = "size-4";
@@ -64,6 +58,22 @@ export default function NotificationDropdown() {
   const router = useRouter();
   const language = useLanguage();
   const translateText = useTranslate();
+  const role = useSyncExternalStore(
+    subscribeToCredentialChanges,
+    getCredentialRoleSnapshot,
+    getServerCredentialRoleSnapshot,
+  );
+  // โหลดคำร้องจาก Local Storage เพื่อให้แจ้งเตือนอัปเดตหลัง User ส่งคำร้อง
+  const userRequestsSnapshot = useSyncExternalStore(
+    subscribeToUserRepairRequests,
+    getUserRepairRequestsSnapshot,
+    getServerUserRepairRequestsSnapshot,
+  );
+  const userRequests = useMemo(
+    () => parseUserRepairRequestsSnapshot(userRequestsSnapshot),
+    [userRequestsSnapshot],
+  );
+  const visibleNotifications = getNotificationsForRole(role, userRequests);
   // จำไว้ว่ากล่องอยู่ตรงไหน และตอนนี้เปิดอยู่หรือปิดอยู่
   const rootRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -75,7 +85,7 @@ export default function NotificationDropdown() {
     getServerReadNotificationsSnapshot,
   );
   const readIds = parseReadNotifications(snapshot);
-  const unreadCount = notifications.filter(
+  const unreadCount = visibleNotifications.filter(
     (notification) => !readIds.has(notification.id),
   ).length;
 
@@ -107,7 +117,7 @@ export default function NotificationDropdown() {
   // ปุ่ม "อ่านทั้งหมด" ทำให้จุดแจ้งเตือนของทุกรายการหายไป
   const markAllAsRead = () => {
     try {
-      markNotificationsRead(notifications.map(({ id }) => id));
+      markNotificationsRead(visibleNotifications.map(({ id }) => id));
       setError("");
     } catch {
       setError("บันทึกสถานะไม่สำเร็จ กรุณาลองอีกครั้ง");
@@ -115,7 +125,7 @@ export default function NotificationDropdown() {
   };
 
   // กดรายการแล้วไปดูคำร้องนั้น หรือประวัติซ่อม ถ้าซ่อมเสร็จแล้ว
-  const openNotification = (notification: (typeof notifications)[number]) => {
+  const openNotification = (notification: NotificationItem) => {
     try {
       markNotificationsRead([notification.id]);
       setError("");
@@ -126,7 +136,7 @@ export default function NotificationDropdown() {
     setIsOpen(false);
     router.push(
       getNotificationsPath(
-        getRole(),
+        role,
         notification.request.status,
         notification.request.id,
       ),
@@ -188,8 +198,8 @@ export default function NotificationDropdown() {
           )}
 
           <div className="max-h-[min(26rem,70vh)] overflow-y-auto">
-            {/* กล่องย่อแสดงเฉพาะ 4 รายการล่าสุด; รายการที่เหลือดูได้จากหน้ารวม */}
-            {notifications.slice(0, 4).map((notification) => {
+            {/* กล่องย่อแสดง 4 รายการล่าสุดที่ผู้ใช้มีสิทธิ์เห็น */}
+            {visibleNotifications.slice(0, 4).map((notification) => {
               const isUnread = !readIds.has(notification.id);
 
               return (
@@ -216,7 +226,8 @@ export default function NotificationDropdown() {
                       {translateText(notification.issue)}
                     </span>
                     <span className="mt-1 block text-[10px] text-slate-400">
-                      {notification.reference}
+                      {translateText(notification.branchName)} ·{" "}
+                      {notification.branchCode} · {notification.reference}
                     </span>
                   </span>
                   {isUnread && (

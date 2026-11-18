@@ -9,8 +9,9 @@ import {
 
 // หน้านี้ให้ Admin ค้นหา ตรวจสอบ และอัปเดตคำร้องแจ้งซ่อม
 // ตอนนี้การแก้ไขยังไม่บันทึกลงฐานข้อมูล ถ้ารีเฟรชหน้าจะกลับเป็นข้อมูลเดิม
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAccountNames } from "@/lib/accounts";
 import {
   ArrowLeft,
   ArrowRight,
@@ -34,6 +35,12 @@ import {
   type RepairRequest,
   type RepairStatus,
 } from "@/data/repairRequests";
+import {
+  getServerUserRepairRequestsSnapshot,
+  getUserRepairRequestsSnapshot,
+  parseUserRepairRequestsSnapshot,
+  subscribeToUserRepairRequests,
+} from "@/lib/userRepairRequests";
 import { vendors } from "@/data/vendor";
 
 const pageSize = 5;
@@ -97,7 +104,36 @@ function RepairsAdminPageContent() {
   const language = useLanguage();
   const isDark = useTheme() === "dark";
   const translateText = useTranslate();
-  const [requests, setRequests] = useState(initialRequests);
+  const { accountNames, error: accountNamesError } = useAccountNames();
+  // แสดง username จาก API แทน reporterId; ใช้รหัสเดิมเป็น fallback เมื่อไม่พบ
+  const getReporterName = (reporterId: number) =>
+    accountNames.get(String(reporterId)) ??
+    `${translateText("ผู้ใช้งาน #")}${reporterId}`;
+  // อ่าน Local Storage เดียวกับหน้า User; event ทำให้รายการใหม่อัปเดตทันที
+  const userRequestsSnapshot = useSyncExternalStore(
+    subscribeToUserRepairRequests,
+    getUserRepairRequestsSnapshot,
+    getServerUserRepairRequestsSnapshot,
+  );
+  const createdRequests = useMemo(
+    () => parseUserRepairRequestsSnapshot(userRequestsSnapshot),
+    [userRequestsSnapshot],
+  );
+  // เก็บการแก้ไขของ Admin ใน state ชั่วคราว โดยไม่แก้ข้อมูลต้นทางของ User
+  const [requestOverrides, setRequestOverrides] = useState<
+    Record<string, RepairRequest>
+  >({});
+  const requests = useMemo(() => {
+    // รวมข้อมูลตั้งต้นกับ User; ถ้ามีการแก้ไขของ Admin ให้ใช้ค่าที่แก้ล่าสุด
+    const requestsById = new Map<string, RepairRequest>();
+    [...initialRequests, ...createdRequests].forEach((request) =>
+      requestsById.set(request.id, request),
+    );
+    Object.values(requestOverrides).forEach((request) =>
+      requestsById.set(request.id, request),
+    );
+    return [...requestsById.values()];
+  }, [createdRequests, requestOverrides]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [branchFilter, setBranchFilter] = useState("all");
@@ -140,6 +176,7 @@ function RepairsAdminPageContent() {
             asset?.name,
             request.issue,
             branch?.name,
+            accountNames.get(String(request.reporterId)),
             String(request.reporterId),
           ].some((value) => value?.toLocaleLowerCase("th").includes(query));
 
@@ -151,7 +188,7 @@ function RepairsAdminPageContent() {
         );
       })
       .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
-  }, [requests, search, statusFilter, branchFilter, dateFrom]);
+  }, [requests, search, statusFilter, branchFilter, dateFrom, accountNames]);
 
   const pageCount = Math.max(
     1,
@@ -216,16 +253,15 @@ function RepairsAdminPageContent() {
     if (!selectedRequest) return;
     setError("");
     setSuccess("");
-    const updatedRequest = {
+    const updatedRequest: RepairRequest = {
       ...selectedRequest,
       status: activeEditStatus,
       adminNote: activeAdminNote.trim(),
     };
-    setRequests((current) =>
-      current.map((request) =>
-        request.id === updatedRequest.id ? updatedRequest : request,
-      ),
-    );
+    setRequestOverrides((current) => ({
+      ...current,
+      [updatedRequest.id]: updatedRequest,
+    }));
     setManuallySelectedRequest(updatedRequest);
     setEditingRequestId(updatedRequest.id);
     setSuccess("อัปเดตสถานะเรียบร้อยแล้ว");
@@ -234,6 +270,11 @@ function RepairsAdminPageContent() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#f3f4f8] px-3 py-4 text-slate-800 sm:px-6 sm:py-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
+        {accountNamesError && (
+          <p role="alert" className="mb-4 text-sm text-rose-600">
+            {translateText(accountNamesError)}
+          </p>
+        )}
         {/* เลือกรายการแล้วจะแสดงหน้ารายละเอียด; ถ้ายังไม่เลือกจะแสดงรายการทั้งหมด */}
         {selectedRequest ? (
           <div className="mx-auto max-w-4xl">
@@ -274,7 +315,7 @@ function RepairsAdminPageContent() {
                     </dt>
                     <dd className="min-w-0 break-words text-xs font-medium text-slate-700">
 
-                      {translateText("ผู้ใช้งาน #")}{selectedRequest.reporterId}
+                      {getReporterName(selectedRequest.reporterId)}
                     </dd>
                   </div>
                   <div className="flex items-start gap-3">
@@ -586,7 +627,7 @@ function RepairsAdminPageContent() {
                           <p className="text-[10px] text-slate-400">{translateText("ผู้แจ้ง")}</p>
                           <p className="mt-1 break-words text-slate-700">
 
-                            {translateText("ผู้ใช้งาน #")}{request.reporterId}
+                            {getReporterName(request.reporterId)}
                           </p>
                         </div>
                         <div className="min-w-0">
@@ -666,7 +707,7 @@ function RepairsAdminPageContent() {
                           </td>
                           <td className="whitespace-nowrap px-4 py-3.5">
 
-                            {translateText("ผู้ใช้งาน #")}{request.reporterId}
+                            {getReporterName(request.reporterId)}
                           </td>
                           <td className="px-4 py-3.5">
                             <p className="font-medium text-slate-700">

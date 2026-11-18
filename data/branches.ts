@@ -8,6 +8,8 @@ export type Branch = {
   createdAt: string;
 };
 
+export const HEAD_OFFICE_BRANCH_ID = "BR-001";
+
 export const branches: Branch[] = [
   {
     id: "BR-001",
