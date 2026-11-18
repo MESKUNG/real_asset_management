@@ -1,6 +1,8 @@
 "use client";
 import { useTranslate } from "@/lib/language";
 
+import React from 'react'
+import Select, { type StylesConfig } from "react-select";
 
 import {
   useEffect,
@@ -28,6 +30,7 @@ type RequestType = BorrowRequestType;
 
 type Request = BorrowRequest & {
   decidedAt?: string; // เวลาที่แอดมิน/ประธานดำเนินการล่าสุด (ใช้แสดงใน timeline)
+  attachmentDataUrl?: string; // รูปประกอบคำขอรับคืน
 };
 
 type NewRequest = {
@@ -37,6 +40,36 @@ type NewRequest = {
   expectedReturnDate: string;
   toBranchId?: string;
   purpose: string;
+  attachmentDataUrl?: string;
+};
+
+type AssetOption = { value: string; label: string };
+
+// สไตล์ให้ react-select หน้าตาเหมือนช่อง input อื่นในฟอร์ม
+const assetSelectStyles: StylesConfig<AssetOption, false> = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: 40,
+    borderRadius: 8,
+    borderColor: state.isFocused ? "#172554" : "#94a3b8", // slate-400
+    boxShadow: "none",
+    fontSize: 14,
+    "&:hover": { borderColor: "#172554" },
+  }),
+  singleValue: (base) => ({ ...base, color: "#0f172a" }),
+  placeholder: (base) => ({ ...base, color: "#475569" }),
+  option: (base, state) => ({
+    ...base,
+    fontSize: 14,
+    color: state.isSelected ? "#ffffff" : "#0f172a",
+    backgroundColor: state.isSelected
+      ? "#172554"
+      : state.isFocused
+        ? "#e0e7ff"
+        : "transparent",
+  }),
+  // เมนูแสดงเป็น portal นอก modal จึงต้องมี z-index สูงกว่า modal (z-50)
+  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
 };
 
 type StatusFilter = "all" | BorrowStatus;
@@ -44,7 +77,7 @@ type TypeFilter = "all" | RequestType;
 
 const TYPES: Record<RequestType, { label: string; hint: string }> = {
   withdraw: { label: "เบิก", hint: "ขอเบิกไปใช้งาน" },
-  return: { label: "คืน", hint: "คืนทรัพย์สินที่ยืมไว้" },
+  return: { label: "รับคืน", hint: "คืนทรัพย์สินที่ยืมไว้" },
   transfer: { label: "ขอโอนย้าย", hint: "ย้ายไปสาขาอื่น" },
 };
 
@@ -68,6 +101,10 @@ const STATUS_FILTERS: StatusFilter[] = [
 ];
 
 const TYPE_FILTERS: TypeFilter[] = ["all", "withdraw", "return", "transfer"];
+
+// จำนวนรายการต่อหน้า (เลือกแสดง 5 / 10 / ทั้งหมด)
+type PageSize = 5 | 10 | "all";
+const PAGE_SIZES: PageSize[] = [5, 10, "all"];
 
 /* ---------- role (อ่านจาก localStorage แบบเดียวกับ Sidebar) ---------- */
 
@@ -365,7 +402,7 @@ function exportPdf(list: Request[], subtitle: string) {
   thead { display: table-header-group; }
   tr { page-break-inside: avoid; }
 </style></head><body>
-<h1>รายงานคำขอเบิก / คืน / โอนย้ายทรัพย์สิน</h1>
+<h1>รายงานคำขอเบิก / รับคืน / โอนย้ายทรัพย์สิน</h1>
 <p>${esc(subtitle)}</p>
 <table><thead><tr>${head}</tr></thead><tbody>${rowsHtml}</tbody></table>
 </body></html>`;
@@ -418,6 +455,8 @@ export default function Page() {
   const [editing, setEditing] = useState<Request | null>(null); // คำขอที่ถูกส่งกลับมาแก้
   const [sendBackId, setSendBackId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState<PageSize>(10);
+  const [pageState, setPageState] = useState({ key: "", page: 1 });
   const detail = requests.find((r) => r.id === detailId) ?? null;
 
   // ตัวเลขบนปุ่มสถานะ นับตามประเภทที่เลือกอยู่
@@ -449,6 +488,24 @@ export default function Page() {
       // เรียงตามรหัสคำขอ จาก BRQ-0001 ลงไป
       .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
   }, [byType, statusFilter, query]);
+
+  // แบ่งหน้า: ถ้าตัวกรอง/ค้นหา/จำนวนต่อหน้าเปลี่ยน จะกลับไปหน้า 1 อัตโนมัติ
+  const filterKey = `${typeFilter}|${statusFilter}|${query}|${pageSize}`;
+  const totalPages =
+    pageSize === "all" ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+  const page = Math.min(
+    pageState.key === filterKey ? pageState.page : 1,
+    totalPages,
+  );
+  const pagedRows =
+    pageSize === "all"
+      ? rows
+      : rows.slice((page - 1) * pageSize, page * pageSize);
+  const rangeFrom =
+    rows.length === 0 ? 0 : pageSize === "all" ? 1 : (page - 1) * pageSize + 1;
+  const rangeTo =
+    pageSize === "all" ? rows.length : Math.min(page * pageSize, rows.length);
+  const goPage = (p: number) => setPageState({ key: filterKey, page: p });
 
   function update(id: string, patch: Partial<Request>) {
     const decidedAt = new Date().toISOString();
@@ -630,7 +687,7 @@ export default function Page() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white">
-        <table className="w-full min-w-[1040px] text-left text-sm text-slate-900">
+        <table className="w-full min-w-[940px] text-left text-sm text-slate-900">
           <thead className="bg-slate-100 text-slate-900">
             <tr>
               <th className="p-3 font-bold">{translateText("รหัส")}</th>
@@ -638,7 +695,6 @@ export default function Page() {
               <th className="p-3 font-bold">{translateText("ทรัพย์สิน")}</th>
               <th className="p-3 font-bold">{translateText("ผู้ขอ")}</th>
               <th className="p-3 font-bold">{translateText("รายละเอียด")}</th>
-              <th className="p-3 font-bold">{translateText("วันที่คืนจริง")}</th>
               <th className="p-3 font-bold">{translateText("สถานะ")}</th>
               <th className="p-3 font-bold">{translateText("หมายเหตุ")}</th>
               <th className="p-3 font-bold">{translateText("ดำเนินการ")}</th>
@@ -648,7 +704,7 @@ export default function Page() {
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={8}
                   className="p-8 text-center text-slate-700"
                 >
                   
@@ -656,7 +712,7 @@ export default function Page() {
                 </td>
               </tr>
             )}
-            {rows.map((r) => {
+            {pagedRows.map((r) => {
               const s = displayStatus(r);
               const note = r.note || approvalComment(r.id);
               return (
@@ -699,7 +755,6 @@ export default function Page() {
                     )}
                     <div className="max-w-56 text-xs text-slate-700">{r.purpose}</div>
                   </td>
-                  <td className="p-3">{fmtDate(r.actualReturnDate)}</td>
                   <td className="p-3">
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS[s].className}`}
@@ -733,6 +788,53 @@ export default function Page() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* เลือกจำนวนรายการที่แสดง + เปลี่ยนหน้า */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-sm font-semibold text-slate-900">
+            {translateText("แสดง")}
+          </span>
+          {PAGE_SIZES.map((n) => (
+            <button
+              key={n}
+              onClick={() => setPageSize(n)}
+              className={pill(pageSize === n)}
+            >
+              {n === "all" ? translateText("ทั้งหมด") : n}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3 text-sm text-slate-900">
+          <span>
+            {rangeFrom}–{rangeTo} {translateText("จาก")} {rows.length}{" "}
+            {translateText("รายการ")}
+          </span>
+          {pageSize !== "all" && totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goPage(page - 1)}
+                disabled={page <= 1}
+                aria-label={translateText("หน้าก่อนหน้า")}
+                className="rounded-lg border border-slate-400 bg-white px-3 py-1.5 font-semibold hover:bg-indigo-100 disabled:opacity-40"
+              >
+                ‹
+              </button>
+              <span className="min-w-12 text-center font-semibold">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => goPage(page + 1)}
+                disabled={page >= totalPages}
+                aria-label={translateText("หน้าถัดไป")}
+                className="rounded-lg border border-slate-400 bg-white px-3 py-1.5 font-semibold hover:bg-indigo-100 disabled:opacity-40"
+              >
+                ›
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {(showModal || editing) && (
@@ -854,6 +956,9 @@ function RequestModal({
   const [toBranchId, setToBranchId] = useState(editing?.toBranchId ?? "");
   const [purpose, setPurpose] = useState(editing?.purpose ?? "");
   const [submittedId, setSubmittedId] = useState<string | null>(null);
+  const [assetMenuOpen, setAssetMenuOpen] = useState(false);
+  const [attachmentDataUrl, setAttachmentDataUrl] = useState(editing?.attachmentDataUrl ?? "");
+  const [qrMessage, setQrMessage] = useState("");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -871,6 +976,13 @@ function RequestModal({
     ? assetId
     : (options[0]?.id ?? "");
   const asset = assets.find((a) => a.id === selectedAssetId);
+  // label รวมชื่อ + รหัส + สาขา ทำให้พิมพ์ค้นหาได้ทั้งสามอย่าง
+  const assetOptions: AssetOption[] = options.map((a) => ({
+    value: a.id,
+    label: `${a.name} (${a.id}) – ${branchName(a.branchId)}`,
+  }));
+  const selectedOption =
+    assetOptions.find((o) => o.value === selectedAssetId) ?? null;
   const destinations = branches.filter(
     (b) => b.status === "active" && b.id !== asset?.branchId,
   );
@@ -900,6 +1012,8 @@ function RequestModal({
       expectedReturnDate: type === "return" ? expectedReturnDate : "",
       toBranchId: type === "transfer" ? toBranch : undefined,
       purpose: purpose.trim(),
+      // แนบรูปเฉพาะคำขอรับคืนเท่านั้น
+      attachmentDataUrl: type === "return" ? attachmentDataUrl : undefined,
     });
     setSubmittedId(id);
   }
@@ -998,7 +1112,7 @@ function RequestModal({
             )}
 
             <div>
-              <label className={label}>{translateText("ทรัพย์สิน")}</label>
+              <label htmlFor="asset-select" className={label}>{translateText("ทรัพย์สิน")}</label>
               {options.length === 0 ? (
                 <p className="text-sm text-slate-800">
                   {type === "return"
@@ -1006,19 +1120,112 @@ function RequestModal({
                     : "ตอนนี้ไม่มีทรัพย์สินที่พร้อมใช้งาน"}
                 </p>
               ) : (
-                <select
-                  value={selectedAssetId}
-                  onChange={(e) => setAssetId(e.target.value)}
-                  className={field}
+                <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                <Select<AssetOption, false>
+                  inputId="asset-select"
+                  options={assetOptions}
+                  value={selectedOption}
+                  onChange={(opt) => setAssetId(opt?.value ?? "")}
+                  placeholder={translateText("พิมพ์เพื่อค้นหาทรัพย์สิน...")}
+                  noOptionsMessage={() => translateText("ไม่พบทรัพย์สิน")}
+                  isSearchable
+                  styles={assetSelectStyles}
+                  // แสดงเมนูนอก modal กันโดน overflow ของ modal ตัด
+                  menuPortalTarget={
+                    typeof document !== "undefined" ? document.body : null
+                  }
+                  menuPosition="fixed"
+                  onMenuOpen={() => setAssetMenuOpen(true)}
+                  onMenuClose={() => setAssetMenuOpen(false)}
+                  // กด Esc ตอนเมนูเปิดอยู่ ให้ปิดแค่เมนู ไม่ปิดทั้ง modal
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && assetMenuOpen) e.stopPropagation();
+                  }}
+                />
+                </div>
+                <label
+                  title="สแกน QR Code"
+                  aria-label="สแกน QR Code"
+                  className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-400 bg-white text-blue-950 hover:bg-indigo-50"
                 >
-                  {options.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({a.id}) – {branchName(a.branchId)}
-                    </option>
-                  ))}
-                </select>
+                  <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v2M14 20h2M19 19h2v2h-2z" />
+                  </svg>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      const Detector = (window as Window & { BarcodeDetector?: new (options?: { formats: string[] }) => { detect: (source: ImageBitmap) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
+                      if (!Detector || typeof createImageBitmap === "undefined") {
+                        setQrMessage("เบราว์เซอร์นี้ไม่รองรับการอ่าน QR Code กรุณาเลือกทรัพย์สินจากรายการ");
+                        return;
+                      }
+                      try {
+                        const bitmap = await createImageBitmap(file);
+                        const detector = new Detector({ formats: ["qr_code"] });
+                        const codes = await detector.detect(bitmap);
+                        bitmap.close();
+                        const rawValue = codes[0]?.rawValue?.trim();
+                        if (!rawValue) {
+                          setQrMessage("ไม่พบ QR Code ในภาพ กรุณาลองสแกนอีกครั้ง");
+                          return;
+                        }
+                        let code = rawValue;
+                        try {
+                          const parsed = JSON.parse(rawValue) as { assetId?: string; id?: string; serialNumber?: string };
+                          code = parsed.assetId ?? parsed.id ?? parsed.serialNumber ?? rawValue;
+                        } catch { /* QR อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา */ }
+                        const matched = assets.find((a) => a.id === code || a.serialNumber === code || rawValue.includes(a.id));
+                        if (!matched) {
+                          setQrMessage(`ไม่พบทรัพย์สินรหัส ${code} ในระบบ`);
+                          return;
+                        }
+                        if (!options.some((a) => a.id === matched.id)) {
+                          setQrMessage("ทรัพย์สินนี้ไม่อยู่ในสถานะที่เลือกได้สำหรับคำขอประเภทนี้");
+                          return;
+                        }
+                        setAssetId(matched.id);
+                        setQrMessage(`สแกนสำเร็จ: ${matched.name} (${matched.id})`);
+                      } catch {
+                        setQrMessage("อ่าน QR Code ไม่สำเร็จ กรุณาลองใหม่");
+                      }
+                    }}
+                  />
+                </label>
+                </div>
               )}
+              {qrMessage && <p className="mt-1 text-xs text-slate-700">{qrMessage}</p>}
             </div>
+
+            {type === "return" && (
+              <div>
+                <label className={label}>รูปภาพประกอบการรับคืน</label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-400 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-indigo-50">
+                    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3"/></svg>
+                    แนบรูปภาพ
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!file.type.startsWith("image/")) return;
+                      const reader = new FileReader();
+                      reader.onload = () => setAttachmentDataUrl(typeof reader.result === "string" ? reader.result : "");
+                      reader.readAsDataURL(file);
+                      e.target.value = "";
+                    }} />
+                  </label>
+                  {attachmentDataUrl && <button type="button" onClick={() => setAttachmentDataUrl("")} className="text-sm font-semibold text-red-700">ลบรูป</button>}
+                </div>
+                {attachmentDataUrl && <img src={attachmentDataUrl} alt="รูปภาพประกอบการรับคืน" className="mt-3 max-h-48 rounded-lg border border-slate-300 object-contain" />}
+                <p className="mt-1 text-xs text-slate-600">แนบรูปสภาพทรัพย์สินขณะรับคืน (ไม่บังคับ)</p>
+              </div>
+            )}
 
             {type === "transfer" && (
               <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
@@ -1051,7 +1258,7 @@ function RequestModal({
 
             <div>
               <label className={label}>
-                {type === "return" ? "วันที่คาดว่าจะคืน" : dateLabel}
+                {type === "return" ? "วันที่รับคืน" : dateLabel}
               </label>
               <input
                 type="date"
@@ -1264,13 +1471,6 @@ function DetailModal({
       label: "กำหนดคืน",
       value: fmtDateTime(r.expectedReturnDate),
     });
-    if (r.actualReturnDate) {
-      info.push({
-        icon: ICONS.calendar,
-        label: "วันที่คืนจริง",
-        value: fmtDateTime(r.actualReturnDate),
-      });
-    }
   } else {
     info.push({
       icon: ICONS.calendar,
@@ -1321,6 +1521,13 @@ function DetailModal({
             </div>
           ))}
         </div>
+
+        {r.type === "return" && r.attachmentDataUrl && (
+          <div className="mt-5">
+            <h3 className="text-sm font-bold text-slate-900">รูปภาพประกอบการรับคืน</h3>
+            <img src={r.attachmentDataUrl} alt="รูปภาพประกอบการรับคืน" className="mt-2 max-h-72 rounded-lg border border-slate-300 object-contain" />
+          </div>
+        )}
 
         <div className="mt-5">
           <h3 className="text-sm font-bold text-slate-900">รายละเอียด</h3>
