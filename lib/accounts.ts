@@ -20,25 +20,38 @@ export type Account = {
   last_login: number | null;
 };
 
-const API_URL = "https://6aeb6e4dee39618d7bf84fa7.mockapi.io/api/v1/account";
+function getAccountsApiUrl() {
+  const baseUrl = process.env.NEXT_PUBLIC_MOCKAPI_URL?.trim();
+
+  if (!baseUrl) {
+    throw new Error("ไม่พบการตั้งค่า NEXT_PUBLIC_MOCKAPI_URL");
+  }
+
+  return `${baseUrl.replace(/\/+$/, "")}/Account`;
+}
 
 // ดึงข้อมูลบัญชีทั้งหมด; ส่ง signal มาได้เพื่อยกเลิก request เมื่อออกจากหน้า
 export async function fetchAccounts(signal?: AbortSignal): Promise<Account[]> {
-  const response = await fetch(API_URL, { signal });
+  const response = await fetch(getAccountsApiUrl(), { signal });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch accounts");
+    throw new Error(`โหลดข้อมูล Account ไม่สำเร็จ (HTTP ${response.status})`);
   }
 
-  return response.json();
+  const accounts: unknown = await response.json();
+  if (!Array.isArray(accounts)) {
+    throw new Error("รูปแบบข้อมูล Account ไม่ถูกต้อง");
+  }
+
+  return accounts;
 }
 
 // ดึงข้อมูลบัญชีตาม ID
 export async function fetchAccountById(id: number): Promise<Account> {
-  const response = await fetch(`${API_URL}/${id}`);
+  const response = await fetch(`${getAccountsApiUrl()}/${id}`);
 
   if (!response.ok) {
-    throw new Error("Failed to fetch account");
+    throw new Error(`โหลดข้อมูล Account ไม่สำเร็จ (HTTP ${response.status})`);
   }
 
   return response.json();
@@ -71,7 +84,11 @@ export function useAccountNames() {
         if (controller.signal.aborted) return;
 
         console.error("Could not load reporter names from the accounts API:", error);
-        setError("โหลดชื่อผู้แจ้งจาก API ไม่สำเร็จ");
+        setError(
+          error instanceof Error
+            ? `โหลดชื่อผู้แจ้งจาก API ไม่สำเร็จ: ${error.message}`
+            : "โหลดชื่อผู้แจ้งจาก API ไม่สำเร็จ",
+        );
       }
     };
 
