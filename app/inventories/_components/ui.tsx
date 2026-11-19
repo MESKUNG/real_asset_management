@@ -1,5 +1,6 @@
 "use client";
 
+import { tx, useT } from "@/lib/i18n";
 // ชิ้นส่วนหน้าจอที่ใช้ซ้ำในหน้าตรวจนับและหน้ารายงาน
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
@@ -11,8 +12,6 @@ import {
   useCredential,
   type Role,
 } from "@/lib/inventory";
-import { useTranslate } from "@/lib/language";
-
 export function PageHeader({
   title,
   subtitle,
@@ -24,7 +23,7 @@ export function PageHeader({
   backHref?: string;
   actions?: ReactNode;
 }) {
-  const translateText = useTranslate();
+  const translateText = useT();
   return (
     <div className="border-b border-slate-200 bg-white px-4 py-4 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
@@ -32,7 +31,7 @@ export function PageHeader({
           {backHref && (
             <Link
               href={backHref}
-              aria-label={translateText("ย้อนกลับ")}
+              aria-label={tx("ย้อนกลับ")}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-2xl text-slate-700 hover:bg-slate-100"
             >
               ‹
@@ -57,7 +56,7 @@ const STATUS_STYLE: Record<InventorySessionStatus, string> = {
 };
 
 export function StatusPill({ status }: { status: InventorySessionStatus }) {
-  const translateText = useTranslate();
+  const translateText = useT();
   return (
     <span
       className={`inline-flex shrink-0 items-center rounded-full px-3 py-1 text-sm font-semibold ${STATUS_STYLE[status]}`}
@@ -75,7 +74,7 @@ const RESULT_STYLE: Record<InventoryResult, string> = {
 };
 
 export function ResultPill({ result }: { result: InventoryResult }) {
-  const translateText = useTranslate();
+  const translateText = useT();
   return (
     <span
       className={`inline-flex shrink-0 items-center rounded-full px-3 py-1 text-sm font-semibold ${RESULT_STYLE[result]}`}
@@ -103,12 +102,12 @@ export function ProgressBar({ percent }: { percent: number }) {
 }
 
 export function Loading() {
-  const translateText = useTranslate();
-  return <div className="p-10 text-center text-base text-slate-500">{translateText("กำลังโหลด...")}</div>;
+  useT();
+  return <div className="p-10 text-center text-base text-slate-500">{tx("กำลังโหลด...")}</div>;
 }
 
 export function EmptyState({ text, children }: { text: string; children?: ReactNode }) {
-  const translateText = useTranslate();
+  const translateText = useT();
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-base text-slate-500">
       <p>{translateText(text)}</p>
@@ -126,11 +125,11 @@ const DASHBOARD_PATH: Record<Role, string> = {
 };
 
 export function NoAccess({ message }: { message: string }) {
-  const translateText = useTranslate();
+  const translateText = useT();
   const { credential } = useCredential();
   // ยังไม่ล็อกอิน → กลับหน้าเข้าสู่ระบบ, ล็อกอินแล้ว → กลับหน้าภาพรวมของ role ตัวเอง
   const backHref = credential ? DASHBOARD_PATH[credential.role] : "/";
-  const backText = credential ? "กลับหน้าภาพรวม" : "ไปหน้าเข้าสู่ระบบ";
+  const backText = credential ? tx("กลับหน้าภาพรวม") : tx("ไปหน้าเข้าสู่ระบบ");
 
   return (
     <div className="mx-auto max-w-md p-6 pt-16">
@@ -145,12 +144,12 @@ export function NoAccess({ message }: { message: string }) {
 
 // ครอบหน้าที่ต้องเช็คสิทธิ์ แสดงเนื้อหาเฉพาะ role ที่อนุญาต
 export function RoleGate({ allow, children }: { allow: Role[]; children: ReactNode }) {
-  const translateText = useTranslate();
+  useT();
   const { credential, ready } = useCredential();
   if (!ready) return <Loading />;
-  if (!credential) return <NoAccess message={translateText("กรุณาเข้าสู่ระบบก่อนใช้งานหน้านี้")} />;
+  if (!credential) return <NoAccess message={tx("กรุณาเข้าสู่ระบบก่อนใช้งานหน้านี้")} />;
   if (!allow.includes(credential.role)) {
-    return <NoAccess message="บัญชีของคุณไม่มีสิทธิ์เข้าถึงหน้านี้" />;
+    return <NoAccess message={tx("บัญชีของคุณไม่มีสิทธิ์เข้าถึงหน้านี้")} />;
   }
   return <>{children}</>;
 }
@@ -173,7 +172,7 @@ export function useToast(duration = 2500) {
 }
 
 export function Toast({ message }: { message: string | null }) {
-  const translateText = useTranslate();
+  const translateText = useT();
   if (!message) return null;
   return (
     <div

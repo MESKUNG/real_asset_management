@@ -1,10 +1,11 @@
 "use client";
 
+import { useT } from "@/lib/i18n";
 // ชิ้นส่วนหน้าจอที่ใช้ร่วมกันในหน้ารายงานทั้ง 3 แบบ
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { TONE_STYLE, type Tone } from "@/lib/reports";
-import { useTheme, useTranslate } from "@/lib/language";
+import { useTheme } from "@/lib/language";
 
 export function Card({ title, badge, actions, children, className = "" }: {
   title?: string;
@@ -32,7 +33,7 @@ export function Card({ title, badge, actions, children, className = "" }: {
 
 export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
   const isDark = useTheme() === "dark";
-  const translateText = useTranslate();
+  const translateText = useT();
   const darkToneStyle: Record<Tone, string> = {
     good: "bg-emerald-950/60 text-emerald-300",
     wait: "bg-amber-950/60 text-amber-300",
@@ -93,7 +94,7 @@ export function SelectField({ label, value, onChange, options, icon }: {
   icon?: ReactNode;
 }) {
   const isDark = useTheme() === "dark";
-  const translateText = useTranslate();
+  const translateText = useT();
   return (
     <label className="block min-w-0">
       <span className={`mb-1 block text-sm font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}>{translateText(label)}</span>
@@ -131,7 +132,7 @@ export function DetailDialog({ title, onClose, children, footer }: {
   footer?: ReactNode;
 }) {
   const isDark = useTheme() === "dark";
-  const translateText = useTranslate();
+  const translateText = useT();
   return (
     <div
       role="dialog"
@@ -165,7 +166,7 @@ export function DetailDialog({ title, onClose, children, footer }: {
 // รายการ "หัวข้อ: ค่า" ในหน้าต่างรายละเอียด
 export function DetailList({ rows }: { rows: [string, ReactNode][] }) {
   const isDark = useTheme() === "dark";
-  const translateText = useTranslate();
+  const translateText = useT();
   return (
     <dl className={`divide-y rounded-xl border ${isDark ? "divide-slate-700 border-slate-700" : "divide-slate-100 border-slate-200"}`}>
       {rows.map(([label, value]) => (

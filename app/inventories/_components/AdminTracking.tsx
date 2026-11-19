@@ -1,5 +1,6 @@
 "use client";
 
+import { tx, useT } from "@/lib/i18n";
 // หน้าติดตามการนับของ Admin: ดูความคืบหน้าทุกรอบ เริ่ม/ปิด/ยกเลิกรอบ และส่งออก Excel
 import Link from "next/link";
 import { useState } from "react";
@@ -29,7 +30,7 @@ import {
   buttonStyle,
   useToast,
 } from "./ui";
-import { useLanguage, useTranslate } from "@/lib/language";
+import { useLanguage } from "@/lib/language";
 
 type Filter = "all" | InventorySessionStatus;
 
@@ -44,7 +45,7 @@ const STATUS_ORDER: Record<InventorySessionStatus, number> = {
 const FILTERS: Filter[] = ["all", "in_progress", "planned", "completed", "cancelled"];
 
 export default function AdminTracking() {
-  const translateText = useTranslate();
+  useT();
   const language = useLanguage();
   const { credential } = useCredential();
   const { sessions, checks, ready } = useInventoryStore();
@@ -70,8 +71,8 @@ export default function AdminTracking() {
 
 
   const handleCancel = (session: StoredSession) => {
-    if (!window.confirm(`ยกเลิกรอบ ${session.id} ใช่ไหม?`)) return;
-    toast.show(cancelSession(session.id) ? `ยกเลิกรอบ ${session.id} แล้ว` : "ยกเลิกไม่สำเร็จ");
+    if (!window.confirm(tx("ยกเลิกรอบ {0} ใช่ไหม?", session.id))) return;
+    toast.show(cancelSession(session.id) ? tx("ยกเลิกรอบ {0} แล้ว", session.id) : tx("ยกเลิกไม่สำเร็จ"));
   };
 
   const handleComplete = (session: StoredSession) => {
@@ -80,10 +81,10 @@ export default function AdminTracking() {
     const remaining = progress.total - progress.checked;
     const message =
       remaining > 0
-        ? `ยังเหลือ ${remaining} รายการที่ไม่ได้สแกน ระบบจะบันทึกว่า "ไม่พบ" ยืนยันปิดรอบไหม?`
-        : `ปิดรอบ ${session.id} ใช่ไหม?`;
+        ? tx("ยังเหลือ {0} รายการที่ไม่ได้สแกน ระบบจะบันทึกว่า \"ไม่พบ\" ยืนยันปิดรอบไหม?", remaining)
+        : tx("ปิดรอบ {0} ใช่ไหม?", session.id);
     if (!window.confirm(message)) return;
-    toast.show(completeSession(session.id, credential) ? `ปิดรอบ ${session.id} แล้ว` : "ปิดรอบไม่สำเร็จ");
+    toast.show(completeSession(session.id, credential) ? tx("ปิดรอบ {0} แล้ว", session.id) : tx("ปิดรอบไม่สำเร็จ"));
   };
 
   const handleExport = async () => {
@@ -104,31 +105,29 @@ export default function AdminTracking() {
         สูญหาย: p.lost,
       };
     });
-    await exportExcel("ติดตามการตรวจนับ", [{ name: "รอบตรวจนับ", rows }]);
-    toast.show("ดาวน์โหลดไฟล์ Excel แล้ว");
+    await exportExcel(tx("ติดตามการตรวจนับ"), [{ name: tx("รอบตรวจนับ"), rows }]);
+    toast.show(tx("ดาวน์โหลดไฟล์ Excel แล้ว"));
   };
 
   const handleReset = () => {
-    if (!window.confirm("ล้างข้อมูลที่บันทึกไว้ทั้งหมด แล้วกลับไปใช้ข้อมูลตั้งต้นใช่ไหม?")) return;
+    if (!window.confirm(tx("ล้างข้อมูลที่บันทึกไว้ทั้งหมด แล้วกลับไปใช้ข้อมูลตั้งต้นใช่ไหม?"))) return;
     resetInventoryStore();
-    toast.show("กลับไปใช้ข้อมูลตั้งต้นแล้ว");
+    toast.show(tx("กลับไปใช้ข้อมูลตั้งต้นแล้ว"));
   };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12 text-slate-800">
       <Toast message={toast.message} />
       <PageHeader
-        title={translateText("ติดตามการนับ / มอบหมายงาน")}
-        subtitle="ดูความคืบหน้าของทุกรอบตรวจนับ"
+        title={tx("ติดตามการนับ / มอบหมายงาน")}
+        subtitle={tx("ดูความคืบหน้าของทุกรอบตรวจนับ")}
         actions={
           <>
             <button type="button" onClick={handleExport} className={buttonStyle.secondary}>
-
-              {translateText("ส่งออก Excel")}
+              {tx("ส่งออก Excel")}
             </button>
             <Link href="/inventories/schedule" className={buttonStyle.primary}>
-
-              {translateText("+ มอบหมายรอบตรวจนับ")}
+              {tx("+ มอบหมายรอบตรวจนับ")}
             </Link>
           </>
         }
@@ -136,10 +135,10 @@ export default function AdminTracking() {
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 pt-5 lg:px-8">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label={translateText("กำลังนับ")} value={`${countOf("in_progress")} รอบ`} note={`สแกนแล้ว ${activeChecked}/${activeTotal} ชิ้น`} />
-          <StatCard label={translateText("รอเริ่ม")} value={`${countOf("planned")} รอบ`} note="เริ่มเองเมื่อถึงวันตรวจ" />
-          <StatCard label={translateText("เสร็จสิ้น")} value={`${countOf("completed")} รอบ`} note={translateText("ปิดรอบแล้ว")} />
-          <StatCard label={translateText("พบปัญหา")} value={`${issueCount} รายการ`} note={translateText("ชำรุด / สูญหาย")} tone="warn" />
+          <StatCard label={tx("กำลังนับ")} value={tx("{0} รอบ", countOf("in_progress"))} note={tx("สแกนแล้ว {0}/{1} ชิ้น", activeChecked, activeTotal)} />
+          <StatCard label={tx("รอเริ่ม")} value={tx("{0} รอบ", countOf("planned"))} note={tx("เริ่มเองเมื่อถึงวันตรวจ")} />
+          <StatCard label={tx("เสร็จสิ้น")} value={tx("{0} รอบ", countOf("completed"))} note={tx("ปิดรอบแล้ว")} />
+          <StatCard label={tx("พบปัญหา")} value={tx("{0} รายการ", issueCount)} note={tx("ชำรุด / สูญหาย")} tone="warn" />
         </div>
 
         <div className="-mx-4 overflow-x-auto px-4">
@@ -157,14 +156,14 @@ export default function AdminTracking() {
                     : "border border-slate-300 bg-white text-slate-700"
                 }`}
               >
-                {translateText(f === "all" ? "ทั้งหมด" : SESSION_STATUS_LABEL[f])} ({countOf(f)})
+                {f === "all" ? tx("ทั้งหมด") : SESSION_STATUS_LABEL[f]} ({countOf(f)})
               </button>
             ))}
           </div>
         </div>
 
         {visible.length === 0 ? (
-          <EmptyState text="ไม่มีรอบตรวจนับในสถานะนี้" />
+          <EmptyState text={tx("ไม่มีรอบตรวจนับในสถานะนี้")} />
         ) : (
           <ul className="space-y-3">
             {visible.map((session) => {
@@ -177,8 +176,8 @@ export default function AdminTracking() {
                       <h3 className="text-lg font-bold text-slate-900">{session.name}</h3>
                       <p className="text-base text-slate-600">
                         {getBranchName(session.branchId)} ·{" "}
-                        {formatDateRange(session.startDate, session.endDate, language)}
-                        {session.assigneeId ? ` · ผู้รับผิดชอบ ${getStaffName(session.assigneeId)}` : ""}
+                        {formatDateRange(session.startDate, session.endDate)}
+                        {session.assigneeId ? tx(" · ผู้รับผิดชอบ {0}", getStaffName(session.assigneeId)) : ""}
                       </p>
                     </div>
                     <StatusPill status={session.status} />
@@ -195,32 +194,27 @@ export default function AdminTracking() {
 
                   {(p.damaged > 0 || p.lost > 0) && (
                     <p className="mt-2 text-sm font-semibold text-amber-700">
-
-                      {translateText("ชำรุด")} {p.damaged}  {translateText("· สูญหาย")} {p.lost}
+                      {tx("ชำรุด")} {p.damaged} {tx("· สูญหาย")} {p.lost}
                     </p>
                   )}
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Link href={`/inventories/audit?session=${session.id}`} className={buttonStyle.secondary}>
-
-                      {translateText("ดูรายละเอียด")}
+                      {tx("ดูรายละเอียด")}
                     </Link>
                     {session.status === "planned" && (
                       <>
                         <span className="inline-flex min-h-11 items-center rounded-xl bg-violet-50 px-4 text-base font-semibold text-violet-800">
-
-                          {translateText("เริ่มตรวจนับอัตโนมัติ")} {formatThaiDate(session.startDate, true, language)}
+                          {tx("เริ่มตรวจนับอัตโนมัติ")} {formatThaiDate(session.startDate)}
                         </span>
                         <button type="button" onClick={() => handleCancel(session)} className={buttonStyle.danger}>
-
-                          {translateText("ยกเลิกรอบ")}
+                          {tx("ยกเลิกรอบ")}
                         </button>
                       </>
                     )}
                     {session.status === "in_progress" && (
                       <button type="button" onClick={() => handleComplete(session)} className={buttonStyle.primary}>
-
-                        {translateText("ปิดรอบ")}
+                        {tx("ปิดรอบ")}
                       </button>
                     )}
                   </div>
@@ -232,8 +226,7 @@ export default function AdminTracking() {
 
         <div className="border-t border-slate-200 pt-4 text-right">
           <button type="button" onClick={handleReset} className="text-sm text-slate-500 underline">
-
-            {translateText("รีเซ็ตข้อมูลตัวอย่าง (สำหรับสาธิต)")}
+            {tx("รีเซ็ตข้อมูลตัวอย่าง (สำหรับสาธิต)")}
           </button>
         </div>
       </main>

@@ -1,31 +1,29 @@
 "use client";
 
+import { tx, useT } from "@/lib/i18n";
 // เนื้อหารายงานที่ Admin เสนอ President ใช้ทั้งตอนกด "ดูตัวอย่าง" และตอน President เปิดอ่าน
 import { PURPOSE_LABEL, type SentReport } from "@/lib/reports";
 import { Badge } from "./parts";
-import { useTranslate } from "@/lib/language";
 
 type Props = { report: Pick<SentReport, "title" | "periodLabel" | "purpose" | "summary" | "message" | "sections" | "issues" | "createdByName"> };
 
 export function ReportBody({ report }: Props) {
-  const translateText = useTranslate();
+  const translateText = useT();
   return (
     <div className="space-y-4 text-base">
       <div className="flex flex-wrap items-center gap-2 text-slate-600">
-        <Badge tone={report.purpose === "approve" ? "wait" : "info"}>
-          {translateText(PURPOSE_LABEL[report.purpose])}
-        </Badge>
-        <span>{translateText("รอบรายงาน")} {report.periodLabel}</span>
-        <span>{translateText("· ผู้จัดทำ")} {report.createdByName}</span>
+        <Badge tone={report.purpose === "approve" ? "wait" : "info"}>{PURPOSE_LABEL[report.purpose]}</Badge>
+        <span>{tx("รอบรายงาน")} {report.periodLabel}</span>
+        <span>{tx("· ผู้จัดทำ")} {report.createdByName}</span>
       </div>
 
       <section>
-        <h3 className="mb-1 font-bold text-slate-900">{translateText("สรุปสำหรับผู้บริหาร")}</h3>
+        <h3 className="mb-1 font-bold text-slate-900">{tx("สรุปสำหรับผู้บริหาร")}</h3>
         <p className="whitespace-pre-line rounded-xl bg-slate-100 px-4 py-3 text-slate-800">{report.summary || "-"}</p>
       </section>
 
       <section>
-        <h3 className="mb-2 font-bold text-slate-900">{translateText("รายงานประกอบ 4 ประเภท")}</h3>
+        <h3 className="mb-2 font-bold text-slate-900">{tx("รายงานประกอบ 4 ประเภท")}</h3>
         <dl className="grid gap-2 sm:grid-cols-2">
           {report.sections.map((s) => (
             <div key={s.label} className="rounded-xl border border-slate-200 px-3 py-2">
@@ -38,7 +36,7 @@ export function ReportBody({ report }: Props) {
 
       {report.issues.length > 0 && (
         <section>
-          <h3 className="mb-2 font-bold text-slate-900">{translateText("ประเด็นและข้อเสนอ")}</h3>
+          <h3 className="mb-2 font-bold text-slate-900">{tx("ประเด็นและข้อเสนอ")}</h3>
           <ol className="space-y-2">
             {report.issues.map((issue, i) => (
               <li key={i} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
@@ -53,7 +51,7 @@ export function ReportBody({ report }: Props) {
       )}
 
       <section>
-        <h3 className="mb-1 font-bold text-slate-900">{translateText("ข้อความถึง President")}</h3>
+        <h3 className="mb-1 font-bold text-slate-900">{tx("ข้อความถึง President")}</h3>
         <p className="whitespace-pre-line text-slate-800">{report.message || "-"}</p>
       </section>
     </div>
