@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Asset, AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
 import { useTheme, useTranslate } from "@/lib/language";
+import { categories } from "@/data/catagories";
 import {
   getMergedAssets,
   getServerAssets,
@@ -36,7 +37,6 @@ type CredentialData = {
 
 const ITEMS_PER_PAGE = 6;
 
-// --- ดึงข้อมูล Credential จาก localStorage แบบเดียวกับ sideNavbar.tsx ---
 function subscribeCredential(onChange: () => void) {
   window.addEventListener("storage", onChange);
   window.addEventListener("credentialchange", onChange);
@@ -106,19 +106,17 @@ export default function AssetListPage() {
 
   const { role, branch_id: userBranchId } = credential;
 
-  // สิทธิ์ตาม Role: Admin, President, Superadmin ดูได้ทุกสาขา (User ดูได้เฉพาะสาขาตัวเอง)
   const canViewAllBranches =
     role === "admin" || role === "president" || role === "superadmin";
   const canManageAsset = role === "admin" || role === "superadmin";
 
-  // Filter States
   const [search, setSearch] = useState("");
   const [selectedBranch, setSelectedBranch] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  // แปลง branchId -> ชื่อสาขา (รองรับทั้งโครงสร้าง { id, name } หรือ { branchId, branchName })
+  // แปลง branchId -> ชื่อสาขา
   const getBranchName = (branchId: string) => {
     const found = (branches as Record<string, string>[]).find(
       (b) => b.id === branchId || b.branchId === branchId
@@ -126,13 +124,19 @@ export default function AssetListPage() {
     return found?.name || found?.branchName || branchId;
   };
 
-  // รายชื่อสาขาสำหรับ Dropdown
+  // แปลง categoryId (เช่น CAT-004) -> ชื่อหมวดหมู่ภาษาไทย
+  const getCategoryName = (categoryValue: string) => {
+    const found = categories.find(
+      (c) => c.id === categoryValue || c.name === categoryValue
+    );
+    return found?.name || categoryValue;
+  };
+
   const branchOptions = useMemo(() => {
     const ids = Array.from(new Set(allAssets.map((a) => a.branchId)));
     return ids.map((id) => ({ id, name: getBranchName(id) }));
   }, [allAssets]);
 
-  // ข้อมูลตั้งต้นทั้งหมดตามสิทธิ์ (ใช้คำนวณการ์ดสรุปด้านบน ไม่เปลี่ยนตามช่องค้นหา/ตัวกรอง)
   const scopedAssets = useMemo(() => {
     return allAssets.filter((item) => {
       if (!canViewAllBranches && userBranchId && item.branchId !== userBranchId) {
@@ -142,7 +146,6 @@ export default function AssetListPage() {
     });
   }, [allAssets, canViewAllBranches, userBranchId]);
 
-  // คำนวณสถิติสำหรับ Summary Card (ค่าคงที่ ไม่เปลี่ยนเวลาค้นหาหรือกรองสถานะ)
   const stats = useMemo(() => {
     const total = scopedAssets.length;
     const ready = scopedAssets.filter(
@@ -164,7 +167,6 @@ export default function AssetListPage() {
     };
   }, [scopedAssets]);
 
-  // กรองข้อมูลตามสิทธิ์ Role + Search + Branch + Status
   const filteredAssets = useMemo(() => {
     return scopedAssets
       .filter((item) => {
@@ -176,12 +178,14 @@ export default function AssetListPage() {
         }
         if (search.trim() !== "") {
           const q = search.toLowerCase();
+          const categoryThai = getCategoryName(item.category).toLowerCase();
           return (
             item.name.toLowerCase().includes(q) ||
             item.id.toLowerCase().includes(q) ||
             item.brand.toLowerCase().includes(q) ||
             item.model.toLowerCase().includes(q) ||
-            item.serialNumber.toLowerCase().includes(q)
+            item.serialNumber.toLowerCase().includes(q) ||
+            categoryThai.includes(q)
           );
         }
         return true;
@@ -189,7 +193,6 @@ export default function AssetListPage() {
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [scopedAssets, canViewAllBranches, selectedBranch, selectedStatus, search]);
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredAssets.length / ITEMS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedAssets = filteredAssets.slice(
@@ -346,12 +349,11 @@ export default function AssetListPage() {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder={translateText("ค้นหาชื่อ, รหัสทรัพย์สิน, ยี่ห้อ หรือ Serial Number")}
+              placeholder={translateText("ค้นหาชื่อ, รหัสทรัพย์สิน, หมวดหมู่, ยี่ห้อ หรือ Serial Number")}
               className={`w-full rounded-xl border py-2.5 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500 ${fieldClass}`}
             />
           </div>
 
-          {/* Dropdown สาขา */}
           <div className="relative">
             <Building2
               size={16}
@@ -376,7 +378,6 @@ export default function AssetListPage() {
             </select>
           </div>
 
-          {/* Dropdown สถานะ */}
           <div className="relative">
             <CheckCircle2
               size={16}
@@ -405,7 +406,7 @@ export default function AssetListPage() {
           {translateText("ทั้งหมด")} {filteredAssets.length} {translateText("รายการ")} · {translateText("เรียงตามอัปเดตล่าสุด")}
         </p>
 
-        {/* Table Header (Desktop) */}
+        {/* Table Header */}
         <div className="hidden md:grid grid-cols-12 px-6 py-2.5 text-xs font-medium text-slate-400">
           <div className="col-span-4">{translateText("ทรัพย์สิน / รหัส")}</div>
           <div className="col-span-3">{translateText("ผู้รับผิดชอบ / ยี่ห้อ")}</div>
@@ -427,7 +428,7 @@ export default function AssetListPage() {
                 key={asset.id}
                 className={`relative grid grid-cols-1 items-center gap-3 rounded-2xl border px-4 py-4 shadow-xs transition hover:border-indigo-400 sm:px-6 md:grid-cols-12 md:gap-0 ${surfaceClass} ${isDark ? "hover:bg-slate-800" : "hover:bg-indigo-50/40"}`}
               >
-                {/* ทรัพย์สิน / รหัส */}
+                {/* ทรัพย์สิน / รหัส + ชื่อหมวดหมู่ภาษาไทย */}
                 <div className="col-span-4 flex items-center gap-3.5">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border ${isDark ? "border-slate-700 bg-slate-800 text-slate-400" : "border-slate-100 bg-slate-50 text-slate-500"}`}>
                     {asset.assetImage ? (
@@ -450,8 +451,8 @@ export default function AssetListPage() {
                     >
                       {asset.name}
                     </Link>
-                    <p className="text-xs text-slate-400">
-                      {asset.id} · {asset.category}
+                    <p className="text-xs text-slate-400 truncate">
+                      {asset.id} · {getCategoryName(asset.category)}
                     </p>
                   </div>
                 </div>

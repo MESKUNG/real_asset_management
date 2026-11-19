@@ -6,11 +6,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { AssetStatus } from "@/data/asset";
 import { branches } from "@/data/branches";
+import { categories } from "@/data/catagories";
 import {
   getMergedAssets,
   getServerAssets,
   subscribeAssets,
 } from "@/lib/assetStorage";
+import { AssetQrCode, AssetBarcode } from "@/components/AssetCodeVisuals";
 import { Laptop, ArrowLeft } from "lucide-react";
 import { useLanguage, useTranslate } from "@/lib/language";
 
@@ -21,7 +23,6 @@ type CredentialData = {
   branch_id?: string;
 };
 
-// --- อ่านสิทธิ์จาก localStorage ---
 function subscribeCredential(onChange: () => void) {
   window.addEventListener("storage", onChange);
   window.addEventListener("credentialchange", onChange);
@@ -94,7 +95,6 @@ export default function AssetDetailPage() {
   const params = useParams();
   const assetId = decodeURIComponent(String(params?.id || ""));
 
-  // ดึงข้อมูลรวมจาก data/asset.ts + รายการที่เพิ่ม/แก้ไข/ลบ
   const allAssets = useSyncExternalStore(
     subscribeAssets,
     getMergedAssets,
@@ -107,11 +107,9 @@ export default function AssetDetailPage() {
     getServerCredential
   );
 
-  // เฉพาะ Admin และ Superadmin ที่เห็นปุ่มแก้ไข / ลบ
   const canManageAsset =
     credential.role === "admin" || credential.role === "superadmin";
 
-  // ค้นหาข้อมูลทรัพย์สินตาม ID จาก URL
   const asset = useMemo(() => {
     return allAssets.find((item) => item.id === assetId);
   }, [allAssets, assetId]);
@@ -122,6 +120,13 @@ export default function AssetDetailPage() {
     );
     const name = found?.name || found?.branchName;
     return name ? `${name} (${branchId})` : branchId;
+  };
+
+  const getCategoryName = (categoryValue: string) => {
+    const found = categories.find(
+      (c) => c.id === categoryValue || c.name === categoryValue
+    );
+    return found?.name || categoryValue;
   };
 
   const renderStatusBadge = (status: AssetStatus) => {
@@ -190,6 +195,9 @@ export default function AssetDetailPage() {
     );
   }
 
+  const qrValue = asset.qrCode || asset.id;
+  const barcodeValue = asset.barcode || asset.qrCode || asset.id;
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 text-slate-800">
       <div className="max-w-7xl mx-auto">
@@ -210,7 +218,6 @@ export default function AssetDetailPage() {
             </div>
           </div>
 
-          {/* ปุ่มแก้ไข / ลบ (แสดงเฉพาะ Admin และ Superadmin) */}
           {canManageAsset && (
             <div className="flex items-center gap-3">
               <Link
@@ -291,7 +298,7 @@ export default function AssetDetailPage() {
                 <div>
                   <p className="text-xs text-slate-400 mb-1">{translateText("หมวดหมู่")}</p>
                   <p className="text-sm font-semibold text-slate-800">
-                    {asset.category}
+                    {getCategoryName(asset.category)}
                   </p>
                 </div>
 
@@ -430,8 +437,8 @@ export default function AssetDetailPage() {
             <input
               type="text"
               readOnly
-              value={asset.qrCode || asset.barcode || asset.id}
-              className="w-full px-4 py-2.5 text-sm bg-slate-50/70 border border-slate-200 rounded-xl text-slate-700 focus:outline-none"
+              value={qrValue}
+              className="w-full px-4 py-2.5 text-sm font-mono bg-slate-50/70 border border-slate-200 rounded-xl text-slate-700 focus:outline-none"
             />
           </div>
 
@@ -446,17 +453,9 @@ export default function AssetDetailPage() {
               </div>
 
               <div className="border border-slate-100 rounded-xl py-8 flex flex-col items-center justify-center bg-slate-50/30">
-                <div className="p-3 bg-slate-100 rounded-xl">
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="w-24 h-24 text-slate-900"
-                    fill="currentColor"
-                  >
-                    <path d="M10 10h25v25H10V10zm5 5v15h15V15H15zm5 5h5v5h-5v-5zm45-10h25v25H65V10zm5 5v15h15V15H70zm5 5h5v5h-5v-5zM10 65h25v25H10V65zm5 5v15h15V70H15zm5 5h5v5h-5v-5zm25-65h5v10h-5V10zm10 5h5v15h-5V15zM45 30h10v5H45v-5zM10 45h15v5H10v-5zm20 0h10v10H30V45zm15 5h10v5H45v-5zm15-5h15v5H60v-5zm20 0h10v10H80V45zM45 60h10v10H45V60zm15 5h10v5H60v-5zm15-5h15v10H75V60zM45 75h5v15h-5V75zm10 5h15v10H55V80zm20 0h15v10H75V80z" />
-                  </svg>
-                </div>
-                <span className="text-xs text-slate-400 mt-2">
-                  {asset.qrCode || asset.id}
+                <AssetQrCode value={qrValue} />
+                <span className="text-xs font-mono text-slate-500 mt-2.5">
+                  {qrValue}
                 </span>
               </div>
             </div>
@@ -471,43 +470,9 @@ export default function AssetDetailPage() {
               </div>
 
               <div className="border border-slate-100 rounded-xl py-8 flex flex-col items-center justify-center bg-slate-50/30">
-                <div className="h-[120px] flex items-center justify-center px-6">
-                  <svg
-                    viewBox="0 0 180 60"
-                    className="w-44 h-16 text-slate-900"
-                    fill="currentColor"
-                  >
-                    <rect x="4" y="5" width="3" height="50" />
-                    <rect x="10" y="5" width="1.5" height="50" />
-                    <rect x="15" y="5" width="4" height="50" />
-                    <rect x="23" y="5" width="2" height="50" />
-                    <rect x="29" y="5" width="1.5" height="50" />
-                    <rect x="34" y="5" width="3.5" height="50" />
-                    <rect x="42" y="5" width="2" height="50" />
-                    <rect x="47" y="5" width="1.5" height="50" />
-                    <rect x="52" y="5" width="4" height="50" />
-                    <rect x="60" y="5" width="2.5" height="50" />
-                    <rect x="66" y="5" width="1.5" height="50" />
-                    <rect x="72" y="5" width="3" height="50" />
-                    <rect x="79" y="5" width="2" height="50" />
-                    <rect x="85" y="5" width="4" height="50" />
-                    <rect x="93" y="5" width="1.5" height="50" />
-                    <rect x="98" y="5" width="3" height="50" />
-                    <rect x="105" y="5" width="2" height="50" />
-                    <rect x="111" y="5" width="3.5" height="50" />
-                    <rect x="118" y="5" width="1.5" height="50" />
-                    <rect x="124" y="5" width="2.5" height="50" />
-                    <rect x="130" y="5" width="4" height="50" />
-                    <rect x="138" y="5" width="1.5" height="50" />
-                    <rect x="144" y="5" width="3" height="50" />
-                    <rect x="151" y="5" width="2" height="50" />
-                    <rect x="157" y="5" width="1.5" height="50" />
-                    <rect x="163" y="5" width="3.5" height="50" />
-                    <rect x="171" y="5" width="2.5" height="50" />
-                  </svg>
-                </div>
-                <span className="text-xs text-slate-400 mt-2">
-                  {asset.barcode || asset.id}
+                <AssetBarcode value={barcodeValue} />
+                <span className="text-xs font-mono text-slate-500 mt-2.5">
+                  {barcodeValue}
                 </span>
               </div>
             </div>

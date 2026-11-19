@@ -6,11 +6,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { Asset } from "@/data/asset";
 import { branches } from "@/data/branches";
+import { categories } from "@/data/catagories";
 import {
   getMergedAssets,
   getServerAssets,
   subscribeAssets,
 } from "@/lib/assetStorage";
+import { AssetQrCode, AssetBarcode } from "@/components/AssetCodeVisuals";
 import {
   LayoutGrid,
   Building2,
@@ -87,7 +89,6 @@ function toInputDate(dateStr?: string) {
   return d.toISOString().slice(0, 10);
 }
 
-// ย่อขนาดรูปภาพก่อนแปลงเป็น Base64 เพื่อป้องกัน localStorage เต็ม
 function compressImageToDataUrl(file: File, maxSize = 800): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -152,16 +153,24 @@ function EditAssetForm() {
   }, [allAssets, assetId]);
 
   const categoryOptions = useMemo(() => {
-    const fromData = Array.from(new Set(allAssets.map((a) => a.category)));
-    const defaults = [
-      "คอมพิวเตอร์และอุปกรณ์ IT",
-      "อุปกรณ์สำนักงาน",
-      "เฟอร์นิเจอร์",
-      "เครื่องใช้ไฟฟ้า",
-      "ยานพาหนะ",
-    ];
-    return Array.from(new Set([...defaults, ...fromData]));
-  }, [allAssets]);
+    const list = categories.map((c) => ({ id: c.id, name: c.name }));
+    const currentVal = targetAsset?.category;
+    if (
+      currentVal &&
+      !list.some((c) => c.id === currentVal || c.name === currentVal)
+    ) {
+      list.push({ id: currentVal, name: currentVal });
+    }
+    return list;
+  }, [targetAsset]);
+
+  const initialCategoryId = useMemo(() => {
+    const currentVal = targetAsset?.category || "";
+    const matched = categoryOptions.find(
+      (c) => c.id === currentVal || c.name === currentVal
+    );
+    return matched?.id || categoryOptions[0]?.id || "";
+  }, [targetAsset, categoryOptions]);
 
   const branchOptions = useMemo(() => {
     return (branches as Record<string, string>[]).map((b) => ({
@@ -176,9 +185,7 @@ function EditAssetForm() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const [name, setName] = useState(targetAsset?.name || "");
-  const [category, setCategory] = useState(
-    targetAsset?.category || categoryOptions[0] || ""
-  );
+  const [category, setCategory] = useState(initialCategoryId);
   const [isAvailable, setIsAvailable] = useState(
     targetAsset ? targetAsset.status === "available" : true
   );
@@ -321,6 +328,8 @@ function EditAssetForm() {
     router.push(`/assets/${updatedAsset.id}`);
   };
 
+  const liveCodeValue = qrCodeText.trim() || targetAsset.id;
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 text-slate-800">
       <form onSubmit={handleSubmit} className="max-w-6xl mx-auto space-y-6">
@@ -346,7 +355,6 @@ function EditAssetForm() {
             </label>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
-              {/* กล่องแสดงรูปตัวอย่าง */}
               <div className="relative w-32 h-32 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                 {assetImage ? (
                   <>
@@ -375,7 +383,6 @@ function EditAssetForm() {
                 )}
               </div>
 
-              {/* ปุ่มเลือกรูป */}
               <div className="space-y-2">
                 <input
                   ref={fileInputRef}
@@ -471,8 +478,8 @@ function EditAssetForm() {
                   className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {categoryOptions.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
                     </option>
                   ))}
                 </select>
@@ -718,6 +725,7 @@ function EditAssetForm() {
           </div>
         </div>
 
+        {/* QR Code / Barcode Card */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 mb-4">
             QR Code / Barcode
@@ -732,7 +740,7 @@ function EditAssetForm() {
               type="text"
               value={qrCodeText}
               onChange={(e) => setQrCodeText(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2.5 text-sm font-mono bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
@@ -742,22 +750,27 @@ function EditAssetForm() {
                 <span className="text-sm font-semibold text-slate-800">
                   QR Code
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                    isAvailable
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "bg-amber-50 text-amber-600"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isAvailable ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
+                  />
                   {isAvailable ? "พร้อมใช้งาน" : "ซ่อมบำรุง"}
                 </span>
               </div>
 
               <div className="border border-slate-100 rounded-xl py-8 flex flex-col items-center justify-center bg-slate-50/30">
-                <div className="p-3 bg-slate-100 rounded-xl">
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="w-24 h-24 text-slate-900"
-                    fill="currentColor"
-                  >
-                    <path d="M10 10h25v25H10V10zm5 5v15h15V15H15zm5 5h5v5h-5v-5zm45-10h25v25H65V10zm5 5v15h15V15H70zm5 5h5v5h-5v-5zM10 65h25v25H10V65zm5 5v15h15V70H15zm5 5h5v5h-5v-5zm25-65h5v10h-5V10zm10 5h5v15h-5V15zM45 30h10v5H45v-5zM10 45h15v5H10v-5zm20 0h10v10H30V45zm15 5h10v5H45v-5zm15-5h15v5H60v-5zm20 0h10v10H80V45zM45 60h10v10H45V60zm15 5h10v5H60v-5zm15-5h15v10H75V60zM45 75h5v15h-5V75zm10 5h15v10H55V80zm20 0h15v10H75V80z" />
-                  </svg>
-                </div>
+                <AssetQrCode value={liveCodeValue} />
+                <span className="text-xs font-mono text-slate-500 mt-2.5">
+                  {liveCodeValue}
+                </span>
               </div>
             </div>
 
@@ -766,48 +779,27 @@ function EditAssetForm() {
                 <span className="text-sm font-semibold text-slate-800">
                   Barcode
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                    isAvailable
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "bg-amber-50 text-amber-600"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isAvailable ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
+                  />
                   {isAvailable ? "พร้อมใช้งาน" : "ซ่อมบำรุง"}
                 </span>
               </div>
 
               <div className="border border-slate-100 rounded-xl py-8 flex flex-col items-center justify-center bg-slate-50/30">
-                <div className="h-[120px] flex items-center justify-center px-6">
-                  <svg
-                    viewBox="0 0 180 60"
-                    className="w-44 h-16 text-slate-900"
-                    fill="currentColor"
-                  >
-                    <rect x="4" y="5" width="3" height="50" />
-                    <rect x="10" y="5" width="1.5" height="50" />
-                    <rect x="15" y="5" width="4" height="50" />
-                    <rect x="23" y="5" width="2" height="50" />
-                    <rect x="29" y="5" width="1.5" height="50" />
-                    <rect x="34" y="5" width="3.5" height="50" />
-                    <rect x="42" y="5" width="2" height="50" />
-                    <rect x="47" y="5" width="1.5" height="50" />
-                    <rect x="52" y="5" width="4" height="50" />
-                    <rect x="60" y="5" width="2.5" height="50" />
-                    <rect x="66" y="5" width="1.5" height="50" />
-                    <rect x="72" y="5" width="3" height="50" />
-                    <rect x="79" y="5" width="2" height="50" />
-                    <rect x="85" y="5" width="4" height="50" />
-                    <rect x="93" y="5" width="1.5" height="50" />
-                    <rect x="98" y="5" width="3" height="50" />
-                    <rect x="105" y="5" width="2" height="50" />
-                    <rect x="111" y="5" width="3.5" height="50" />
-                    <rect x="118" y="5" width="1.5" height="50" />
-                    <rect x="124" y="5" width="2.5" height="50" />
-                    <rect x="130" y="5" width="4" height="50" />
-                    <rect x="138" y="5" width="1.5" height="50" />
-                    <rect x="144" y="5" width="3" height="50" />
-                    <rect x="151" y="5" width="2" height="50" />
-                    <rect x="157" y="5" width="1.5" height="50" />
-                    <rect x="163" y="5" width="3.5" height="50" />
-                    <rect x="171" y="5" width="2.5" height="50" />
-                  </svg>
-                </div>
+                <AssetBarcode value={liveCodeValue} />
+                <span className="text-xs font-mono text-slate-500 mt-2.5">
+                  {liveCodeValue}
+                </span>
               </div>
             </div>
           </div>
