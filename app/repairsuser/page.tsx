@@ -8,7 +8,7 @@ import {
 
 
 // หน้านี้ให้ User ค้นหา ดูรายละเอียด และส่งคำร้องแจ้งซ่อม
-// คำร้องใหม่จะถูกเก็บใน Local Storage ของเบราว์เซอร์ และแสดงรายการสาขาเชียงใหม่
+// คำร้องใหม่จะถูกเก็บใน Local Storage ของเบราว์เซอร์ และแสดงเฉพาะสาขาของ User
 import {
   Suspense,
   useMemo,
@@ -29,6 +29,7 @@ import {
 import { assets } from "@/data/asset";
 import { branches } from "@/data/branches";
 import CreateRepairModal from "./modal";
+import { useCredential } from "@/lib/inventory";
 import { getCurrentStaffId } from "@/lib/userActionNotifications";
 import {
   repairRequests as initialRepairRequests,
@@ -44,7 +45,6 @@ import {
 } from "@/lib/userRepairRequests";
 
 const pageSize = 5;
-const CHIANG_MAI_BRANCH_ID = "BR-002";
 
 // ข้อความและสีของแต่ละสถานะที่เห็นในหน้า
 const statusLabels: Record<RepairStatus, string> = {
@@ -79,6 +79,9 @@ function RepairsPageContent() {
   const language = useLanguage();
   const isDark = useTheme() === "dark";
   const translateText = useTranslate();
+  const { credential, ready: credentialReady } = useCredential();
+  const userBranchId = credential?.branchId ?? null;
+  const userBranch = userBranchId ? getBranch(userBranchId) : undefined;
   const surfaceClass = isDark
     ? "border-slate-700 bg-slate-900"
     : "border-slate-200 bg-white";
@@ -110,17 +113,17 @@ function RepairsPageContent() {
     () => parseUserRepairRequestsSnapshot(storedRequestsSnapshot),
     [storedRequestsSnapshot],
   );
-  // รวมคำร้องตัวอย่างกับคำร้องที่ User ส่ง แล้วเลือกเฉพาะสาขาเชียงใหม่
+  // รวมคำร้องตัวอย่างกับคำร้องที่ User ส่ง แล้วเลือกเฉพาะสาขาของ User
   const allRequests = useMemo(
     () => [...createdRequests, ...initialRepairRequests],
     [createdRequests],
   );
   const requests = useMemo(
     () =>
-      allRequests.filter(
-        (request) => request.branchId === CHIANG_MAI_BRANCH_ID,
-      ),
-    [allRequests],
+      userBranchId
+        ? allRequests.filter((request) => request.branchId === userBranchId)
+        : [],
+    [allRequests, userBranchId],
   );
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -132,15 +135,16 @@ function RepairsPageContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const selectedRequest =
     requests.find((request) => request.id === requestId) ??
-    manuallySelectedRequest;
-  const chiangMaiBranch = getBranch(CHIANG_MAI_BRANCH_ID);
+    (manuallySelectedRequest?.branchId === userBranchId
+      ? manuallySelectedRequest
+      : null);
 
   const closeDetails = () => {
     setManuallySelectedRequest(null);
     if (requestId) router.replace("/repairsuser", { scroll: false });
   };
 
-  // แสดงเฉพาะคำร้องสาขาเชียงใหม่ที่ตรงกับคำค้นหา สถานะ และวันที่
+  // แสดงเฉพาะคำร้องสาขาของ User ที่ตรงกับคำค้นหา สถานะ และวันที่
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("th");
 
@@ -188,7 +192,7 @@ function RepairsPageContent() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const assetId = String(formData.get("assetId") ?? "");
-    const branchId = CHIANG_MAI_BRANCH_ID;
+    const branchId = credential?.branchId;
     const issue = String(formData.get("issue") ?? "").trim();
     const priority = String(formData.get("priority") ?? "medium") as
       | "low"
@@ -196,14 +200,25 @@ function RepairsPageContent() {
       | "high"
       | "urgent";
 
-    if (!assetId || !branchId || !issue) return;
+    if (!branchId || !getBranch(branchId)) {
+      setSaveError("ไม่พบสาขาของผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ");
+      return;
+    }
+    if (!assetId || !issue) return;
+
+    const selectedAsset = assets.find((asset) => asset.id === assetId);
+    if (!selectedAsset || selectedAsset.branchId !== branchId) {
+      setSaveError("เลือกทรัพย์สินจากสาขาของคุณ");
+      return;
+    }
+
     const reporterId = getCurrentStaffId();
     if (reporterId === null) {
       setSaveError("ไม่พบข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่");
       return;
     }
 
-    // ใช้ทุกสาขาตรวจเลขคำร้องซ้ำ แม้หน้านี้จะแสดงเฉพาะสาขาเชียงใหม่
+    // ใช้ทุกสาขาตรวจเลขคำร้องซ้ำ แม้หน้านี้จะแสดงเฉพาะสาขาของ User
     const nextNumber =
       Math.max(
         0,
@@ -283,14 +298,17 @@ function RepairsPageContent() {
           </button>
         </header>
 
-        {/* หน้าผู้ใช้แสดงข้อมูลสาขาเชียงใหม่เท่านั้น */}
+        {/* หน้าผู้ใช้แสดงข้อมูลของสาขาที่ผูกกับบัญชี */}
         <section className={`mb-5 flex flex-col items-start justify-between gap-2 rounded-lg border px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 ${surfaceClass}`}>
           <div className={`flex items-center gap-2 text-sm ${secondaryTextClass}`}>
             <FileText className={`size-4 ${mutedTextClass}`} />
             <span>{translateText("สาขาที่ดูแล")}</span>
             <span className={`font-semibold ${primaryTextClass}`}>
-              {translateText(chiangMaiBranch?.name ?? "สาขาเชียงใหม่")}
-              {chiangMaiBranch?.code ? ` · ${chiangMaiBranch.code}` : ""}
+              {!credentialReady
+                ? translateText("กำลังโหลดข้อมูลสาขา...")
+                : userBranch
+                  ? `${translateText(userBranch.name)}${userBranch.code ? ` · ${userBranch.code}` : ""}`
+                  : translateText("ไม่พบสาขาของผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ")}
             </span>
           </div>
         </section>
@@ -648,6 +666,8 @@ function RepairsPageContent() {
       {/* หน้าต่างนี้เปิดจากปุ่ม "สร้างคำร้องแจ้งซ่อม" ด้านบน */}
       {isCreateOpen && (
         <CreateRepairModal
+          branchId={userBranch?.id ?? null}
+          branchReady={credentialReady}
           onClose={() => {
             setSaveError("");
             setIsCreateOpen(false);

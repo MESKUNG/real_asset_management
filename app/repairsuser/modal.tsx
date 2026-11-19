@@ -1,12 +1,12 @@
 "use client";
 import { useTheme, useTranslate } from "@/lib/language";
 
-import Link from "next/link";
 import { useState, type FormEventHandler } from "react";
 import { Plus } from "@tailgrids/icons";
 import { ScanQrCode } from "lucide-react";
+import CodeScanner from "@/components/scanner/CodeScanner";
 import { assets } from "@/data/asset";
-const CHIANG_MAI_BRANCH_ID = "BR-002";
+import { branches } from "@/data/branches";
 
 // หน้าต่างนี้รับข้อมูลคำร้องใหม่; หน้าแม่เป็นคนบันทึกหลังจากกดส่ง
 type CreateRepairModalProps = {
@@ -14,12 +14,16 @@ type CreateRepairModalProps = {
   onClose: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
   error?: string;
+  branchId: string | null;
+  branchReady: boolean;
 };
 
 export default function CreateRepairModal({
   onClose,
   onSubmit,
   error,
+  branchId,
+  branchReady,
 }: CreateRepairModalProps) {
   const translateText = useTranslate();
   const isDark = useTheme() === "dark";
@@ -35,10 +39,13 @@ export default function CreateRepairModal({
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [isAssetListOpen, setIsAssetListOpen] = useState(false);
   const [assetError, setAssetError] = useState("");
+  const [qrMessage, setQrMessage] = useState("");
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const userBranch = branches.find((branch) => branch.id === branchId);
   const normalizedAssetQuery = assetQuery.trim().toLocaleLowerCase();
   // ค้นจากชื่อ รหัส และ Serial Number แล้วจำกัดคำแนะนำไว้ 8 รายการ
   const matchingAssets = assets
-    .filter((asset) => asset.branchId === CHIANG_MAI_BRANCH_ID)
+    .filter((asset) => asset.branchId === userBranch?.id)
     .filter((asset) =>
       [asset.name, asset.id, asset.serialNumber].some((value) =>
         value.toLocaleLowerCase().includes(normalizedAssetQuery),
@@ -54,14 +61,64 @@ export default function CreateRepairModal({
     setAssetError("");
   };
 
+  const handleQrScan = (rawValue: string) => {
+    let code = rawValue.trim();
+    if (!code) {
+      setQrMessage("ไม่พบรหัสทรัพย์สินใน QR Code");
+      return;
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(code);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        const values = parsed as Record<string, unknown>;
+        const parsedCode = values.assetId ?? values.id;
+        if (typeof parsedCode === "string" && parsedCode.trim()) {
+          code = parsedCode.trim();
+        }
+      }
+    } catch {
+      // QR Code อาจเก็บ Asset ID เป็นข้อความธรรมดา
+    }
+
+    const matchedAsset = assets.find(
+      (asset) => asset.id === code || asset.qrCode === code,
+    );
+    if (!matchedAsset) {
+      setQrMessage(`ไม่พบทรัพย์สินรหัส ${code}`);
+      return;
+    }
+
+    if (matchedAsset.branchId !== userBranch?.id) {
+      setQrMessage("ทรัพย์สินนี้ไม่ได้อยู่ในสาขาของคุณ");
+      return;
+    }
+
+    selectAsset(matchedAsset);
+    setQrMessage(`สแกนสำเร็จ: ${matchedAsset.name} (${matchedAsset.id})`);
+  };
+
   // ตรวจว่ามีการเลือกทรัพย์สินจากรายการก่อนส่งข้อมูลให้หน้าแม่
   const handleSubmit:
   FormEventHandler<HTMLFormElement> = (event) => {
+    if (!branchReady || !userBranch) {
+      event.preventDefault();
+      setAssetError("ไม่พบสาขาของผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ");
+      return;
+    }
+
     // ต้องเลือกจากคำแนะนำเพื่อให้ assetId ที่ส่งไปเป็นรหัสจริง ไม่ใช่ข้อความที่พิมพ์
     if (!selectedAssetId) {
       event.preventDefault();
       setAssetError("เลือกทรัพย์สินจากรายการ");
       setIsAssetListOpen(true);
+      return;
+    }
+
+    const selectedAsset = assets.find((asset) => asset.id === selectedAssetId);
+    if (!selectedAsset || selectedAsset.branchId !== userBranch.id) {
+      event.preventDefault();
+      setAssetError("เลือกทรัพย์สินจากสาขาของคุณ");
       return;
     }
 
@@ -132,6 +189,7 @@ export default function CreateRepairModal({
                     setAssetQuery(event.target.value);
                     setSelectedAssetId("");
                     setAssetError("");
+                    setQrMessage("");
                     setIsAssetListOpen(true);
                   }}
                   onKeyDown={(event) => {
@@ -189,18 +247,30 @@ export default function CreateRepairModal({
                   </ul>
                 )}
               </div>
-              {/* ชั่วคราวให้ลิงก์สแกนกลับไปหน้า Login ที่ path "/" */}
-              <Link
-                href="/"
+              <button
+                type="button"
+                disabled={!branchReady || !userBranch}
+                onClick={() => {
+                  setQrMessage("");
+                  setIsScannerOpen(true);
+                }}
                 aria-label={translateText("สแกน QR")}
-                className="inline-flex h-10 shrink-0 items-center gap-2 pr-1 text-sm font-medium text-indigo-600 transition hover:text-indigo-700"
+                className="inline-flex h-10 shrink-0 items-center gap-2 pr-1 text-sm font-medium text-indigo-600 transition hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-600 text-white">
                   <ScanQrCode className="size-5" aria-hidden="true" />
                 </span>
                 <span>{translateText("สแกน QR")}</span>
-              </Link>
+              </button>
             </div>
+            {qrMessage && (
+              <p
+                role="status"
+                className={`mt-1 text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}
+              >
+                {translateText(qrMessage)}
+              </p>
+            )}
             {assetError && (
               <p
                 id="repair-asset-error"
@@ -217,11 +287,16 @@ export default function CreateRepairModal({
             <input
               type="hidden"
               name="branchId"
-              value={CHIANG_MAI_BRANCH_ID}
+              value={userBranch?.id ?? ""}
               readOnly
             />
             <span className={`mt-1.5 flex h-10 items-center rounded-md border px-3 text-sm font-normal ${isDark ? "border-slate-600 bg-slate-800 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-              {translateText("สาขาเชียงใหม่")}</span>
+              {translateText(
+                !branchReady
+                  ? "กำลังโหลดข้อมูลสาขา..."
+                  : userBranch?.name ?? "ไม่พบสาขาของผู้ใช้",
+              )}
+            </span>
           </label>
           {/* ต้องกรอกอาการก่อนส่งคำร้อง */}
           <label className={`block text-sm font-medium ${secondaryTextClass}`}>
@@ -271,6 +346,44 @@ export default function CreateRepairModal({
           </div>
         </form>
       </section>
+      {isScannerOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setIsScannerOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="repair-qr-scanner-title"
+            onClick={(event) => event.stopPropagation()}
+            className={`max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-4 shadow-xl ${
+              isDark ? "bg-slate-800 text-slate-100" : "bg-white text-slate-900"
+            }`}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 id="repair-qr-scanner-title" className="text-lg font-bold">
+                {translateText("สแกน QR Code")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(false)}
+                aria-label={translateText("ปิด")}
+                className="rounded-md px-2 py-1 text-xl leading-none hover:bg-slate-100"
+              >
+                ×
+              </button>
+            </div>
+            <CodeScanner
+              onScan={(code, format) => {
+                if (format !== "qr_code") return;
+                handleQrScan(code);
+                setIsScannerOpen(false);
+              }}
+              allowManual={false}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

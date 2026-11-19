@@ -21,7 +21,7 @@ import { useTranslate } from "@/lib/language";
 import styles from "../branchsManagement/branchManagement.module.css";
 
 type PageAccess = "loading" | "unauthorized" | "admin" | "user";
-const pageSize = 4;
+const pageSizes = [5, 10, 20];
 
 function subscribeToCredentialChanges(onChange: () => void) {
   window.addEventListener("storage", onChange);
@@ -69,6 +69,7 @@ export default function BranchesReadOnlyPage() {
   const [managedBranches, setManagedBranches] = useState<Branch[]>(branches);
   const [storageError, setStorageError] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [pageSize, setPageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -287,24 +288,45 @@ export default function BranchesReadOnlyPage() {
         <footer
           className={`${styles.mutedText} mt-6 flex flex-col gap-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between`}
         >
-          <p>
-            {translateText("แสดง {from}–{to} จาก {total} สาขา")
-              .replace(
-                "{from}",
-                String(
-                  filteredBranches.length === 0
-                    ? 0
-                    : (visiblePage - 1) * pageSize + 1,
-                ),
-              )
-              .replace(
-                "{to}",
-                String(
-                  Math.min(visiblePage * pageSize, filteredBranches.length),
-                ),
-              )
-              .replace("{total}", String(filteredBranches.length))}
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <p>
+              {translateText("แสดง {from}–{to} จาก {total} สาขา")
+                .replace(
+                  "{from}",
+                  String(
+                    filteredBranches.length === 0
+                      ? 0
+                      : (visiblePage - 1) * pageSize + 1,
+                  ),
+                )
+                .replace(
+                  "{to}",
+                  String(
+                    Math.min(visiblePage * pageSize, filteredBranches.length),
+                  ),
+                )
+                .replace("{total}", String(filteredBranches.length))}
+            </p>
+            <label>
+              <span className="sr-only">
+                {translateText("รายการต่อหน้า")}
+              </span>
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setCurrentPage(1);
+                }}
+                className={`${styles.input} h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-600 outline-none focus:border-violet-400`}
+              >
+                {pageSizes.map((size) => (
+                  <option key={size} value={size}>
+                    {size} {translateText("รายการต่อหน้า")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <nav
             aria-label={translateText("เปลี่ยนหน้ารายการสาขา")}
             className="flex items-center gap-1"

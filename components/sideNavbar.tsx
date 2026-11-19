@@ -382,6 +382,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 const isActive =
                   item.items?.some((child) => isPathActive(child.path)) ??
                   isPathActive(item.path);
+                const activeChildPath = item.items?.reduce<
+                  string | undefined
+                >((currentPath, child) => {
+                  if (!child.path || !isPathActive(child.path)) {
+                    return currentPath;
+                  }
+                  return !currentPath || child.path.length > currentPath.length
+                    ? child.path
+                    : currentPath;
+                }, undefined);
                 const itemClass = `flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
                   item.highlight === "audit"
                     ? "my-1 min-h-[68px] rounded-2xl bg-yellow-400 px-3 text-base text-blue-950 hover:bg-yellow-300"
@@ -446,8 +456,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         {item.items?.map((child) => {
                           if (!child.path) return null;
                           const isChildActive =
-                            pathname === child.path ||
-                            pathname.startsWith(`${child.path}/`);
+                            child.path === activeChildPath;
                           return (
                             <Link
                               key={child.path}

@@ -255,18 +255,7 @@ export default function Page() {
                 ))}
               </select>
             </Filter>
-            <label className="relative col-span-2 min-w-0 sm:flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder={translateText("ค้นหาวันที่ / งาน / Asset")}
-                className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-indigo-400"
-              />
-            </label>
+            
           </div>
           <div className="space-y-3 sm:hidden">
             {visible.map((task) => (
