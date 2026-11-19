@@ -27,17 +27,66 @@ import {
   getCurrentStaffId,
   publishUserActionNotification,
 } from "@/lib/userActionNotifications";
+import { fetchAccounts, type Account } from "@/lib/accounts";
+
+// TODO: แทนด้วย id ของผู้ใช้ที่ login จริง
+const CURRENT_USER_ID = 102;
+
+type Employee = {
+  id: string;
+  name: string;
+};
+
+function accountToEmployee(account: Account): Employee | null {
+  if (account.staff_id === null) return null;
+  const name = [account.first_name, account.last_name].filter(Boolean).join(" ").trim()
+    || account.username.trim();
+  return name ? { id: String(account.staff_id), name } : null;
+}
+
+// cache: employee id -> ชื่อ (ใช้ได้ทั้งใน/นอก component เช่น buildTimeline, toTable)
+const employeeNameById = new Map<string, string>();
+let employeesPromise: Promise<void> | null = null;
+
+function loadEmployeeNames(): Promise<void> {
+  if (employeesPromise) return employeesPromise; // โหลดครั้งเดียวพอ
+
+  employeesPromise = fetchAccounts()
+    .then((accounts) => {
+      for (const account of accounts) {
+        const employee = accountToEmployee(account);
+        if (employee) employeeNameById.set(employee.id, employee.name);
+      }
+    })
+    .catch((err) => {
+      console.error("Could not load requester names from the accounts API:", err);
+      employeesPromise = null; // ให้ลองใหม่ได้ครั้งหน้า
+    });
+
+  return employeesPromise;
+}
+
+// เรียกใน component เพื่อโหลดชื่อ แล้ว re-render เมื่อโหลดเสร็จ
+function useEmployeeNames() {
+  const [, setLoaded] = useState(0);
+  useEffect(() => {
+    void loadEmployeeNames().then(() => setLoaded((n) => n + 1));
+  }, []);
+}
 
 /* ---------- types ---------- */
 
 type RequestType = BorrowRequestType;
 
 type Request = BorrowRequest & {
+  borrowerName?: string; // ชื่อผู้ขอจาก MockAPI
   decidedAt?: string; // เวลาที่แอดมิน/ประธานดำเนินการล่าสุด (ใช้แสดงใน timeline)
   attachmentDataUrl?: string; // รูปประกอบคำขอรับคืน
 };
 
 type NewRequest = {
+  borrowerId?: number;
+  borrowerName?: string;
   type: RequestType;
   assetId: string;
   borrowDate: string;
@@ -186,6 +235,10 @@ const branchName = (id?: string | null) =>
   branches.find((b) => b.id === id)?.name ?? id ?? "-";
 const approvalComment = (requestId: string) =>
   approvals.find((a) => a.requestId === requestId)?.comment ?? "";
+const requesterLabel = (r: Request) =>
+  employeeNameById.get(String(r.borrowerId)) ||
+  r.borrowerName ||
+  `พนักงาน #${r.borrowerId}`;
 
 const initial: Request[] = initialRequests;
 
@@ -478,6 +531,7 @@ function BorrowPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestId = searchParams.get("requestId");
+  useEmployeeNames();
   const translateText = useTranslate();
   const language = useLanguage();
   const isDark = useTheme() === "dark";
@@ -621,7 +675,8 @@ function BorrowPageContent() {
     const id = `BRQ-${String(requests.length + 1).padStart(4, "0")}`;
     const next: Request = {
       id,
-      borrowerId: currentStaffId,
+      borrowerId: data.borrowerId ?? CURRENT_USER_ID,
+      borrowerName: data.borrowerName,
       branchId: asset?.branchId ?? "",
       ...data,
       toBranchId: data.toBranchId ?? null,
@@ -643,6 +698,8 @@ function BorrowPageContent() {
     const asset = assets.find((a) => a.id === data.assetId);
     const saved = update(id, {
       ...data,
+      borrowerId: data.borrowerId ?? CURRENT_USER_ID,
+      borrowerName: data.borrowerName,
       toBranchId: data.toBranchId ?? null,
       branchId: asset?.branchId ?? "",
       status: "pending",
@@ -866,7 +923,7 @@ function BorrowPageContent() {
                       {r.assetId} · {branchName(r.branchId)}
                     </div>
                   </td>
-                  <td className="p-3">{translateText("พนักงาน #")}{r.borrowerId}</td>
+                  <td className="p-3">{requesterLabel(r)}</td>
                   <td className="p-3">
                     {r.type === "transfer" ? (
                       <div className="font-medium">
@@ -1086,10 +1143,49 @@ function RequestModal({
   );
   const [toBranchId, setToBranchId] = useState(editing?.toBranchId ?? "");
   const [purpose, setPurpose] = useState(editing?.purpose ?? "");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedRequesterId, setSelectedRequesterId] = useState(
+    String(editing?.borrowerId ?? CURRENT_USER_ID),
+  );
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+  const [employeesError, setEmployeesError] = useState("");
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [assetMenuOpen, setAssetMenuOpen] = useState(false);
   const [attachmentDataUrl, setAttachmentDataUrl] = useState(editing?.attachmentDataUrl ?? "");
   const [qrMessage, setQrMessage] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadEmployees() {
+      try {
+        const accounts = await fetchAccounts(controller.signal);
+        const mapped = accounts
+          .map(accountToEmployee)
+          .filter((employee): employee is Employee => employee !== null);
+
+        setEmployees(mapped);
+        if (mapped.length === 0) {
+          setEmployeesError("ไม่พบบัญชีที่มีรหัสพนักงานและชื่อ");
+        } else {
+          setEmployeesError("");
+          const preferredRequesterId = String(editing?.borrowerId ?? CURRENT_USER_ID);
+          const preferredRequesterExists = mapped.some(
+            (employee) => employee.id === preferredRequesterId,
+          );
+          if (!preferredRequesterExists) setSelectedRequesterId(mapped[0].id);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setEmployeesError(error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการโหลดรายชื่อพนักงาน");
+      } finally {
+        if (!controller.signal.aborted) setEmployeesLoading(false);
+      }
+    }
+
+    void loadEmployees();
+    return () => controller.abort();
+  }, [editing?.borrowerId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -1120,7 +1216,9 @@ function RequestModal({
   // ถ้าเปลี่ยนทรัพย์สินแล้วสาขาปลายทางเดิมใช้ไม่ได้ ให้ถือว่ายังไม่ได้เลือก
   const toBranch = destinations.some((b) => b.id === toBranchId) ? toBranchId : "";
 
+  const selectedRequester = employees.find((employee) => employee.id === selectedRequesterId);
   const ready =
+    !!selectedRequester &&
     !!selectedAssetId &&
     !!purpose.trim() &&
     (type === "return" ? !!expectedReturnDate : !!borrowDate) &&
@@ -1136,7 +1234,10 @@ function RequestModal({
         : "วัตถุประสงค์";
 
   function submit() {
+    const numericRequesterId = Number(selectedRequesterId);
     const id = onSubmit({
+      borrowerId: Number.isFinite(numericRequesterId) ? numericRequesterId : CURRENT_USER_ID,
+      borrowerName: selectedRequester?.name,
       type,
       assetId: selectedAssetId,
       borrowDate: type === "return" ? "" : borrowDate,
@@ -1245,6 +1346,24 @@ function RequestModal({
               </div>
             </div>
             )}
+
+            <div>
+              <label htmlFor="requester-select" className={label}>{translateText("ผู้ขอ")}</label>
+              <select
+                id="requester-select"
+                value={selectedRequesterId}
+                onChange={(e) => setSelectedRequesterId(e.target.value)}
+                disabled={employeesLoading || employees.length === 0}
+                className={field}
+              >
+                {employeesLoading && <option value="">กำลังโหลดรายชื่อพนักงาน...</option>}
+                {!employeesLoading && employees.length === 0 && <option value="">ไม่พบรายชื่อพนักงาน</option>}
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>{employee.name}</option>
+                ))}
+              </select>
+              {employeesError && <p className="mt-1 text-xs text-red-700">{employeesError} (ตรวจสอบ resource /Account และฟิลด์ staff_id)</p>}
+            </div>
 
             <div>
               <label htmlFor="asset-select" className={label}>{translateText("ทรัพย์สิน")}</label>
@@ -1682,7 +1801,7 @@ function DetailModal({
     {
       icon: ICONS.pin,
       label: "ผู้ขอ / สาขา",
-      value: `พนักงาน #${r.borrowerId} / ${branchName(r.branchId)}`,
+      value: `${requesterLabel(r)} / ${branchName(r.branchId)}`,
     },
   ];
   if (r.type === "transfer") {
