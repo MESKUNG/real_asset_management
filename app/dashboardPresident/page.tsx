@@ -738,12 +738,7 @@ export default function Page() {
                 <h3 className="font-semibold">
                   {translateText("สรุปงานซ่อมบำรุง")}
                 </h3>
-                <Link
-                  href="/repairs"
-                  className="text-sm font-semibold text-indigo-600"
-                >
-                  {translateText("ดูรายการซ่อม")}
-                </Link>
+                
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
