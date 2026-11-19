@@ -5,7 +5,7 @@ import React from 'react'
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Select, { type StylesConfig } from "react-select";
-import jsQR from "jsqr";
+import CodeScanner from "@/components/scanner/CodeScanner";
 
 import {
   useEffect,
@@ -1153,6 +1153,7 @@ function RequestModal({
   const [assetMenuOpen, setAssetMenuOpen] = useState(false);
   const [attachmentDataUrl, setAttachmentDataUrl] = useState(editing?.attachmentDataUrl ?? "");
   const [qrMessage, setQrMessage] = useState("");
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1188,10 +1189,17 @@ function RequestModal({
   }, [editing?.borrowerId]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (isScannerOpen) {
+        setIsScannerOpen(false);
+      } else {
+        onClose();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [isScannerOpen, onClose]);
 
   // เบิก/โอนย้าย เลือกจากของที่พร้อมใช้งาน, คืน เลือกจากของที่กำลังถูกยืมอยู่
   const options = assets.filter(
@@ -1248,6 +1256,47 @@ function RequestModal({
       attachmentDataUrl: type === "return" ? attachmentDataUrl : undefined,
     });
     setSubmittedId(id);
+  }
+
+  function handleQrScan(rawValue: string) {
+    let code = rawValue.trim();
+    if (!code) {
+      setQrMessage("ไม่พบรหัสใน QR Code");
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(code) as {
+        assetId?: string;
+        id?: string;
+        serialNumber?: string;
+      };
+      code = parsed.assetId ?? parsed.id ?? parsed.serialNumber ?? code;
+    } catch {
+      // QR อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา เช่น AST-0001
+    }
+
+    const matched = assets.find(
+      (a) =>
+        a.id === code ||
+        a.qrCode === code ||
+        a.barcode === code ||
+        a.serialNumber === code ||
+        rawValue.includes(a.id),
+    );
+
+    if (!matched) {
+      setQrMessage(`ไม่พบทรัพย์สินรหัส ${code} ในระบบ`);
+      return;
+    }
+
+    if (!options.some((a) => a.id === matched.id)) {
+      setQrMessage("ทรัพย์สินนี้ไม่อยู่ในสถานะที่เลือกได้สำหรับคำขอประเภทนี้");
+      return;
+    }
+
+    setAssetId(matched.id);
+    setQrMessage(`สแกนสำเร็จ: ${matched.name} (${matched.id})`);
   }
 
   const field =
@@ -1398,119 +1447,27 @@ function RequestModal({
                   }}
                 />
                 </div>
-                <label
-                  title={translateText("สแกน QR Code")}
-                  aria-label={translateText("สแกน QR Code")}
-                  className={`inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-500 ${
-                    isDark
-                      ? "border-slate-500 bg-slate-800 text-indigo-200 hover:bg-slate-700"
-                      : "border-slate-400 bg-white text-blue-950 hover:bg-indigo-50"
-                  }`}
-                >
-                  <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v2M14 20h2M19 19h2v2h-2z" />
-                  </svg>
-                  <span className="whitespace-nowrap">{translateText("สแกน QR Code")}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!file) return;
-
-                      try {
-                        // แปลงไฟล์ภาพเป็น ImageData เพื่อให้ jsQR อ่านได้
-                        const imageUrl = URL.createObjectURL(file);
-                        const image = new Image();
-
-                        const imageData = await new Promise<ImageData>((resolve, reject) => {
-                          image.onload = () => {
-                            try {
-                              const canvas = document.createElement("canvas");
-                              canvas.width = image.naturalWidth;
-                              canvas.height = image.naturalHeight;
-
-                              const context = canvas.getContext("2d");
-                              if (!context) {
-                                reject(new Error("ไม่สามารถเปิด canvas ได้"));
-                                return;
-                              }
-
-                              context.drawImage(image, 0, 0);
-                              resolve(
-                                context.getImageData(0, 0, canvas.width, canvas.height)
-                              );
-                            } catch (error) {
-                              reject(error);
-                            } finally {
-                              URL.revokeObjectURL(imageUrl);
-                            }
-                          };
-
-                          image.onerror = () => {
-                            URL.revokeObjectURL(imageUrl);
-                            reject(new Error("ไม่สามารถอ่านไฟล์ภาพได้"));
-                          };
-
-                          image.src = imageUrl;
-                        });
-
-                        const result = jsQR(
-                          imageData.data,
-                          imageData.width,
-                          imageData.height,
-                          { inversionAttempts: "attemptBoth" }
-                        );
-
-                        const rawValue = result?.data?.trim();
-                        if (!rawValue) {
-                          setQrMessage("ไม่พบ QR Code ในภาพ กรุณาเลือกรูปที่เห็น QR Code ชัดเจน");
-                          return;
-                        }
-
-                        let code = rawValue;
-                        try {
-                          const parsed = JSON.parse(rawValue) as {
-                            assetId?: string;
-                            id?: string;
-                            serialNumber?: string;
-                          };
-                          code = parsed.assetId ?? parsed.id ?? parsed.serialNumber ?? rawValue;
-                        } catch {
-                          // QR อาจเก็บรหัสทรัพย์สินเป็นข้อความธรรมดา เช่น AST-0001
-                        }
-
-                        const matched = assets.find(
-                          (a) =>
-                            a.id === code ||
-                            a.qrCode === code ||
-                            a.barcode === code ||
-                            a.serialNumber === code ||
-                            rawValue.includes(a.id)
-                        );
-
-                        if (!matched) {
-                          setQrMessage(`ไม่พบทรัพย์สินรหัส ${code} ในระบบ`);
-                          return;
-                        }
-
-                        if (!options.some((a) => a.id === matched.id)) {
-                          setQrMessage("ทรัพย์สินนี้ไม่อยู่ในสถานะที่เลือกได้สำหรับคำขอประเภทนี้");
-                          return;
-                        }
-
-                        setAssetId(matched.id);
-                        setQrMessage(`สแกนสำเร็จ: ${matched.name} (${matched.id})`);
-                      } catch (error) {
-                        console.error("QR Code read failed:", error);
-                        setQrMessage("อ่าน QR Code ไม่สำเร็จ กรุณาลองเลือกรูปอื่น");
-                      }
+                {type !== "withdraw" && (
+                  <button
+                    type="button"
+                    title={translateText("สแกน QR Code")}
+                    aria-label={translateText("สแกน QR Code")}
+                    onClick={() => {
+                      setQrMessage("");
+                      setIsScannerOpen(true);
                     }}
-                  />
-                </label>
+                    className={`inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      isDark
+                        ? "border-slate-500 bg-slate-800 text-indigo-200 hover:bg-slate-700"
+                        : "border-slate-400 bg-white text-blue-950 hover:bg-indigo-50"
+                    }`}
+                  >
+                    <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v2M14 20h2M19 19h2v2h-2z" />
+                    </svg>
+                    <span className="whitespace-nowrap">{translateText("สแกน QR Code")}</span>
+                  </button>
+                )}
                 </div>
               )}
               {qrMessage && (
@@ -1649,6 +1606,47 @@ function RequestModal({
           </div>
         )}
       </div>
+      {isScannerOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsScannerOpen(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="asset-qr-scanner-title"
+            onClick={(event) => event.stopPropagation()}
+            className={`max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-4 shadow-xl ${
+              isDark ? "bg-slate-800 text-slate-100" : "bg-white text-slate-900"
+            }`}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 id="asset-qr-scanner-title" className="text-lg font-bold">
+                {translateText("สแกน QR Code")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(false)}
+                aria-label={translateText("ปิด")}
+                className="rounded-md px-2 py-1 text-xl leading-none hover:bg-slate-100"
+              >
+                ×
+              </button>
+            </div>
+            <CodeScanner
+              onScan={(code, format) => {
+                if (format !== "qr_code") return;
+                handleQrScan(code);
+                setIsScannerOpen(false);
+              }}
+              allowManual={false}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
