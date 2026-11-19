@@ -96,7 +96,7 @@ type NewRequest = {
   attachmentDataUrl?: string;
 };
 
-type AssetOption = { value: string; label: string };
+type AssetOption = { value: string; label: string; name: string };
 
 // สไตล์ช่องทรัพย์สินให้ปรับตาม theme ของ modal
 const getAssetSelectStyles = (isDark: boolean): StylesConfig<AssetOption, false> => ({
@@ -1215,6 +1215,7 @@ function RequestModal({
   const assetOptions: AssetOption[] = options.map((a) => ({
     value: a.id,
     label: `${a.name} (${a.id}) – ${branchName(a.branchId)}`,
+    name: a.name,
   }));
   const selectedOption =
     assetOptions.find((o) => o.value === selectedAssetId) ?? null;
@@ -1429,6 +1430,9 @@ function RequestModal({
                   inputId="asset-select"
                   options={assetOptions}
                   value={selectedOption}
+                  formatOptionLabel={(option, { context }) =>
+                    context === "value" ? option.name : option.label
+                  }
                   onChange={(opt) => setAssetId(opt?.value ?? "")}
                   placeholder={translateText("พิมพ์เพื่อค้นหาทรัพย์สิน...")}
                   noOptionsMessage={() => translateText("ไม่พบทรัพย์สิน")}
