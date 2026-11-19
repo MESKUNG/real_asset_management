@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useMemo, useSyncExternalStore, useRef } from "react";
+import {
+  useState,
+  useMemo,
+  useSyncExternalStore,
+  useRef,
+  useEffect,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import Select, { type StylesConfig } from "react-select";
 import { Asset } from "@/data/asset";
 import { branches } from "@/data/branches";
+import { categories } from "@/data/catagories";
 import {
   getMergedAssets,
   getServerAssets,
@@ -30,6 +38,76 @@ type CredentialData = {
   role: RoleKey;
   branch_id?: string;
   staff_id?: number | null;
+};
+
+type StaffOption = {
+  value: string;
+  label: string;
+  staffId: number | null;
+  isDisabled: boolean;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseStaffOptions(value: unknown): StaffOption[] {
+  if (!Array.isArray(value)) {
+    throw new Error("รูปแบบข้อมูลบัญชี Staff ไม่ถูกต้อง");
+  }
+
+  return value.map((account, index) => {
+    if (
+      !isRecord(account) ||
+      typeof account.id !== "number" ||
+      (account.staff_id !== null && typeof account.staff_id !== "number") ||
+      typeof account.first_name !== "string" ||
+      typeof account.last_name !== "string" ||
+      typeof account.username !== "string" ||
+      (account.status !== "Active" && account.status !== "Inactive")
+    ) {
+      throw new Error(`ข้อมูลบัญชี Staff รายการที่ ${index + 1} ไม่ถูกต้อง`);
+    }
+
+    const name =
+      [account.first_name, account.last_name].filter(Boolean).join(" ").trim() ||
+      account.username.trim();
+    if (!name) {
+      throw new Error(`บัญชี Staff รายการที่ ${index + 1} ไม่มีชื่อ`);
+    }
+
+    const staffId =
+      account.staff_id !== null &&
+      Number.isInteger(account.staff_id) &&
+      account.staff_id > 0
+        ? account.staff_id
+        : null;
+    const staffCode = staffId
+      ? `STF-${String(staffId).padStart(3, "0")}`
+      : "ไม่มีรหัสพนักงาน";
+    const accountStatus =
+      account.status === "Inactive" ? " · ระงับบัญชี" : "";
+
+    return {
+      value: staffId === null ? `account-${account.id}` : String(staffId),
+      label: `${name} (${staffCode})${accountStatus}`,
+      staffId,
+      isDisabled: staffId === null,
+    };
+  });
+}
+
+const staffSelectStyles: StylesConfig<StaffOption, false> = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: 42,
+    borderRadius: 12,
+    borderColor: state.isFocused ? "#6366f1" : "#e2e8f0",
+    boxShadow: state.isFocused ? "0 0 0 2px rgb(99 102 241 / 0.2)" : "none",
+    "&:hover": { borderColor: "#6366f1" },
+  }),
+  valueContainer: (base) => ({ ...base, paddingLeft: 40 }),
+  menuPortal: (base) => ({ ...base, zIndex: 50 }),
 };
 
 // --- อ่านสิทธิ์จาก localStorage ---
@@ -145,18 +223,7 @@ export default function AddAssetPage() {
     return `AST-${String(maxNum + 1).padStart(4, "0")}`;
   }, [allAssets]);
 
-  // ดึงหมวดหมู่จากข้อมูลที่มีอยู่ (พร้อมค่าเริ่มต้น)
-  const categoryOptions = useMemo(() => {
-    const fromData = Array.from(new Set(allAssets.map((a) => a.category)));
-    const defaults = [
-      "คอมพิวเตอร์และอุปกรณ์ IT",
-      "อุปกรณ์สำนักงาน",
-      "เฟอร์นิเจอร์",
-      "เครื่องใช้ไฟฟ้า",
-      "ยานพาหนะ",
-    ];
-    return Array.from(new Set([...defaults, ...fromData]));
-  }, [allAssets]);
+  const categoryOptions = categories;
 
   // รายชื่อสาขา
   const branchOptions = useMemo(() => {
@@ -172,7 +239,7 @@ export default function AddAssetPage() {
 
   // Form States
   const [name, setName] = useState("");
-  const [category, setCategory] = useState(categoryOptions[0] || "");
+  const [category, setCategory] = useState(categoryOptions[0]?.id || "");
   const [isAvailable, setIsAvailable] = useState(true);
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
@@ -182,6 +249,9 @@ export default function AddAssetPage() {
     credential.branch_id || branchOptions[0]?.id || "BR-001"
   );
   const [responsiblePersonId, setResponsiblePersonId] = useState<string>("");
+  const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(true);
+  const [staffLoadError, setStaffLoadError] = useState("");
 
   const [purchasePrice, setPurchasePrice] = useState("");
   const [purchaseDate, setPurchaseDate] = useState("");
@@ -191,6 +261,38 @@ export default function AddAssetPage() {
   const [vendorAddress, setVendorAddress] = useState("");
   const [vendorPhone, setVendorPhone] = useState("");
   const [vendorEmail, setVendorEmail] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadStaffOptions() {
+      try {
+        const response = await fetch("/api/staff-management/accounts", {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`โหลดรายชื่อ Staff ไม่สำเร็จ (HTTP ${response.status})`);
+        }
+
+        const options = parseStaffOptions(await response.json());
+        setStaffOptions(options);
+        setStaffLoadError("");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error("Could not load staff options for asset assignment:", error);
+        setStaffLoadError(
+          error instanceof Error
+            ? error.message
+            : "โหลดรายชื่อ Staff ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+        );
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingStaff(false);
+      }
+    }
+
+    void loadStaffOptions();
+    return () => controller.abort();
+  }, []);
 
   // ป้องกันสิทธิ์ User / President เข้ามาเพิ่มข้อมูล
   if (!canManageAsset) {
@@ -414,7 +516,7 @@ export default function AddAssetPage() {
 
                 {translateText("หมวดหมู่")} <span className="text-rose-500">*</span>
               </label>
-              <div className="relative">
+              <div className="relative">  
                 <LayoutGrid
                   size={16}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
@@ -426,8 +528,8 @@ export default function AddAssetPage() {
                   className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {categoryOptions.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
                     </option>
                   ))}
                 </select>
@@ -546,18 +648,38 @@ export default function AddAssetPage() {
                   size={16}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                 />
-                <select
-                  value={responsiblePersonId}
-                  onChange={(e) => setResponsiblePersonId(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">{translateText("ยังไม่มอบหมาย")}</option>
-                  <option value="1">กานต์ พิพัฒน์ (STF-001)</option>
-                  <option value="2">นภา สุขใจ (STF-002)</option>
-                  <option value="3">วิชัย ทองดี (STF-003)</option>
-                  <option value="4">สุดา แก้วใส (STF-004)</option>
-                </select>
+                <Select<StaffOption, false>
+                  inputId="responsible-person-select"
+                  options={staffOptions}
+                  value={
+                    staffOptions.find(
+                      (option) => option.value === responsiblePersonId,
+                    ) ?? null
+                  }
+                  onChange={(option) =>
+                    setResponsiblePersonId(
+                      option?.staffId ? String(option.staffId) : "",
+                    )
+                  }
+                  placeholder={translateText("พิมพ์ชื่อเพื่อค้นหา Staff...")}
+                  noOptionsMessage={() => translateText("ไม่พบรายชื่อ Staff")}
+                  loadingMessage={() =>
+                    translateText("กำลังโหลดรายชื่อ Staff...")
+                  }
+                  isLoading={isLoadingStaff}
+                  isDisabled={isLoadingStaff || Boolean(staffLoadError)}
+                  isClearable
+                  isSearchable
+                  styles={staffSelectStyles}
+                  menuPosition="fixed"
+                  menuPortalTarget={
+                    typeof document !== "undefined" ? document.body : null
+                  }
+                />
               </div>
+              {staffLoadError && (
+                <p className="mt-1 text-xs text-rose-600">{staffLoadError}</p>
+              )}
             </div>
           </div>
         </div>
