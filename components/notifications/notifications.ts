@@ -2,6 +2,7 @@
 // ไฟล์นี้ยังจำรายการที่อ่านแล้ว และกำหนดว่ากดแจ้งเตือนแล้วจะเปิดหน้าไหน
 import { assets } from "@/data/asset";
 import { branches, HEAD_OFFICE_BRANCH_ID } from "@/data/branches";
+import { parseAssetRequestsSnapshot } from "@/lib/assetRequests";
 import {
   repairRequests,
   type RepairRequest,
@@ -57,6 +58,7 @@ const notificationSourceKeys = [
   "updated_assets",
   "deleted_assets",
   USER_ACTION_NOTIFICATIONS_KEY,
+  "asset-management-asset-requests",
 ] as const;
 const emptyNotificationSourcesSnapshot = JSON.stringify(
   notificationSourceKeys.map(() => null),
@@ -128,12 +130,14 @@ export function subscribeToNotificationSources(onChange: () => void) {
   window.addEventListener("borrowrequestschange", onChange);
   window.addEventListener("inventorystorechange", onChange);
   window.addEventListener(USER_ACTION_NOTIFICATIONS_EVENT, onChange);
+  window.addEventListener("asset-management-asset-requests-change", onChange);
 
   return () => {
     window.removeEventListener("storage", onChange);
     window.removeEventListener("borrowrequestschange", onChange);
     window.removeEventListener("inventorystorechange", onChange);
     window.removeEventListener(USER_ACTION_NOTIFICATIONS_EVENT, onChange);
+    window.removeEventListener("asset-management-asset-requests-change", onChange);
   };
 }
 
@@ -161,6 +165,7 @@ type StoredNotificationSources = {
   updatedAssets: string | null;
   deletedAssets: string | null;
   userActionNotifications: string | null;
+  assetRequests: string | null;
 };
 
 function parseNotificationSources(snapshot: string): StoredNotificationSources {
@@ -179,6 +184,7 @@ function parseNotificationSources(snapshot: string): StoredNotificationSources {
         updatedAssets: parsed[3],
         deletedAssets: parsed[4],
         userActionNotifications: parsed[5],
+        assetRequests: parsed[6],
       };
     }
   } catch (error) {
@@ -192,6 +198,7 @@ function parseNotificationSources(snapshot: string): StoredNotificationSources {
     updatedAssets: null,
     deletedAssets: null,
     userActionNotifications: null,
+    assetRequests: null,
   };
 }
 
@@ -315,6 +322,29 @@ function getBorrowNotifications(
       href: `/Borrow?requestId=${encodeURIComponent(request.id)}`,
     };
   });
+}
+
+function getAssetRequestNotifications(raw: string | null): NotificationItem[] {
+  return parseAssetRequestsSnapshot(raw)
+    .filter((request) => request.status === "pending")
+    .map((request) => {
+      const branch = branches.find((item) => item.id === request.asset.branchId);
+      return {
+        id: `asset-request:${request.id}`,
+        title: "มีคำขอเพิ่มทรัพย์สินใหม่",
+        assetName: request.asset.name,
+        branchName: branch?.name ?? "ไม่ระบุสาขา",
+        branchCode: branch?.code ?? request.asset.branchId,
+        branchId: request.asset.branchId,
+        recipientId: request.requesterId,
+        entityKey: `asset-request:${request.id}`,
+        issue: "รออนุมัติ",
+        reference: request.id,
+        createdAt: request.requestedAt,
+        category: "new",
+        href: "/assets/add",
+      };
+    });
 }
 
 type InventoryNotificationSession = {
@@ -524,6 +554,9 @@ export function getNotificationsForRole(
             .filter((request) => request.status === "pending")
             .map(toNotification)),
       ...getBorrowNotifications(sources.borrowRequests, true),
+      ...(role === "president"
+        ? []
+        : getAssetRequestNotifications(sources.assetRequests)),
     ]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 20);

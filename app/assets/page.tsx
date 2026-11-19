@@ -269,7 +269,9 @@ export default function AssetListPage() {
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition"
             >
               <Plus size={18} />
-              <span>{translateText("เพิ่มทรัพย์สิน")}</span>
+              <span>
+                {translateText("เพิ่มทรัพย์สิน")}
+              </span>
             </Link>
           )}
         </div>
