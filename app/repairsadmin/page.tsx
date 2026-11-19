@@ -30,6 +30,7 @@ import {
 } from "@tailgrids/icons";
 import { assets } from "@/data/asset";
 import { branches } from "@/data/branches";
+import RepairImageGallery from "@/components/repairs/RepairImageGallery";
 import {
   repairRequests as initialRequests,
   type RepairRequest,
@@ -408,6 +409,14 @@ function RepairsAdminPageContent() {
                   {selectedRequest.issue}
                 </p>
               </div>
+              {selectedRequest.images?.length ? (
+                <div className="border-b border-slate-200 py-4">
+                  <RepairImageGallery
+                    images={selectedRequest.images}
+                    label={translateText("รูปภาพประกอบ")}
+                  />
+                </div>
+              ) : null}
 
               {/* ช่องแก้สถานะ หมายเหตุ และแนบไฟล์ */}
               <div className="space-y-5 pt-4">

@@ -4,7 +4,7 @@ import {
   sanitizeAccount,
 } from "../../staff-management/accounts/accountApi";
 
-const ADMIN_ROLE_ID = 2;
+type ManagedRole = "Admin" | "President";
 
 export async function GET() {
   const baseUrl = getMockApiBaseUrl();
@@ -16,36 +16,69 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch(`${baseUrl}/Account`, { cache: "no-store" });
-    if (!response.ok) {
+    const [accountsResponse, rolesResponse] = await Promise.all([
+      fetch(`${baseUrl}/Account`, { cache: "no-store" }),
+      fetch(`${baseUrl}/Role`, { cache: "no-store" }),
+    ]);
+    if (!accountsResponse.ok) {
       throw new Error(
-        `โหลดข้อมูลจาก /Account ไม่สำเร็จ (HTTP ${response.status})`,
+        `โหลดข้อมูลจาก /Account ไม่สำเร็จ (HTTP ${accountsResponse.status})`,
+      );
+    }
+    if (!rolesResponse.ok) {
+      throw new Error(
+        `โหลดข้อมูลจาก /Role ไม่สำเร็จ (HTTP ${rolesResponse.status})`,
       );
     }
 
-    const accounts: unknown = await response.json();
-    if (!Array.isArray(accounts)) {
+    const [accountsPayload, rolesPayload]: [unknown, unknown] =
+      await Promise.all([accountsResponse.json(), rolesResponse.json()]);
+    if (!Array.isArray(accountsPayload)) {
       throw new Error("รูปแบบข้อมูลจาก MockAPI ไม่ถูกต้อง");
     }
+    if (!Array.isArray(rolesPayload)) {
+      throw new Error("รูปแบบข้อมูล Role จาก MockAPI ไม่ถูกต้อง");
+    }
 
-    const adminAccounts = accounts
-      .filter(
-        (account) =>
-          isRecord(account) && Number(account.role_id) === ADMIN_ROLE_ID,
-      )
-      .map(sanitizeAccount)
-      .filter((account): account is Record<string, unknown> => account !== null)
-      .sort((first, second) => Number(second.id) - Number(first.id));
+    const roleById = new Map<number, ManagedRole>();
+    for (const role of rolesPayload) {
+      if (!isRecord(role) || typeof role.role_name !== "string") continue;
+      const roleId = Number(role.id);
+      if (!Number.isInteger(roleId)) continue;
 
-    return Response.json(adminAccounts);
+      const roleName = role.role_name.toLowerCase();
+      if (roleName === "admin") roleById.set(roleId, "Admin");
+      if (roleName === "president") roleById.set(roleId, "President");
+    }
+    if (
+      !Array.from(roleById.values()).includes("Admin") ||
+      !Array.from(roleById.values()).includes("President")
+    ) {
+      throw new Error("ไม่พบ Role Admin หรือ President ในข้อมูล Role");
+    }
+
+    const managedAccounts: Record<string, unknown>[] = [];
+    for (const account of accountsPayload) {
+      if (!isRecord(account)) continue;
+      const role = roleById.get(Number(account.role_id));
+      const sanitizedAccount = sanitizeAccount(account);
+      if (role && sanitizedAccount) {
+        managedAccounts.push({ ...sanitizedAccount, account_role: role });
+      }
+    }
+    managedAccounts.sort(
+      (first, second) => Number(second.id) - Number(first.id),
+    );
+
+    return Response.json(managedAccounts);
   } catch (error) {
-    console.error("Could not load Admin accounts:", error);
+    console.error("Could not load Admin / President accounts:", error);
     return Response.json(
       {
         error:
           error instanceof Error
             ? error.message
-            : "โหลดข้อมูลบัญชี Admin ไม่สำเร็จ",
+            : "โหลดข้อมูลบัญชี Admin / President ไม่สำเร็จ",
       },
       { status: 502 },
     );

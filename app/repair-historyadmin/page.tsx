@@ -19,6 +19,7 @@ import {
   type RepairRequest,
 } from "@/data/repairRequests";
 import { vendors } from "@/data/vendor";
+import RepairImageGallery from "@/components/repairs/RepairImageGallery";
 
 type CompletedRepairRequest = RepairRequest & {
   // รายการที่ซ่อมเสร็จแล้วต้องมีวันที่เสร็จ
@@ -402,6 +403,12 @@ function RepairHistoryAdminPageContent() {
                   {selectedRequest.solution || "-"}
                 </dd>
               </div>
+              {selectedRequest.images?.length ? (
+                <RepairImageGallery
+                  images={selectedRequest.images}
+                  label={translateText("รูปภาพประกอบ")}
+                />
+              ) : null}
             </dl>
           </section>
         </div>

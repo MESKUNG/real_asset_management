@@ -1,4 +1,8 @@
 import type { RepairRequest } from "@/data/repairRequests";
+import {
+  getRepairSampleImage,
+  MAX_REPAIR_IMAGES,
+} from "@/lib/repairImages";
 
 // คำร้องอยู่ใน Local Storage ของ origin นี้ และใช้ event แจ้งหน้าที่เปิดอยู่
 // event "storage" ครอบคลุมแท็บอื่น ส่วน changeEvent ครอบคลุมแท็บปัจจุบัน
@@ -23,6 +27,10 @@ function isRepairRequest(value: unknown): value is RepairRequest {
     Number.isFinite(request.reporterId) &&
     typeof request.branchId === "string" &&
     typeof request.issue === "string" &&
+    (request.images === undefined ||
+      (Array.isArray(request.images) &&
+        request.images.length <= MAX_REPAIR_IMAGES &&
+        request.images.every((image) => typeof image === "string"))) &&
     typeof request.priority === "string" &&
     priorities.has(request.priority) &&
     typeof request.status === "string" &&
@@ -47,7 +55,11 @@ function parseRequests(raw: string | null): RepairRequest[] {
   if (!Array.isArray(parsed) || !parsed.every(isRepairRequest)) {
     throw new Error("Stored repair requests have an invalid format");
   }
-  return parsed;
+  return parsed.map((request) =>
+    !request.images?.length
+      ? { ...request, images: [getRepairSampleImage(request.id)] }
+      : request,
+  );
 }
 
 export function getUserRepairRequestsSnapshot() {

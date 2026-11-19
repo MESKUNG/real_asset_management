@@ -29,6 +29,7 @@ import {
 import { assets } from "@/data/asset";
 import { branches } from "@/data/branches";
 import CreateRepairModal from "./modal";
+import RepairImageGallery from "@/components/repairs/RepairImageGallery";
 import { useCredential } from "@/lib/inventory";
 import { getCurrentStaffId } from "@/lib/userActionNotifications";
 import {
@@ -43,6 +44,7 @@ import {
   saveUserRepairRequest,
   subscribeToUserRepairRequests,
 } from "@/lib/userRepairRequests";
+import { MAX_REPAIR_IMAGES, prepareRepairImage } from "@/lib/repairImages";
 
 const pageSize = 5;
 
@@ -133,6 +135,7 @@ function RepairsPageContent() {
     null,
   );
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const selectedRequest =
     requests.find((request) => request.id === requestId) ??
     (manuallySelectedRequest?.branchId === userBranchId
@@ -187,10 +190,14 @@ function RepairsPageContent() {
   };
 
   // ตรวจข้อมูลฟอร์ม แล้วบันทึกคำร้องใหม่เมื่อกดส่ง
-  const handleCreateRequest = (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateRequest = async (
+    event: FormEvent<HTMLFormElement>,
+    images: File[],
+  ) => {
     // อ่านเฉพาะค่าจากฟอร์ม แล้วตรวจให้มีทรัพย์สิน สาขา และอาการก่อนบันทึก
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const formData = new FormData(formElement);
     const assetId = String(formData.get("assetId") ?? "");
     const branchId = credential?.branchId;
     const issue = String(formData.get("issue") ?? "").trim();
@@ -205,6 +212,10 @@ function RepairsPageContent() {
       return;
     }
     if (!assetId || !issue) return;
+    if (images.length > MAX_REPAIR_IMAGES) {
+      setSaveError("เลือกภาพได้ไม่เกิน 3 ภาพ");
+      return;
+    }
 
     const selectedAsset = assets.find((asset) => asset.id === assetId);
     if (!selectedAsset || selectedAsset.branchId !== branchId) {
@@ -224,6 +235,21 @@ function RepairsPageContent() {
         0,
         ...allRequests.map((request) => Number(request.id.split("-")[1]) || 0),
       ) + 1;
+    setIsSubmitting(true);
+    let attachedImages: string[];
+    try {
+      attachedImages = await Promise.all(images.map(prepareRepairImage));
+    } catch (error) {
+      console.error("Could not process repair images:", error);
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองอีกครั้ง",
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
     // คำร้องที่เพิ่งส่งจะมีสถานะ "รอดำเนินการ"
     const newRequest: RepairRequest = {
       id: `REP-${String(nextNumber).padStart(4, "0")}`,
@@ -231,6 +257,7 @@ function RepairsPageContent() {
       reporterId,
       branchId,
       issue,
+      images: attachedImages,
       priority,
       status: "pending",
       vendorId: getAsset(assetId)?.vendorId ?? "",
@@ -247,16 +274,19 @@ function RepairsPageContent() {
       // บันทึกลง Local Storage แล้วแจ้งหน้า User/Admin ให้รีเฟรชรายการ
       saveUserRepairRequest(newRequest);
       setSaveError("");
-    } catch {
+    } catch (error) {
+      console.error("Could not save new repair request:", error);
       setSaveError(
         "บันทึกคำร้องไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บในเบราว์เซอร์แล้วลองอีกครั้ง",
       );
+      setIsSubmitting(false);
       return;
     }
 
+    setIsSubmitting(false);
     setCurrentPage(1);
     setIsCreateOpen(false);
-    event.currentTarget.reset();
+    formElement.reset();
   };
 
   return (
@@ -647,6 +677,11 @@ function RepairsPageContent() {
                   {selectedRequest.issue}
                 </dd>
               </div>
+              <RepairImageGallery
+                images={selectedRequest.images}
+                label={translateText("รูปภาพประกอบ")}
+                isDark={isDark}
+              />
               <div>
                 <dt className={`text-xs ${mutedTextClass}`}>{translateText("สถานะ")}</dt>
                 <dd className={`mt-1 font-medium ${bodyTextClass}`}>
@@ -674,6 +709,7 @@ function RepairsPageContent() {
           }}
           onSubmit={handleCreateRequest}
           error={saveError}
+          isSubmitting={isSubmitting}
         />
       )}
     </div>

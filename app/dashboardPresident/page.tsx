@@ -296,19 +296,7 @@ export default function Page() {
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               </label>
-              <label className="relative min-w-0">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                <select
-                  aria-label={translateText("ช่วงเวลา")}
-                  value={range}
-                  onChange={(event) => setRange(event.target.value)}
-                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-600 sm:w-auto"
-                >
-                  <option>{translateText("ทั้งหมด")}</option>
-                  <option>{translateText("เดือนนี้")}</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-              </label>
+                  
             </div>
           </div>
           <Card className="p-4 sm:p-6">

@@ -1,21 +1,33 @@
 "use client";
 import { useTheme, useTranslate } from "@/lib/language";
 
-import { useState, type FormEventHandler } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type FormEventHandler,
+} from "react";
 import { Plus } from "@tailgrids/icons";
-import { ScanQrCode } from "lucide-react";
+import { ImagePlus, ScanQrCode, X } from "lucide-react";
+import Image from "next/image";
 import CodeScanner from "@/components/scanner/CodeScanner";
 import { assets } from "@/data/asset";
 import { branches } from "@/data/branches";
+import {
+  MAX_REPAIR_IMAGES,
+  MAX_REPAIR_IMAGE_SIZE,
+} from "@/lib/repairImages";
 
 // หน้าต่างนี้รับข้อมูลคำร้องใหม่; หน้าแม่เป็นคนบันทึกหลังจากกดส่ง
 type CreateRepairModalProps = {
   // ปุ่มปิดหน้าต่างและปุ่มส่งคำร้องถูกจัดการจากหน้า repairsuser/page.tsx
   onClose: () => void;
-  onSubmit: FormEventHandler<HTMLFormElement>;
+  onSubmit: (event: FormEvent<HTMLFormElement>, images: File[]) => void;
   error?: string;
   branchId: string | null;
   branchReady: boolean;
+  isSubmitting: boolean;
 };
 
 export default function CreateRepairModal({
@@ -24,6 +36,7 @@ export default function CreateRepairModal({
   error,
   branchId,
   branchReady,
+  isSubmitting,
 }: CreateRepairModalProps) {
   const translateText = useTranslate();
   const isDark = useTheme() === "dark";
@@ -41,7 +54,16 @@ export default function CreateRepairModal({
   const [assetError, setAssetError] = useState("");
   const [qrMessage, setQrMessage] = useState("");
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<
+    { file: File; previewUrl: string }[]
+  >([]);
+  const previewUrls = useRef<string[]>([]);
+  const [imageError, setImageError] = useState("");
   const userBranch = branches.find((branch) => branch.id === branchId);
+  useEffect(
+    () => () => previewUrls.current.forEach((url) => URL.revokeObjectURL(url)),
+    [],
+  );
   const normalizedAssetQuery = assetQuery.trim().toLocaleLowerCase();
   // ค้นจากชื่อ รหัส และ Serial Number แล้วจำกัดคำแนะนำไว้ 8 รายการ
   const matchingAssets = assets
@@ -98,9 +120,57 @@ export default function CreateRepairModal({
     setQrMessage(`สแกนสำเร็จ: ${matchedAsset.name} (${matchedAsset.id})`);
   };
 
+  const handleImageSelection = (files: File[]) => {
+    const invalidFile = files.find(
+      (file) =>
+        !file.type.startsWith("image/") || file.size > MAX_REPAIR_IMAGE_SIZE,
+    );
+    const clearSelection = () => {
+      previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrls.current = [];
+      setSelectedImages([]);
+    };
+    if (files.length > MAX_REPAIR_IMAGES) {
+      clearSelection();
+      setImageError("เลือกภาพได้ไม่เกิน 3 ภาพ");
+      return;
+    }
+    if (invalidFile) {
+      clearSelection();
+      setImageError(
+        invalidFile.size > MAX_REPAIR_IMAGE_SIZE
+          ? "ไฟล์ภาพต้องมีขนาดไม่เกิน 10 MB"
+          : "รองรับไฟล์รูปภาพเท่านั้น",
+      );
+      return;
+    }
+
+    setImageError("");
+    clearSelection();
+    const nextImages = files.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    previewUrls.current = nextImages.map(({ previewUrl }) => previewUrl);
+    setSelectedImages(nextImages);
+  };
+
+  const removeSelectedImage = (index: number) => {
+    const removedImage = selectedImages[index];
+    if (!removedImage) return;
+
+    URL.revokeObjectURL(removedImage.previewUrl);
+    setImageError("");
+    previewUrls.current = previewUrls.current.filter(
+      (url) => url !== removedImage.previewUrl,
+    );
+    setSelectedImages((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+  };
+
   // ตรวจว่ามีการเลือกทรัพย์สินจากรายการก่อนส่งข้อมูลให้หน้าแม่
-  const handleSubmit:
-  FormEventHandler<HTMLFormElement> = (event) => {
+  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     if (!branchReady || !userBranch) {
       event.preventDefault();
       setAssetError("ไม่พบสาขาของผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ");
@@ -123,7 +193,15 @@ export default function CreateRepairModal({
     }
 
     setAssetError("");
-    onSubmit(event);
+    if (selectedImages.length > MAX_REPAIR_IMAGES) {
+      event.preventDefault();
+      setImageError("เลือกภาพได้ไม่เกิน 3 ภาพ");
+      return;
+    }
+    onSubmit(
+      event,
+      selectedImages.map(({ file }) => file),
+    );
   };
 
   return (
@@ -310,6 +388,67 @@ export default function CreateRepairModal({
               className={`mt-1.5 w-full resize-y rounded-md border px-3 py-2 text-sm font-normal outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${fieldClass}`}
             />
           </label>
+          <div>
+            <label
+              htmlFor="repair-images"
+              className={`mb-1.5 block text-sm font-medium ${secondaryTextClass}`}
+            >
+              {translateText("แนบภาพประกอบ (ไม่เกิน 3 ภาพ)")}
+            </label>
+            <label
+              htmlFor="repair-images"
+              className={`flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-3 py-3 text-sm transition ${isDark ? "border-slate-600 text-slate-300 hover:bg-slate-800" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}
+            >
+              <ImagePlus className="size-4" aria-hidden="true" />
+              {translateText("เลือกรูปภาพ")}
+            </label>
+            <input
+              id="repair-images"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(event) => {
+                handleImageSelection(Array.from(event.currentTarget.files ?? []));
+                event.currentTarget.value = "";
+              }}
+              className="sr-only"
+            />
+            <p className={`mt-1 text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+              {translateText("รองรับไฟล์ภาพ ไม่เกิน 10 MB ต่อภาพ")}
+            </p>
+            {selectedImages.length > 0 && (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {selectedImages.map(({ file, previewUrl }, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className={`relative overflow-hidden rounded-md border ${isDark ? "border-slate-700" : "border-slate-200"}`}
+                  >
+                    <Image
+                      src={previewUrl}
+                      alt={`${translateText("รูปภาพประกอบ")} ${index + 1}`}
+                      width={240}
+                      height={160}
+                      unoptimized
+                      className="h-20 w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSelectedImage(index)}
+                      aria-label={`${translateText("ลบภาพ")} ${index + 1}`}
+                      className="absolute right-1 top-1 rounded-full bg-slate-950/70 p-1 text-white"
+                    >
+                      <X className="size-3" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {imageError && (
+              <p role="alert" className="mt-1 text-xs text-rose-600">
+                {translateText(imageError)}
+              </p>
+            )}
+          </div>
           {/* เลือกระดับความเร่งด่วนของงานซ่อม */}
           <label className={`block text-sm font-medium ${secondaryTextClass}`}>
 
@@ -337,11 +476,11 @@ export default function CreateRepairModal({
             </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-wait disabled:opacity-60"
             >
-              <Plus className="size-4" />
-
-              {translateText("ส่งคำร้อง")}
+              {!isSubmitting && <Plus className="size-4" />}
+              {translateText(isSubmitting ? "กำลังส่งคำร้อง..." : "ส่งคำร้อง")}
             </button>
           </div>
         </form>

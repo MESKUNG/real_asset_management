@@ -1,4 +1,5 @@
 export type AccountStatus = "Active" | "Inactive";
+export type ManagedRole = "Admin" | "President";
 
 export type AdminAccount = {
   id: number;
@@ -8,7 +9,7 @@ export type AdminAccount = {
   last_name: string;
   profile_image: string;
   phone: string;
-  role_id: 2;
+  role: ManagedRole;
   staff_id: number | null;
   branch_id?: string;
   status: AccountStatus;
@@ -16,6 +17,7 @@ export type AdminAccount = {
 };
 
 export type AdminAccountChanges = {
+  role: ManagedRole;
   username: string;
   password?: string;
   first_name: string;

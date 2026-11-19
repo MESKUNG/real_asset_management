@@ -29,6 +29,7 @@ import SuspendAdminModal from "./_components/SuspendAdminModal";
 import type {
   AdminAccount,
   AdminAccountChanges,
+  ManagedRole,
 } from "./_components/types";
 
 type PageAccess = "loading" | "unauthorized" | "president" | "superadmin";
@@ -80,10 +81,10 @@ function parseAccount(value: unknown, index: number): AdminAccount {
     typeof value.email !== "string" ||
     typeof value.first_name !== "string" ||
     typeof value.last_name !== "string" ||
+    (value.account_role !== "Admin" && value.account_role !== "President") ||
     (value.profile_image !== undefined &&
       typeof value.profile_image !== "string") ||
     (value.phone !== undefined && typeof value.phone !== "string") ||
-    Number(value.role_id) !== 2 ||
     (value.staff_id !== undefined &&
       value.staff_id !== null &&
       typeof value.staff_id !== "number") ||
@@ -103,7 +104,7 @@ function parseAccount(value: unknown, index: number): AdminAccount {
     profile_image:
       typeof value.profile_image === "string" ? value.profile_image : "",
     phone: typeof value.phone === "string" ? value.phone : "",
-    role_id: 2,
+    role: value.account_role,
     staff_id: typeof value.staff_id === "number" ? value.staff_id : null,
     ...(typeof value.branch_id === "string"
       ? { branch_id: value.branch_id }
@@ -122,7 +123,8 @@ async function getApiErrorMessage(response: Response, fallback: string) {
 }
 
 function getAccountCode(account: AdminAccount) {
-  return `ADM-${String(account.id).padStart(3, "0")}`;
+  const prefix = account.role === "Admin" ? "ADM" : "PRE";
+  return `${prefix}-${String(account.id).padStart(3, "0")}`;
 }
 
 function getVisiblePages(currentPage: number, pageCount: number) {
@@ -164,6 +166,7 @@ export default function AdminManagementPage() {
   const [searchText, setSearchText] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | ManagedRole>("all");
   const [pageSize, setPageSize] = useState(4);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAccount, setSelectedAccount] = useState<AdminAccount | null>(
@@ -189,14 +192,14 @@ export default function AdminManagementPage() {
           throw new Error(
             await getApiErrorMessage(
               response,
-              "โหลดข้อมูลบัญชี Admin ไม่สำเร็จ",
+              "โหลดข้อมูลบัญชี Admin / President ไม่สำเร็จ",
             ),
           );
         }
 
         const payload: unknown = await response.json();
         if (!Array.isArray(payload)) {
-          throw new Error("รูปแบบข้อมูลบัญชี Admin ไม่ถูกต้อง");
+          throw new Error("รูปแบบข้อมูลบัญชี Admin / President ไม่ถูกต้อง");
         }
 
         const parsedAccounts = payload.map(parseAccount);
@@ -208,12 +211,12 @@ export default function AdminManagementPage() {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
-        console.error("Could not load Admin accounts:", error);
+        console.error("Could not load Admin / President accounts:", error);
         if (active) {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : "โหลดข้อมูลบัญชี Admin ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+              : "โหลดข้อมูลบัญชี Admin / President ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
           );
         }
       } finally {
@@ -255,10 +258,11 @@ export default function AdminManagementPage() {
       return (
         matchesSearch &&
         (branchFilter === "all" || account.branch_id === branchFilter) &&
-        (statusFilter === "all" || account.status === statusFilter)
+        (statusFilter === "all" || account.status === statusFilter) &&
+        (roleFilter === "all" || account.role === roleFilter)
       );
     });
-  }, [accounts, branchFilter, searchText, statusFilter]);
+  }, [accounts, branchFilter, roleFilter, searchText, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
   const currentPageWithinRange = Math.min(currentPage, pageCount);
@@ -297,7 +301,7 @@ export default function AdminManagementPage() {
       last_name: changes.last_name.trim(),
       profile_image: "",
       phone: changes.phone.trim(),
-      role_id: 2,
+      role: changes.role,
       staff_id:
         Math.max(0, ...accounts.map((account) => account.staff_id ?? 0)) + 1,
       branch_id: changes.branch_id,
@@ -309,6 +313,7 @@ export default function AdminManagementPage() {
     setSearchText("");
     setBranchFilter("all");
     setStatusFilter("all");
+    setRoleFilter("all");
     setCurrentPage(1);
     setIsAddModalOpen(false);
   };
@@ -396,10 +401,10 @@ export default function AdminManagementPage() {
       <div className="mx-auto max-w-[1440px] space-y-6">
         <header>
           <h1 className="text-2xl font-bold text-slate-900">
-            {translateText("จัดการบัญชี Admin")}
+            {translateText("จัดการบัญชี Admin / President")}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {translateText("เพิ่ม แก้ไข และระงับบัญชี Admin")}
+            {translateText("เพิ่ม แก้ไข และระงับบัญชี Admin / President")}
           </p>
         </header>
 
@@ -408,28 +413,28 @@ export default function AdminManagementPage() {
           className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
         >
           {translateText(
-            "โหมดจำลอง: การเพิ่ม แก้ไข และระงับเปลี่ยนเฉพาะหน้านี้ ไม่บันทึก API และจะหายเมื่อโหลดหน้าใหม่",
+            "โหมดจำลอง: การสร้าง แก้ไข และระงับเปลี่ยนเฉพาะหน้านี้ ไม่บันทึก API และจะหายเมื่อโหลดหน้าใหม่",
           )}
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
           <SummaryCard
             icon={<UsersRound className="size-5" />}
-            label={translateText("บัญชี Admin ทั้งหมด")}
+            label={translateText("บัญชี Admin / President ทั้งหมด")}
             value={accounts.length}
-            note="Admin"
+            note="Admin / President"
             iconClassName="text-violet-600"
           />
           <SummaryCard
             icon={<Ban className="size-5" />}
-            label={translateText("บัญชี Admin ที่พร้อมใช้งาน")}
+            label={translateText("บัญชี Admin / President ที่พร้อมใช้งาน")}
             value={activeCount}
             note="Active"
             iconClassName="text-emerald-600"
           />
           <SummaryCard
             icon={<CheckCircle2 className="size-5" />}
-            label={translateText("บัญชี Admin ที่ระงับ")}
+            label={translateText("บัญชี Admin / President ที่ระงับ")}
             value={inactiveCount}
             note="Inactive"
             iconClassName="text-amber-600"
@@ -442,7 +447,7 @@ export default function AdminManagementPage() {
               id="accounts-heading"
               className="text-lg font-semibold text-slate-900"
             >
-              {translateText("รายการบัญชี Admin")}
+              {translateText("รายการบัญชี Admin / President")}
             </h2>
             <button
               type="button"
@@ -450,11 +455,11 @@ export default function AdminManagementPage() {
               className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-violet-700 sm:w-auto"
             >
               <UserRoundPlus className="size-4" aria-hidden="true" />
-              {translateText("เพิ่มบัญชี Admin")}
+              {translateText("เพิ่มบัญชี")}
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(240px,1.4fr)_repeat(2,minmax(150px,1fr))]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(240px,1.4fr)_repeat(3,minmax(150px,1fr))]">
             <label className="relative block">
               <span className="sr-only">{translateText("ค้นหาบัญชี")}</span>
               <Search
@@ -502,6 +507,24 @@ export default function AdminManagementPage() {
               <option value="all">{translateText("ทุกสถานะ")}</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
+            </FilterSelect>
+
+            <FilterSelect
+              label={translateText("ทุกบทบาท")}
+              icon={<UsersRound className="size-4" aria-hidden="true" />}
+              value={roleFilter}
+              onChange={(value) => {
+                if (value === "Admin" || value === "President") {
+                  setRoleFilter(value);
+                } else {
+                  setRoleFilter("all");
+                }
+                setCurrentPage(1);
+              }}
+            >
+              <option value="all">{translateText("ทุกบทบาท")}</option>
+              <option value="Admin">Admin</option>
+              <option value="President">President</option>
             </FilterSelect>
           </div>
 
@@ -568,7 +591,9 @@ export default function AdminManagementPage() {
                         <td className="whitespace-nowrap px-4 py-3.5 text-slate-600">
                           {account.email}
                         </td>
-                        <td className="px-4 py-3.5 text-slate-700">Admin</td>
+                        <td className="px-4 py-3.5 text-slate-700">
+                          {translateText(account.role)}
+                        </td>
                         <td className="px-4 py-3.5 text-slate-500">
                           {getBranchName(account.branch_id)}
                         </td>
@@ -643,7 +668,7 @@ export default function AdminManagementPage() {
                           <AdminStatusBadge status={account.status} />
                         </div>
                         <p className="mt-0.5 break-all text-xs text-slate-500">{account.username}</p>
-                        <p className="mt-1 text-xs text-slate-400">{getAccountCode(account)} · Admin</p>
+                        <p className="mt-1 text-xs text-slate-400">{getAccountCode(account)} · {translateText(account.role)}</p>
                       </div>
                     </div>
                     <dl className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-sm">

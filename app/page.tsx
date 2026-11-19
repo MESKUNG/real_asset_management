@@ -45,6 +45,13 @@ type Credential = {   //กำหนด Type ของ Credential ที่ใ�
   branch_id?: string;    //ไม่มีสาขาก็ได้
 };
 
+const landingPathByRole: Record<RoleName, string> = {
+  user: "/dashboardUser",
+  admin: "/dashboardAdmin",
+  president: "/dashboardPresident",
+  superadmin: "/adminManagement",
+};
+
 export default function Home() {
   const translateText = useTranslate();
   const language = useLanguage();
@@ -197,7 +204,7 @@ export default function Home() {
 
       localStorage.setItem("credential", JSON.stringify(credential));      //เก็บข้อมูล Credential ลงใน Local Storage ของ Browser ในรูปแบบ JSON String
       window.dispatchEvent(new Event("credentialchange"));        //แจ้งให้ Component อื่น ๆ ทราบว่ามีการเปลี่ยนแปลง Credential เกิดขึ้น โดยตั้งชื่อ Event นี้ว่า "credentialchange"
-      router.push("/assets");               //เปลี่ยนหน้าไป Dashboard
+      router.push(landingPathByRole[credential.role]);
     } catch (error) {             //ถัดจาก try จะทำงานเมื่อเกิด Exception ภายใน try         คือดักจับ Error ที่เกิดขึ้นระหว่างการเข้าสู่ระบบ 
       console.error("Mock API request failed:", error);
       setErrorMessage(

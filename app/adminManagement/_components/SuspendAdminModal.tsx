@@ -36,7 +36,7 @@ export default function SuspendAdminModal({
             id="suspend-admin-title"
             className="text-xl font-bold text-slate-800"
           >
-            {translateText("ระงับบัญชี Admin")}
+            {translateText("ระงับบัญชี")}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
             {translateText("ยืนยันการเปลี่ยนสถานะบัญชีเป็น Inactive")}
@@ -44,7 +44,8 @@ export default function SuspendAdminModal({
         </header>
         <div className="px-4 pb-5 sm:px-6 sm:pb-6">
           <div className="rounded-xl bg-amber-50 px-5 py-4 text-sm text-slate-700">
-            {accountCode} · {account.first_name} {account.last_name}
+            {accountCode} · {translateText(account.role)} · {account.first_name}{" "}
+            {account.last_name}
           </div>
         </div>
         <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4">

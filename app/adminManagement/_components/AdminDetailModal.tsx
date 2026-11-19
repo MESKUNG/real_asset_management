@@ -54,7 +54,7 @@ export default function AdminDetailModal({
               id="admin-detail-title"
               className="text-xl font-bold text-slate-800"
             >
-              {translateText("รายละเอียดบัญชี Admin")}
+              {translateText("รายละเอียดบัญชี")}
             </h2>
           </div>
           <button
@@ -92,6 +92,10 @@ export default function AdminDetailModal({
             <DetailItem
               label={translateText("อีเมล")}
               value={account.email}
+            />
+            <DetailItem
+              label={translateText("บทบาท")}
+              value={translateText(account.role)}
             />
             <DetailItem
               label={translateText("เบอร์โทรศัพท์")}

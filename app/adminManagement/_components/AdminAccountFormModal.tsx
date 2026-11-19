@@ -4,7 +4,11 @@ import { UserRoundPlus, X } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { branches } from "@/data/branches";
 import { useTranslate } from "@/lib/language";
-import type { AdminAccount, AdminAccountChanges } from "./types";
+import type {
+  AdminAccount,
+  AdminAccountChanges,
+  ManagedRole,
+} from "./types";
 
 type AdminAccountFormModalProps = {
   account?: AdminAccount;
@@ -23,6 +27,7 @@ export default function AdminAccountFormModal({
   const translateText = useTranslate();
   const [username, setUsername] = useState(account?.username ?? "");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<ManagedRole>(account?.role ?? "Admin");
   const [firstName, setFirstName] = useState(account?.first_name ?? "");
   const [lastName, setLastName] = useState(account?.last_name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
@@ -46,6 +51,7 @@ export default function AdminAccountFormModal({
     setErrorMessage("");
     try {
       await onSave({
+        role,
         username: username.trim(),
         ...(password ? { password } : {}),
         first_name: firstName.trim(),
@@ -55,11 +61,11 @@ export default function AdminAccountFormModal({
         branch_id: branchId,
       });
     } catch (error) {
-      console.error("Could not save Admin account:", error);
+      console.error("Could not save managed account:", error);
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "บันทึกข้อมูลบัญชี Admin ไม่สำเร็จ กรุณาลองอีกครั้ง",
+          : "บันทึกข้อมูลบัญชีไม่สำเร็จ กรุณาลองอีกครั้ง",
       );
     } finally {
       setIsSaving(false);
@@ -86,12 +92,10 @@ export default function AdminAccountFormModal({
                 id="admin-account-form-title"
                 className="text-xl font-bold text-slate-800"
               >
-                {translateText(
-                  isEditing ? "แก้ไขบัญชี Admin" : "เพิ่มบัญชี Admin",
-                )}
+                {translateText(isEditing ? "แก้ไขบัญชี" : "เพิ่มบัญชี")}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                {translateText("กรอกข้อมูลเพื่อจัดการบัญชี Admin")}
+                {translateText("กรอกข้อมูลเพื่อจัดการบัญชี")}
               </p>
             </div>
             <button
@@ -182,9 +186,29 @@ export default function AdminAccountFormModal({
                 ))}
               </select>
             </FormField>
-            <p className="text-sm text-slate-500">
-              {translateText("บทบาทบัญชี")}: <strong>Admin</strong>
-            </p>
+            <FormField label={translateText("บทบาทบัญชี")}>
+              {isEditing ? (
+                <p className="pt-2 text-sm text-slate-700">
+                  {translateText(role)}
+                </p>
+              ) : (
+                <select
+                  value={role}
+                  onChange={(event) => {
+                    if (
+                      event.target.value === "Admin" ||
+                      event.target.value === "President"
+                    ) {
+                      setRole(event.target.value);
+                    }
+                  }}
+                  className={inputClassName}
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="President">President</option>
+                </select>
+              )}
+            </FormField>
             {errorMessage && (
               <p className="text-sm text-red-600" role="alert">
                 {translateText(errorMessage)}
@@ -209,7 +233,7 @@ export default function AdminAccountFormModal({
               {isSaving
                 ? translateText("กำลังบันทึก...")
                 : translateText(
-                    isEditing ? "บันทึกการเปลี่ยนแปลง" : "สร้างบัญชี Admin",
+                    isEditing ? "บันทึกการเปลี่ยนแปลง" : "สร้างบัญชี",
                   )}
             </button>
           </footer>

@@ -1,3 +1,5 @@
+import { getRepairSampleImage } from "@/lib/repairImages";
+
 export type RepairStatus = "pending" | "in_progress" | "completed" | "rejected";
 
 export type RepairPriority = "low" | "medium" | "high" | "urgent";
@@ -8,6 +10,7 @@ export type RepairRequest = {
   reporterId: number;
   branchId: string;
   issue: string;
+  images?: string[];
   priority: RepairPriority;
   status: RepairStatus;
   vendorId: string;
@@ -20,7 +23,7 @@ export type RepairRequest = {
   adminNote: string;
 };
 
-export const repairRequests: RepairRequest[] = [
+const seededRepairRequests: RepairRequest[] = [
   {
     id: "REP-0001",
     assetId: "AST-0003",
@@ -702,3 +705,10 @@ export const repairRequests: RepairRequest[] = [
     adminNote: "ติดตามงานโดย Admin",
   },
 ];
+
+export const repairRequests: RepairRequest[] = seededRepairRequests.map(
+  (request) => ({
+    ...request,
+    images: [getRepairSampleImage(request.id)],
+  }),
+);

@@ -11,6 +11,8 @@ import {
 // ค้นหารายการ เปลี่ยนหน้า และกดเปิดรายละเอียดของงานซ่อมได้
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Search1 } from "@tailgrids/icons";
+import RepairImageGallery from "@/components/repairs/RepairImageGallery";
+import { getRepairSampleImage } from "@/lib/repairImages";
 
 type RepairHistoryItem = {
   // กำหนดว่าประวัติซ่อมหนึ่งรายการมีข้อมูลอะไรบ้าง
@@ -22,6 +24,7 @@ type RepairHistoryItem = {
   branchCode: string;
   issue: string;
   solution: string;
+  images: string[];
   status: "completed";
 };
 
@@ -36,6 +39,7 @@ const demoRepairHistory: RepairHistoryItem[] = [
     branchCode: "CNX",
     issue: "เปิดไม่ติดและมีเสียงดังผิดปกติ",
     solution: "ทำความสะอาดลูกยางและทดสอบการพิมพ์แล้ว",
+    images: [getRepairSampleImage("REP-0001")],
     status: "completed",
   },
   {
@@ -47,6 +51,7 @@ const demoRepairHistory: RepairHistoryItem[] = [
     branchCode: "CNX",
     issue: "เครื่องเปิดไม่ติดและแบตเตอรี่เสื่อม",
     solution: "เปลี่ยนแบตเตอรี่และทดสอบการใช้งานแล้ว",
+    images: [getRepairSampleImage("REP-0002")],
     status: "completed",
   },
   {
@@ -58,6 +63,7 @@ const demoRepairHistory: RepairHistoryItem[] = [
     branchCode: "CNX",
     issue: "ภาพบนหน้าจอกะพริบ",
     solution: "ตรวจสอบสายสัญญาณและทดสอบการแสดงผลแล้ว",
+    images: [getRepairSampleImage("REP-0003")],
     status: "completed",
   },
 ];
@@ -392,6 +398,11 @@ export default function RepairHistoryPage() {
                   {translateText(selectedRequest.solution || "-")}
                 </dd>
               </div>
+              <RepairImageGallery
+                images={selectedRequest.images}
+                label={translateText("รูปภาพประกอบ")}
+                isDark={isDark}
+              />
             </dl>
           </section>
         </div>

@@ -27,6 +27,28 @@ export const englishTranslations: Record<string, string> = {
   "จัดการสาขา": "Manage Branches",
   "จัดการ Admin": "Manage Admins",
   "จัดการบัญชี Admin / President": "Manage Admin / President Accounts",
+  "เพิ่ม แก้ไข และระงับบัญชี Admin / President":
+    "Add, edit, and suspend Admin / President accounts",
+  "บัญชี Admin / President ทั้งหมด": "Total Admin / President accounts",
+  "บัญชี Admin / President ที่พร้อมใช้งาน":
+    "Active Admin / President accounts",
+  "บัญชี Admin / President ที่ระงับ":
+    "Suspended Admin / President accounts",
+  "รายการบัญชี Admin / President": "Admin / President accounts",
+  "แก้ไขบัญชี": "Edit account",
+  "กรอกข้อมูลเพื่อจัดการบัญชี": "Enter details to manage this account",
+  "สร้างบัญชี": "Create account",
+  "รายละเอียดบัญชี": "Account details",
+  "รูปแบบข้อมูลบัญชี Admin / President ไม่ถูกต้อง":
+    "Admin / President account data is invalid",
+  "รูปแบบข้อมูล Role จาก MockAPI ไม่ถูกต้อง":
+    "MockAPI returned invalid Role data",
+  "ไม่พบ Role Admin หรือ President ในข้อมูล Role":
+    "Admin or President role is missing from Role data",
+  "โหลดข้อมูลบัญชี Admin / President ไม่สำเร็จ":
+    "Could not load Admin / President accounts",
+  "โหลดข้อมูลบัญชี Admin / President ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง":
+    "Could not load Admin / President accounts. Please try again.",
   "จัดการ Staff": "Manage Staff",
   "จัดการบัญชี Staff": "Manage Staff accounts",
   "เพิ่ม แก้ไข และระงับบัญชี Staff": "Add, edit, and suspend Staff accounts",
@@ -474,6 +496,20 @@ export const englishTranslations: Record<string, string> = {
   "เลือกทรัพย์สิน": "Select an asset",
   "เลือกสาขา": "Select a branch",
   "ส่งคำร้อง": "Submit request",
+  "แนบภาพประกอบ (ไม่เกิน 3 ภาพ)": "Attach images (up to 3)",
+  "เลือกรูปภาพ": "Choose images",
+  "รองรับไฟล์ภาพ ไม่เกิน 10 MB ต่อภาพ":
+    "Image files up to 10 MB each are supported",
+  "เลือกภาพได้ไม่เกิน 3 ภาพ": "You can attach up to 3 images",
+  "รองรับไฟล์รูปภาพเท่านั้น": "Only image files are supported",
+  "ไฟล์ภาพต้องมีขนาดไม่เกิน 10 MB": "Each image must be 10 MB or smaller",
+  "ไม่สามารถอ่านไฟล์ภาพได้ กรุณาเลือกไฟล์อื่น":
+    "Could not read the image. Please choose another file",
+  "ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองอีกครั้ง":
+    "Could not process the image. Please try again",
+  "รูปภาพประกอบ": "Reference images",
+  "ลบภาพ": "Remove image",
+  "กำลังส่งคำร้อง...": "Submitting request...",
   "ระดับความเร่งด่วน": "Priority",
   "ค่าธรรมเนียม": "Fee",
   "วันที่แจ้ง": "Reported date",
