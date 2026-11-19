@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import {
   createLoginHistory,
   createSimulatedIpAddress,
+  createSimulatedLocation,
 } from "@/lib/loginHistory";
 
 import { Globe2, MoonHalfLeft5 } from "@tailgrids/icons";
@@ -188,6 +189,7 @@ export default function Home() {
           status: "success",
           device: navigator.userAgent || "ไม่ทราบอุปกรณ์",
           ip_address: createSimulatedIpAddress(),
+          location: createSimulatedLocation(),
         });
       } catch (historyError) {
         console.warn("บันทึกประวัติการเข้าสู่ระบบไม่สำเร็จ:", historyError);

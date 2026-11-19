@@ -10,12 +10,25 @@ export type LoginHistoryEntry = {
 };
 
 const simulatedIpPrefixes = ["192.0.2", "198.51.100", "203.0.113"] as const;
+const simulatedLocations = [
+  "Bangkok, Thailand",
+  "Chiang Mai, Thailand",
+  "Phuket, Thailand",
+  "Khon Kaen, Thailand",
+  "Hat Yai, Thailand",
+] as const;
 
 export function createSimulatedIpAddress() {
   const prefix =
     simulatedIpPrefixes[Math.floor(Math.random() * simulatedIpPrefixes.length)];
   const host = Math.floor(Math.random() * 254) + 1;
   return `${prefix}.${host}`;
+}
+
+export function createSimulatedLocation() {
+  return simulatedLocations[
+    Math.floor(Math.random() * simulatedLocations.length)
+  ];
 }
 
 function getEndpoint() {
