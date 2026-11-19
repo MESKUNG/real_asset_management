@@ -6,10 +6,12 @@ import { tx, useT, localized } from "@/lib/i18n";
 // User: บันทึก แก้สภาพ ยกเลิกผล และส่งผล | Admin: ดูอย่างเดียว
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import Image from "next/image";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { Armchair, ChevronLeft, ChevronRight, Laptop, Monitor, Printer, Router, X } from "lucide-react";
 import type { Asset } from "@/data/asset";
 import { exportExcel } from "@/lib/exportExcel";
+import { getMergedAssets, getServerAssets, subscribeAssets } from "@/lib/assetStorage";
 import {
   RESULT_LABEL,
   completeSession,
@@ -43,7 +45,6 @@ import {
   buttonStyle,
   useToast,
 } from "./ui";
-import { useLanguage } from "@/lib/language";
 
 type Tab = "unchecked" | "checked";
 type Condition = "found" | "damaged" | "missing";
@@ -59,7 +60,6 @@ const PAGE_SIZES = [5, 10, 20];
 
 export default function AuditBoard() {
   useT();
-  const language = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { credential, ready: credentialReady } = useCredential();
@@ -174,7 +174,7 @@ export default function AuditBoard() {
       สาขาที่ลงทะเบียน: getBranchName(asset.branchId),
       ผลตรวจ: check ? RESULT_LABEL[check.result] : (getAwayReason(asset)?.text ?? tx("ยังไม่ตรวจ")),
       ผู้ตรวจ: check ? getCheckerName(check) : "-",
-      เวลาตรวจ: check ? formatThaiDateTime(check.checkedAt, language) : "-",
+      เวลาตรวจ: check ? formatThaiDateTime(check.checkedAt) : "-",
       หมายเหตุ: check?.note ?? "",
     });
     const rows = [
@@ -376,7 +376,7 @@ export default function AuditBoard() {
                     asset={asset}
                     tone={check.result === "found" ? "checked" : "problem"}
                     person={getCheckerName(check)}
-                    time={formatThaiDateTime(check.checkedAt, language)}
+                    time={formatThaiDateTime(check.checkedAt)}
                     note={check.note}
                     onRemove={canScan ? () => handleUndo(check) : undefined}
                     footer={
@@ -537,6 +537,31 @@ function CategoryIcon({ category }: { category: string }) {
   return <Laptop size={22} aria-hidden />;
 }
 
+// รูปทรัพย์สิน: ใช้รูปล่าสุดจากระบบจัดการทรัพย์สินของกลุ่ม (lib/assetStorage รวมรูปที่แก้ในหน้าแก้ไขแล้ว)
+// ถ้าไม่มีรูป หรือโหลดรูปไม่ได้ (เช่น เน็ตหลุด) จะแสดงไอคอนตามหมวดหมู่แทน
+function AssetThumb({ asset }: { asset: Asset }) {
+  const allAssets = useSyncExternalStore(subscribeAssets, getMergedAssets, getServerAssets);
+  const image = allAssets.find((a) => a.id === asset.id)?.assetImage ?? asset.assetImage;
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  return (
+    <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-600">
+      {image && image !== failedSrc ? (
+        <Image
+          src={image}
+          alt={asset.name}
+          width={112}
+          height={112}
+          unoptimized
+          onError={() => setFailedSrc(image)}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <CategoryIcon category={asset.category} />
+      )}
+    </span>
+  );
+}
+
 function AssetCard({ asset, tone, person, time, note, hint, footer, onRemove }: {
   asset: Asset;
   tone: keyof typeof CARD_STYLE;
@@ -552,9 +577,7 @@ function AssetCard({ asset, tone, person, time, note, hint, footer, onRemove }: 
   return (
     <li className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <div className={`flex gap-3 p-4 ${style.box}`}>
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600">
-          <CategoryIcon category={asset.category} />
-        </span>
+        <AssetThumb asset={asset} />
         <div className="min-w-0 flex-1">
           <p className="text-base font-bold text-slate-900">{asset.name}</p>
           <p className="text-sm text-slate-600">{asset.id}</p>
