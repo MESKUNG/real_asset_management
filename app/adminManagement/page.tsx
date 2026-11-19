@@ -11,50 +11,29 @@ import {
   Search,
   UserRoundPlus,
   UsersRound,
-  X,
 } from "lucide-react";
 import {
   useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
-  type FormEvent,
 } from "react";
 import { branches } from "@/data/branches";
-import { useLanguage, useTranslate } from "@/lib/language";
+import { useTranslate } from "@/lib/language";
 import StaffProfileImage from "../staffManagement/_components/StaffProfileImage";
+import AddAdminModal from "./_components/AddAdminModal";
+import AdminDetailModal from "./_components/AdminDetailModal";
+import AdminStatusBadge from "./_components/AdminStatusBadge";
+import EditAdminModal from "./_components/EditAdminModal";
+import SuspendAdminModal from "./_components/SuspendAdminModal";
+import type {
+  AdminAccount,
+  AdminAccountChanges,
+} from "./_components/types";
 
-type AccountStatus = "Active" | "Inactive";
 type PageAccess = "loading" | "unauthorized" | "president" | "superadmin";
 
-type AdminAccount = {
-  id: number;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  profile_image: string;
-  phone: string;
-  role_id: 2;
-  staff_id: number | null;
-  branch_id?: string;
-  status: AccountStatus;
-  created_at: number;
-};
-
-type AdminAccountChanges = {
-  username: string;
-  password?: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  branch_id: string;
-};
-
 const pageSizes = [4, 8, 12, 24];
-const inputClassName =
-  "h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
 
 function subscribeToCredentialChanges(onChange: () => void) {
   window.addEventListener("storage", onChange);
@@ -594,7 +573,7 @@ export default function AdminManagementPage() {
                           {getBranchName(account.branch_id)}
                         </td>
                         <td className="px-4 py-3.5">
-                          <StatusBadge status={account.status} />
+                          <AdminStatusBadge status={account.status} />
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2">
@@ -661,7 +640,7 @@ export default function AdminManagementPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="font-semibold text-slate-800">{account.first_name} {account.last_name}</p>
-                          <StatusBadge status={account.status} />
+                          <AdminStatusBadge status={account.status} />
                         </div>
                         <p className="mt-0.5 break-all text-xs text-slate-500">{account.username}</p>
                         <p className="mt-1 text-xs text-slate-400">{getAccountCode(account)} · Admin</p>
@@ -783,14 +762,14 @@ export default function AdminManagementPage() {
       </div>
 
       {isAddModalOpen && (
-        <AdminAccountFormModal
+        <AddAdminModal
           key="new-admin"
           onClose={() => setIsAddModalOpen(false)}
           onSave={createAdminAccount}
         />
       )}
       {accountToEdit && (
-        <AdminAccountFormModal
+        <EditAdminModal
           key={accountToEdit.id}
           account={accountToEdit}
           onClose={() => setAccountToEdit(null)}
@@ -802,6 +781,7 @@ export default function AdminManagementPage() {
       {selectedAccount && (
         <AdminDetailModal
           account={selectedAccount}
+          accountCode={getAccountCode(selectedAccount)}
           branchName={getBranchName(selectedAccount.branch_id)}
           onClose={() => setSelectedAccount(null)}
         />
@@ -809,6 +789,7 @@ export default function AdminManagementPage() {
       {accountToSuspend && (
         <SuspendAdminModal
           account={accountToSuspend}
+          accountCode={getAccountCode(accountToSuspend)}
           onClose={() => setAccountToSuspend(null)}
           onConfirm={suspendAdminAccount}
         />
@@ -894,427 +875,5 @@ function FilterSelect({
         {children}
       </select>
     </label>
-  );
-}
-
-function StatusBadge({ status }: { status: AccountStatus }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ${
-        status === "Active"
-          ? "bg-emerald-50 text-emerald-700"
-          : "bg-amber-50 text-amber-700"
-      }`}
-    >
-      <span
-        className={`size-2 rounded-full ${
-          status === "Active" ? "bg-emerald-500" : "bg-amber-500"
-        }`}
-      />
-      {status}
-    </span>
-  );
-}
-
-function AdminAccountFormModal({
-  account,
-  onClose,
-  onSave,
-}: {
-  account?: AdminAccount;
-  onClose: () => void;
-  onSave: (changes: AdminAccountChanges) => Promise<void>;
-}) {
-  const translateText = useTranslate();
-  const [username, setUsername] = useState(account?.username ?? "");
-  const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState(account?.first_name ?? "");
-  const [lastName, setLastName] = useState(account?.last_name ?? "");
-  const [email, setEmail] = useState(account?.email ?? "");
-  const [phone, setPhone] = useState(account?.phone ?? "");
-  const [branchId, setBranchId] = useState(account?.branch_id ?? "BR-001");
-  const [isSaving, setIsSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const isEditing = Boolean(account);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isSaving) onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isSaving, onClose]);
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSaving(true);
-    setErrorMessage("");
-    try {
-      await onSave({
-        username: username.trim(),
-        ...(password ? { password } : {}),
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        branch_id: branchId,
-      });
-    } catch (error) {
-      console.error("Could not save Admin account:", error);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "บันทึกข้อมูลบัญชี Admin ไม่สำเร็จ กรุณาลองอีกครั้ง",
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isSaving) onClose();
-      }}
-    >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-account-form-title"
-        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
-      >
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <header className="flex items-start justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
-            <div>
-              <h2
-                id="admin-account-form-title"
-                className="text-xl font-bold text-slate-800"
-              >
-                {translateText(
-                  isEditing ? "แก้ไขบัญชี Admin" : "เพิ่มบัญชี Admin",
-                )}
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {translateText("กรอกข้อมูลเพื่อจัดการบัญชี Admin")}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSaving}
-              aria-label={translateText("ปิดหน้าต่าง")}
-              className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
-            >
-              <X className="size-5" aria-hidden="true" />
-            </button>
-          </header>
-
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5 sm:px-6 sm:pb-6">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormField label={translateText("ชื่อผู้ใช้")}>
-                <input
-                  required
-                  autoComplete="username"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  className={inputClassName}
-                />
-              </FormField>
-              <FormField
-                label={translateText(
-                  isEditing ? "รหัสผ่านใหม่ (ไม่บังคับ)" : "รหัสผ่าน",
-                )}
-              >
-                <input
-                  required={!isEditing}
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className={inputClassName}
-                />
-              </FormField>
-              <FormField label={translateText("ชื่อ")}>
-                <input
-                  required
-                  autoComplete="given-name"
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  className={inputClassName}
-                />
-              </FormField>
-              <FormField label={translateText("นามสกุล")}>
-                <input
-                  required
-                  autoComplete="family-name"
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  className={inputClassName}
-                />
-              </FormField>
-              <FormField label={translateText("อีเมล")}>
-                <input
-                  required
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className={inputClassName}
-                />
-              </FormField>
-              <FormField label={translateText("เบอร์โทรศัพท์")}>
-                <input
-                  type="tel"
-                  autoComplete="tel"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  className={inputClassName}
-                />
-              </FormField>
-            </div>
-            <FormField label={translateText("สาขา")}>
-              <select
-                value={branchId}
-                onChange={(event) => setBranchId(event.target.value)}
-                className={inputClassName}
-              >
-                <option value="">{translateText("ไม่ระบุสาขา")}</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {translateText(branch.name)}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <p className="text-sm text-slate-500">
-              {translateText("บทบาทบัญชี")}: <strong>Admin</strong>
-            </p>
-            {errorMessage && (
-              <p className="text-sm text-red-600" role="alert">
-                {translateText(errorMessage)}
-              </p>
-            )}
-          </div>
-          <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSaving}
-              className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:w-auto"
-            >
-              {translateText("ยกเลิก")}
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-            >
-              <UserRoundPlus className="size-4" aria-hidden="true" />
-              {isSaving
-                ? translateText("กำลังบันทึก...")
-                : translateText(
-                    isEditing ? "บันทึกการเปลี่ยนแปลง" : "สร้างบัญชี Admin",
-                  )}
-            </button>
-          </footer>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-function AdminDetailModal({
-  account,
-  branchName,
-  onClose,
-}: {
-  account: AdminAccount;
-  branchName: string;
-  onClose: () => void;
-}) {
-  const translateText = useTranslate();
-  const language = useLanguage();
-  const createdAt = new Intl.DateTimeFormat(
-    language === "en" ? "en-US" : "th-TH",
-    { dateStyle: "long" },
-  ).format(new Date(account.created_at * 1000));
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-detail-title"
-        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
-      >
-        <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
-          <div>
-            <h2
-              id="admin-detail-title"
-              className="text-xl font-bold text-slate-800"
-            >
-              {translateText("รายละเอียดบัญชี Admin")}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={translateText("ปิดหน้าต่าง")}
-            className="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
-          >
-            <X className="size-5" aria-hidden="true" />
-          </button>
-        </header>
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3 sm:flex-nowrap sm:gap-4 sm:p-5">
-            <StaffProfileImage
-              src={account.profile_image}
-              alt={`รูปโปรไฟล์ ${account.first_name} ${account.last_name}`}
-              initials={`${account.first_name.charAt(0)}${account.last_name.charAt(0)}`}
-              size={56}
-            />
-            <div className="min-w-0">
-              <p className="break-words text-base font-bold text-slate-800 sm:text-lg">
-                {getAccountCode(account)} · {account.first_name}{" "}
-                {account.last_name}
-              </p>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {account.username}
-              </p>
-            </div>
-            <StatusBadge status={account.status} />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <DetailItem
-              label={translateText("ชื่อผู้ใช้")}
-              value={account.username}
-            />
-            <DetailItem
-              label={translateText("อีเมล")}
-              value={account.email}
-            />
-            <DetailItem
-              label={translateText("เบอร์โทรศัพท์")}
-              value={account.phone || translateText("ไม่ระบุ")}
-            />
-            <DetailItem label={translateText("สาขา")} value={branchName} />
-            <DetailItem
-              label={translateText("วันที่สร้างบัญชี")}
-              value={createdAt}
-            />
-          </div>
-        </div>
-        <footer className="flex justify-end border-t border-slate-100 px-4 py-3 sm:px-6 sm:py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-          >
-            {translateText("ปิด")}
-          </button>
-        </footer>
-      </section>
-    </div>
-  );
-}
-
-function SuspendAdminModal({
-  account,
-  onClose,
-  onConfirm,
-}: {
-  account: AdminAccount;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  const translateText = useTranslate();
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-2 sm:items-center sm:p-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="suspend-admin-title"
-        className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl"
-      >
-        <header className="px-4 py-4 sm:px-6 sm:py-5">
-          <h2
-            id="suspend-admin-title"
-            className="text-xl font-bold text-slate-800"
-          >
-            {translateText("ระงับบัญชี Admin")}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {translateText("ยืนยันการเปลี่ยนสถานะบัญชีเป็น Inactive")}
-          </p>
-        </header>
-        <div className="px-4 pb-5 sm:px-6 sm:pb-6">
-          <div className="rounded-xl bg-amber-50 px-5 py-4 text-sm text-slate-700">
-            {getAccountCode(account)} · {account.first_name} {account.last_name}
-          </div>
-        </div>
-        <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-10 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
-          >
-            {translateText("ยกเลิก")}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="h-10 w-full rounded-lg bg-rose-500 px-4 text-sm font-semibold text-white hover:bg-rose-600 sm:w-auto"
-          >
-            {translateText("ยืนยันการระงับ")}
-          </button>
-        </footer>
-      </section>
-    </div>
-  );
-}
-
-function FormField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block space-y-1.5 text-sm font-medium text-slate-700">
-      {label}
-      {children}
-    </label>
-  );
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-slate-100 p-4">
-      <p className="text-xs font-medium text-slate-400">{label}</p>
-      <p className="mt-2 break-all text-sm font-medium text-slate-700">
-        {value}
-      </p>
-    </div>
   );
 }

@@ -9,6 +9,15 @@ export type LoginHistoryEntry = {
   location?: string;
 };
 
+const simulatedIpPrefixes = ["192.0.2", "198.51.100", "203.0.113"] as const;
+
+export function createSimulatedIpAddress() {
+  const prefix =
+    simulatedIpPrefixes[Math.floor(Math.random() * simulatedIpPrefixes.length)];
+  const host = Math.floor(Math.random() * 254) + 1;
+  return `${prefix}.${host}`;
+}
+
 function getEndpoint() {
   const baseUrl = process.env.NEXT_PUBLIC_LOGIN_HISTORY_API_URL?.trim();
   if (!baseUrl)

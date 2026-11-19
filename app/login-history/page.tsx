@@ -198,7 +198,7 @@ export default function LoginHistoryPage() {
             className="mb-4 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
           >
             <div className="min-w-0">
-              <p className="text-xs text-slate-500 dark:text-slate-400">{t("IP ล่าสุด", "Latest IP")}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("IP ล่าสุด (จำลอง)", "Latest IP (simulated)")}</p>
               {loading ? (
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("กำลังโหลดประวัติ...", "Loading history...")}</p>
               ) : error ? (
@@ -345,7 +345,7 @@ export default function LoginHistoryPage() {
                           {t("วันและเวลาที่เข้าสู่ระบบ", "Sign-in date and time")}
                         </th>
                         <th className="bg-[#f3f3f8] dark:bg-slate-700 px-3 py-2 font-medium">
-                          IP address
+                          {t("IP address (จำลอง)", "IP address (simulated)")}
                         </th>
                         <th className="rounded-r-md bg-[#f3f3f8] dark:bg-slate-700 px-3 py-2 font-medium">
                           {t("ตำแหน่งโดยประมาณ", "Approximate location")}

@@ -13,7 +13,10 @@ import { TextField } from "@/components/tailgrids/core/text-field";
 import { useState, type FormEvent } from "react";
 import { Form } from "react-aria-components";
 import { useRouter } from "next/navigation";
-import { createLoginHistory } from "@/lib/loginHistory";
+import {
+  createLoginHistory,
+  createSimulatedIpAddress,
+} from "@/lib/loginHistory";
 
 import { Globe2, MoonHalfLeft5 } from "@tailgrids/icons";
 import {
@@ -184,6 +187,7 @@ export default function Home() {
           login_time: new Date().toISOString(),
           status: "success",
           device: navigator.userAgent || "ไม่ทราบอุปกรณ์",
+          ip_address: createSimulatedIpAddress(),
         });
       } catch (historyError) {
         console.warn("บันทึกประวัติการเข้าสู่ระบบไม่สำเร็จ:", historyError);
