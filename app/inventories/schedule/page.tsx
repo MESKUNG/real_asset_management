@@ -1,0 +1,227 @@
+"use client";
+
+import { tx, useT, dateLocale } from "@/lib/i18n";
+import { branches as rawBranches } from "@/data/branches";
+import { assets, branches } from "@/lib/localizedData";
+// หน้ามอบหมายรอบตรวจนับ (Admin): เลือกสาขา วันที่ และผู้รับผิดชอบ
+import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import {
+  createSession,
+  deleteSession,
+  formatDateRange,
+  getBranchName,
+  getStaffName,
+  toDateValue,
+  useCredential,
+  useInventoryStore,
+} from "@/lib/inventory";
+import { EmptyState, Loading, PageHeader, RoleGate, Toast, buttonStyle, useToast } from "../_components/ui";
+import { useLanguage } from "@/lib/language";
+
+const activeBranches = branches.filter((b) => b.status === "active");
+
+export default function SchedulePage() {
+  return (
+    <RoleGate allow={["admin"]}>
+      <ScheduleForm />
+    </RoleGate>
+  );
+}
+
+function ScheduleForm() {
+  useT();
+  const language = useLanguage();
+  const { credential } = useCredential();
+  const { sessions, ready } = useInventoryStore();
+  const toast = useToast();
+
+  const [today] = useState(() => toDateValue(new Date()));
+  const [branchId, setBranchId] = useState(activeBranches[0]?.id ?? "");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  const [assigneeId, setAssigneeId] = useState(0);
+  const [name, setName] = useState("");
+
+  if (!ready) return <Loading />;
+
+  const branchName = getBranchName(branchId);
+  const branchAssets = assets.filter((a) => a.branchId === branchId && a.status !== "disposed");
+  const assetCount = branchAssets.length;
+  // ผู้รับผิดชอบเลือกได้จากพนักงานที่ดูแลทรัพย์สินของสาขานั้น (responsiblePersonId ใน asset.ts)
+  const staffIds = [...new Set(branchAssets.map((a) => a.responsiblePersonId))].sort((a, b) => a - b);
+  const selectedAssignee = staffIds.includes(assigneeId) ? assigneeId : staffIds[0];
+
+  // สาขาเดียวกันห้ามมีรอบที่ยังไม่ปิดซ้อนช่วงวันที่กัน
+  const overlap = sessions.find(
+    (s) =>
+      s.branchId === branchId &&
+      (s.status === "planned" || s.status === "in_progress") &&
+      s.startDate <= endDate &&
+      startDate <= s.endDate,
+  );
+
+  // วันที่รูปแบบ YYYY-MM-DD เทียบกันแบบข้อความได้เลย
+  let error: string | null = null;
+  if (!branchId) error = tx("กรุณาเลือกสาขา");
+  else if (!startDate || !endDate) error = tx("กรุณาเลือกวันที่เริ่มและวันที่สิ้นสุด");
+  else if (startDate < today) error = tx("วันที่เริ่มต้องไม่ย้อนหลัง");
+  else if (endDate < startDate) error = tx("วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม");
+  else if (overlap) error = tx("สาขานี้มีรอบ {0} ในช่วงวันที่นี้อยู่แล้ว", overlap.id);
+
+  const days = !error
+    ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000) + 1
+    : 0;
+  const monthText = startDate
+    ? new Date(`${startDate}T00:00:00`).toLocaleDateString(dateLocale(), { month: "long", year: "numeric" })
+    : "";
+  const autoName = tx("ตรวจนับทรัพย์สินประจำเดือน{0} - {1}", monthText, branchName);
+  // ชื่อที่บันทึกลงข้อมูลเก็บเป็นภาษาไทยเสมอ (ตอนแสดงผลจะแปลตามภาษาที่เลือกเอง)
+  const storedAutoName = `ตรวจนับทรัพย์สินประจำเดือน${
+    startDate ? new Date(`${startDate}T00:00:00`).toLocaleDateString("th-TH", { month: "long", year: "numeric" }) : ""
+  } - ${rawBranches.find((b) => b.id === branchId)?.name ?? branchId}`;
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (error || !credential) return;
+    const session = createSession({
+      name: name.trim() || storedAutoName,
+      branchId,
+      startDate,
+      endDate,
+      assigneeId: selectedAssignee,
+      createdBy: credential.id,
+    });
+    setName("");
+    toast.show(
+      startDate <= today
+        ? tx("ประกาศรอบ {0} แล้ว ผู้ใช้เริ่มตรวจนับได้ทันที", session.id)
+        : tx("ประกาศรอบ {0} แล้ว จะเริ่มให้ตรวจนับอัตโนมัติ {1}", session.id, formatDateRange(startDate, endDate, language)),
+    );
+  };
+
+  const handleDelete = (id: string) => {
+    if (!window.confirm(tx("ลบรอบ {0} ใช่ไหม? ลบแล้วกู้คืนไม่ได้", id))) return;
+    toast.show(deleteSession(id) ? tx("ลบรอบ {0} แล้ว", id) : tx("ลบได้เฉพาะรอบที่ยังไม่เริ่ม"));
+  };
+
+  const planned = sessions
+    .filter((s) => s.status === "planned")
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+  const fieldStyle =
+    "mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-12 text-slate-800">
+      <Toast message={toast.message} />
+      <PageHeader title={tx("มอบหมายรอบตรวจนับ")} subtitle={tx("กำหนดสาขา ช่วงวันที่ และผู้รับผิดชอบ")} backHref="/inventories" />
+
+      <main className="mx-auto grid max-w-6xl gap-6 px-4 pt-5 lg:grid-cols-5 lg:px-8">
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-3">
+          <h2 className="text-lg font-bold text-slate-900">{tx("สร้างรอบใหม่")}</h2>
+
+          <label className="block text-base font-medium text-slate-700">
+            {tx("สาขาที่ตรวจนับ")}
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={fieldStyle}>
+              {activeBranches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({b.code})
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-sm text-slate-500">{tx("ทรัพย์สินในสาขานี้")} {assetCount} {tx("รายการ")}</span>
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-base font-medium text-slate-700">
+              {tx("วันที่เริ่ม")}
+              <input
+                type="date"
+                value={startDate}
+                min={today}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (endDate < e.target.value) setEndDate(e.target.value);
+                }}
+                className={fieldStyle}
+              />
+            </label>
+            <label className="block text-base font-medium text-slate-700">
+              {tx("วันที่สิ้นสุด")}
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || today}
+                onChange={(e) => setEndDate(e.target.value)}
+                className={fieldStyle}
+              />
+            </label>
+          </div>
+
+          <label className="block text-base font-medium text-slate-700">
+            {tx("ผู้รับผิดชอบ")}
+            <select
+              value={selectedAssignee}
+              onChange={(e) => setAssigneeId(Number(e.target.value))}
+              className={fieldStyle}
+            >
+              {staffIds.map((id) => (
+                <option key={id} value={id}>
+                  {getStaffName(id)} {tx("(รหัส")} {id})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-base font-medium text-slate-700">
+            {tx("ชื่อรอบ (เว้นว่างได้ ระบบตั้งให้)")}
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={autoName} className={fieldStyle} />
+          </label>
+
+          <div
+            className={`rounded-xl px-4 py-3 text-base ${error ? "bg-rose-50 text-rose-700" : "bg-blue-50 text-blue-800"}`}
+            aria-live="polite"
+          >
+            {error ? (
+              <>{error}</>
+            ) : (
+              <>
+                {tx("ตรวจนับ")} <strong>{branchName}</strong> {formatDateRange(startDate, endDate, language)} ({days} {tx("วัน) · ผู้รับผิดชอบ")} <strong>{getStaffName(selectedAssignee)}</strong>
+              </>
+            )}
+          </div>
+
+          <button type="submit" disabled={!!error} className={`${buttonStyle.primary} min-h-12 w-full text-lg`}>
+            {tx("ยืนยันสร้างรอบ")}
+          </button>
+        </form>
+
+        <section className="lg:col-span-2">
+          <h2 className="mb-3 text-lg font-bold text-slate-900">{tx("รอบที่รอเริ่ม (")}{planned.length})</h2>
+          {planned.length === 0 ? (
+            <EmptyState text={tx("ยังไม่มีรอบที่วางแผนไว้")} />
+          ) : (
+            <ul className="space-y-3">
+              {planned.map((s) => (
+                <li key={s.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-sm text-slate-500">{s.id}</p>
+                  <p className="text-base font-semibold text-slate-900">{s.name}</p>
+                  <p className="text-sm text-slate-600">
+                    {formatDateRange(s.startDate, s.endDate, language)} · {getStaffName(s.assigneeId)}
+                  </p>
+                  <button type="button" onClick={() => handleDelete(s.id)} className={`${buttonStyle.danger} mt-3`}>
+                    {tx("ลบรอบนี้")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link href="/inventories" className={`${buttonStyle.secondary} mt-4 w-full`}>
+            {tx("ไปหน้าติดตามการนับ ›")}
+          </Link>
+        </section>
+      </main>
+    </div>
+  );
+}

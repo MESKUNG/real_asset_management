@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f3f4f6;
   --foreground: #171717;
 }
 
@@ -12,15 +12,68 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+html.dark {
+  color-scheme: dark;
+
+}
+
+html.dark body {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+html.dark [class~="bg-white"],
+html.dark [class~="bg-gray-50"],
+html.dark [class~="bg-gray-100"],
+html.dark [class~="bg-slate-50"],
+html.dark [class~="bg-slate-100"],
+html.dark [class~="bg-slate-200"],
+html.dark [class~="bg-[#f3f4f8]"],
+html.dark [class~="bg-[#f3f4f6]"],
+html.dark [class~="bg-[#f4f5f9]"],
+html.dark [class~="bg-[#f8f9fc]"],
+html.dark [class~="bg-[#f1f2f7]"] {
+  background-color: #1e293b;
+}
+
+html.dark [class~="lg:bg-[#f8f9fc]"] {
+  background-color: #1e293b;
+}
+
+html.dark [class~="text-slate-900"],
+html.dark [class~="text-slate-800"],
+html.dark [class~="text-gray-900"],
+html.dark [class~="text-gray-800"],
+html.dark [class~="text-black"],
+html.dark [class~="text-[#1c2740]"] {
+  color: #f1f5f9;
+}
+
+html.dark [class~="text-slate-700"],
+html.dark [class~="text-slate-600"],
+html.dark [class~="text-gray-700"],
+html.dark [class~="text-gray-600"] {
+  color: #cbd5e1;
+}
+
+html.dark [class~="text-slate-500"],
+html.dark [class~="text-gray-500"] {
+  color: #94a3b8;
+}
+
+html.dark [class~="border-slate-100"],
+html.dark [class~="border-slate-200"],
+html.dark [class~="border-slate-300"],
+html.dark [class~="border-gray-100"],
+html.dark [class~="border-gray-200"],
+html.dark [class~="border-gray-300"] {
+  border-color: #334155;
 }

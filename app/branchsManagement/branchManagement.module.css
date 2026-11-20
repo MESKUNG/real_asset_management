@@ -1,0 +1,101 @@
+:global(html.dark) .page.page {
+  background-color: #0b1120;
+  color: #e2e8f0;
+}
+
+:global(html.dark) .page .surface {
+  border-color: #334155;
+  background-color: #111827;
+  color: #e2e8f0;
+}
+
+:global(html.dark) .page .formPanel {
+  background-color: #111827;
+  color: #f1f5f9;
+}
+
+:global(html.dark) .page .formFieldset {
+  border-color: #334155;
+  background-color: #0f172a;
+}
+
+:global(html.dark) .page .tableHead {
+  background-color: #1e293b;
+  color: #cbd5e1;
+}
+
+:global(html.dark) .page .tableRow:hover {
+  background-color: #1e293b;
+}
+
+:global(html.dark) .page .input {
+  border-color: #475569;
+  background-color: #0b1220;
+  color: #f1f5f9;
+}
+
+:global(html.dark) .page .input::placeholder {
+  color: #94a3b8;
+}
+
+:global(html.dark) .page .primaryText {
+  color: #f1f5f9;
+}
+
+:global(html.dark) .page .mutedText {
+  color: #94a3b8;
+}
+
+:global(html.dark) .page .activeBadge {
+  background-color: #064e3b;
+  color: #a7f3d0;
+}
+
+:global(html.dark) .page .inactiveBadge {
+  background-color: #334155;
+  color: #cbd5e1;
+}
+
+:global(html.dark) .page .outlineButton {
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+:global(html.dark) .page .outlineButton:hover,
+:global(html.dark) .page .paginationButton:hover {
+  background-color: #1e293b;
+}
+
+:global(html.dark) .page .dangerSurface {
+  background-color: #450a0a;
+  color: #fecaca;
+}
+
+:global(html.dark) .page .dangerSurface:hover {
+  background-color: #7f1d1d;
+}
+
+:global(html.dark) .page .dangerIcon {
+  background-color: #450a0a;
+  color: #fca5a5;
+}
+
+:global(html.dark) .page .warningSurface {
+  background-color: #422006;
+  color: #fde68a;
+}
+
+:global(html.dark) .page .errorSurface {
+  border-color: #7f1d1d;
+  background-color: #450a0a;
+  color: #fecaca;
+}
+
+:global(html.dark) .page .errorText {
+  color: #fca5a5;
+}
+
+:global(html.dark) .page .paginationButton[aria-current="page"] {
+  background-color: #312e81;
+  color: #c4b5fd;
+}
