@@ -46,7 +46,7 @@ export type Asset = {
 ////////////////////////////////////////////////////
 /////////////// Asset Data /////////////////////////
 
-export const assets: Asset[] = [
+const baseAssets: Asset[] = [
   {
     "id": "AST-0001",
     "name": "MacBook Pro 14”",
@@ -10547,7 +10547,9 @@ export const assets: Asset[] = [
     "createdBy": 173,
     "updatedBy": 173
   },
-].map((asset) => ({
+];
+
+export const assets: Asset[] = baseAssets.map((asset): Asset => ({
   ...asset,
   assetImage: `https://picsum.photos/seed/${asset.id}/640/480`,
 }));

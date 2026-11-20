@@ -2,7 +2,7 @@
 'use client';
 
 import { QRCodeSVG } from "qrcode.react";
-import Image from "next/image";
+import NextImage from "next/image";
 import Barcode from "react-barcode";
 import { assets } from "@/data/asset";
 import { useTranslate } from "@/lib/language";
@@ -81,7 +81,7 @@ function AssetQRCode({ asset }: { asset: Asset }) {
       </h3>
 
       {asset.assetImage && (
-        <Image
+        <NextImage
           src={asset.assetImage}
           alt={`ภาพทรัพย์สิน ${asset.name}`}
           width={400}
